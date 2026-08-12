@@ -1,12 +1,12 @@
 /* RHKEARTH technology-section sensor cutaway */
 .sensor-engineering{position:relative;background:linear-gradient(180deg,#080908 0%,#050605 100%);border-top:1px solid #282825;border-bottom:1px solid #282825;overflow:hidden}
 .sensor-engineering:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 31% 42%,rgba(210,218,204,.045),transparent 30%),linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:auto,28px 28px,28px 28px;opacity:.6}
-.sensor-engineering svg{position:relative;z-index:1;width:100%;height:auto;display:block;min-height:430px;overflow:hidden}
-.sensor-engineering .eng-kicker{font-family:var(--sans);font-size:9px;letter-spacing:.07em;fill:#74746f}
+.sensor-engineering svg{position:relative;z-index:1;width:100%;height:auto;display:block;min-height:450px;overflow:visible}
+.sensor-engineering .eng-kicker{font-family:var(--sans);font-size:10px;letter-spacing:.07em;fill:#74746f}
 .sensor-engineering .eng-title{font-family:var(--sans);font-size:13px;font-weight:520;letter-spacing:-.01em;fill:#eeeeE8}
-.sensor-engineering .eng-label{font-family:var(--sans);font-size:9px;fill:#9b9b95}
-.sensor-engineering .eng-small{font-family:var(--mono);font-size:8px;letter-spacing:.02em;fill:#73736d}
-.sensor-engineering .eng-value{font-family:var(--mono);font-size:10px;fill:#e1e4dc}
+.sensor-engineering .eng-label{font-family:var(--sans);font-size:10px;fill:#a5a59f}
+.sensor-engineering .eng-small{font-family:var(--mono);font-size:8.5px;letter-spacing:.015em;fill:#777771}
+.sensor-engineering .eng-value{font-family:var(--mono);font-size:11px;fill:#e1e4dc}
 .sensor-engineering .metal{fill:#151815;stroke:#bec5b8;stroke-width:1.1}
 .sensor-engineering .metal-dark{fill:#0a0c0a;stroke:#60665e;stroke-width:1}
 .sensor-engineering .fine{fill:none;stroke:#8f998c;stroke-width:.65}
@@ -27,6 +27,8 @@
 .sensor-engineering .waterline{stroke:#363b36;stroke-width:1}
 .sensor-engineering .mesh-flex{transition:transform .18s ease,opacity .18s ease;transform-box:fill-box;transform-origin:center}
 .sensor-engineering .probe-head{transition:transform .2s ease;transform-box:fill-box;transform-origin:center}
+.sensor-engineering .eng-callout-card rect{fill:rgba(6,7,6,.88);stroke:#30342f;stroke-width:.75}
+.sensor-engineering .eng-inline-card{fill:#090b09;stroke:#3b403a;stroke-width:.7}
 
 /* Quiet caption outside the moving engineering drawing. */
 .sensor-cutaway-caption{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:end;padding:16px 0 18px;border-bottom:1px solid #242424;color:#7c7c76}
@@ -37,5 +39,5 @@
 .sensor-cutaway-caption .cutaway-status{font-family:var(--mono);font-size:.61rem;color:#82827c;white-space:nowrap}
 
 @keyframes engFlow{to{stroke-dashoffset:-72}}
-@media(max-width:800px){.sensor-engineering svg{min-height:360px}.sensor-engineering .eng-label{font-size:8px}.sensor-engineering .eng-small{font-size:7.5px}.sensor-cutaway-caption{grid-template-columns:1fr;gap:8px}.sensor-cutaway-caption .cutaway-status{white-space:normal}}
+@media(max-width:900px){.sensor-engineering svg{min-height:390px}.sensor-engineering .eng-label{font-size:9px}.sensor-engineering .eng-small{font-size:7.8px}.sensor-cutaway-caption{grid-template-columns:1fr;gap:8px}.sensor-cutaway-caption .cutaway-status{white-space:normal}}
 @media(prefers-reduced-motion:reduce){.sensor-engineering .flow{animation:none}}
