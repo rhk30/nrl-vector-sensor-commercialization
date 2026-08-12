@@ -2,7 +2,7 @@
 // RHKEARTH presentation layer. Content remains the independent NRL technology assessment.
 document.title='RHKEARTH | Independent Maritime Technology Assessment';
 const brand=document.querySelector('.brand strong');if(brand)brand.textContent='RHKEARTH';
-const brandSub=document.querySelector('.brand small');if(brandSub)brandSub.textContent='Maritime Technology Assessment // 2026';
+const brandSub=document.querySelector('.brand small');if(brandSub){brandSub.textContent='';brandSub.style.display='none';}
 [
   ['editorial.css','editorial.css?v=2'],
   ['hero-fix.css','hero-fix.css?v=4'],
