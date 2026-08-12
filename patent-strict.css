@@ -1,44 +1,62 @@
 /* RHKEARTH patent-strict presentation layer.
-   Visible quantitative displays are limited to values or relationships stated
-   in US11287508B2 / US11408961B2. Conceptual mission geometry remains clearly
-   illustrative and is not presented as measured performance. */
-
-/* Greeting sequence is cinematic / passive, not a UI selector. */
+   Patent facts come from US11287508B2 / US11408961B2.
+   Interactive geometry is explicitly illustrative, never a performance claim. */
 .scene-nav{display:none!important}
 .rhk-media-credit{display:none!important}
 .scene-info{right:34px!important}
 .scene-progress{display:block}
-
-/* Keep source provenance in repo documentation, not as a public-page section. */
 #sources{display:none!important}
-
-/* Technology: only the patent-described angle relationship remains interactive. */
 .patent-strict-hidden{display:none!important}
-.controls.patent-strict-controls{display:flex;flex-direction:column;justify-content:center}
-.controls.patent-strict-controls .control{border-top:1px solid #202020}
+
+/* Technology */
+.controls.patent-strict-controls{display:flex;flex-direction:column;justify-content:center;gap:0}
+.controls.patent-strict-controls .helper{max-width:320px;margin-bottom:22px;line-height:1.55}
+.controls.patent-strict-controls .control{border-top:1px solid #242424;padding:18px 0}
+.patent-control-label{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-bottom:10px}
+.patent-control-label>span{font-size:.64rem;color:#8a8a84}
+.patent-control-label small{font-size:.55rem;color:#595954;white-space:nowrap}
+.patent-reference-control{border-top:1px solid #242424;padding:18px 0}
+.patent-reference-options{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.patent-reference-options button,.mission-reference-options button,.patent-demo-presets button{appearance:none;border:1px solid #292929;background:#090909;color:#777772;font:inherit;cursor:pointer;transition:border-color .18s ease,color .18s ease,background .18s ease}
+.patent-reference-options button{min-height:72px;padding:11px 9px;text-align:left}
+.patent-reference-options button b{display:block;font-size:.78rem;font-weight:500;color:#d9d9d4;margin-bottom:5px}
+.patent-reference-options button span{display:block;font-size:.55rem;line-height:1.35;color:#666661}
+.patent-reference-options button:hover,.mission-reference-options button:hover,.patent-demo-presets button:hover{border-color:#555;color:#ddd}
+.patent-reference-options button.active,.mission-reference-options button.active,.patent-demo-presets button.active{border-color:#d4d6cf;background:#111311;color:#f0f0eb}
+.patent-reference-options button.active b{color:#fff}
+.patent-geometry-strip{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #242424;border-bottom:1px solid #242424;margin-top:2px}
+.patent-geometry-strip>div{padding:14px 10px 14px 0;border-right:1px solid #222}
+.patent-geometry-strip>div:not(:first-child){padding-left:12px}
+.patent-geometry-strip>div:last-child{border-right:0}
+.patent-geometry-strip span{display:block;font-size:.55rem;color:#62625d;line-height:1.25}
+.patent-geometry-strip b{display:block;margin-top:5px;font-size:.84rem;font-weight:470;color:#e2e2dc}
 .patent-strict-readouts{grid-template-columns:repeat(4,minmax(0,1fr))!important}
-.patent-strict-readouts .readout{min-height:104px;display:flex;flex-direction:column;justify-content:center}
+.patent-strict-readouts .readout{min-height:112px;display:flex;flex-direction:column;justify-content:center}
+.patent-strict-readouts .readout b{font-size:1.04rem;line-height:1.25}
 
-/* Mission becomes a patent-concept geometry view rather than a performance dashboard. */
-.mission-shell.patent-concept-mode .scenario-row,
-.mission-shell.patent-concept-mode .mission-actions,
-.mission-shell.patent-concept-mode .control-group.patent-strict-hidden{display:none!important}
-.mission-shell.patent-concept-mode .mission-grid{grid-template-columns:260px minmax(520px,1fr) 300px}
+/* Mission demo */
+.mission-shell.patent-concept-mode .scenario-row,.mission-shell.patent-concept-mode .mission-actions,.mission-shell.patent-concept-mode .control-group.patent-strict-hidden{display:none!important}
+.mission-shell.patent-concept-mode .mission-grid{grid-template-columns:282px minmax(520px,1fr) 304px}
+.mission-shell.patent-concept-mode .mission-controls{padding:20px}
+.mission-shell.patent-concept-mode .control-group{padding:17px 0}
+.mission-shell.patent-concept-mode .control-group label{align-items:center;text-transform:none;letter-spacing:0;font-size:.64rem}
+.mission-shell.patent-concept-mode .control-group label span{color:#858580}
+.mission-shell.patent-concept-mode .control-group label strong{font-size:.7rem;color:#e0e0da}
+.mission-shell.patent-concept-mode select{margin-top:10px;border:0;border-bottom:1px solid #30302e;background:#080808;padding:10px 0;font-size:.72rem}
+.patent-demo-presets{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.patent-demo-presets button{min-height:38px;padding:9px 10px;font-size:.61rem;text-align:left}
+.mission-reference-options{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.mission-reference-options button{padding:8px 6px;font-size:.62rem}
 .mission-shell.patent-concept-mode .mission-readout{padding:20px}
-.mission-shell.patent-concept-mode .readout-block{padding:14px 0}
-.mission-shell.patent-concept-mode .readout-block b{font-size:.98rem;line-height:1.3}
-.mission-shell.patent-concept-mode #bearingCone,
-.mission-shell.patent-concept-mode #scanLine,
-.mission-shell.patent-concept-mode #stageRangeLabel{display:none!important}
-.mission-shell.patent-concept-mode .legend{max-width:390px}
+.mission-shell.patent-concept-mode .readout-block{padding:15px 0}
+.mission-shell.patent-concept-mode .readout-block b{font-size:.96rem;line-height:1.28}
+.mission-shell.patent-concept-mode #bearingCone,.mission-shell.patent-concept-mode #scanLine,.mission-shell.patent-concept-mode #stageRangeLabel{display:none!important}
+.mission-shell.patent-concept-mode .legend{max-width:400px}
 
-/* Applications remain a qualitative commercialization discussion, never a numeric chart. */
-.opportunities.patent-strict-applications .op{grid-template-columns:minmax(210px,.9fr) minmax(300px,1.5fr) minmax(180px,.7fr)}
-.opportunities.patent-strict-applications .op .rank,
-.opportunities.patent-strict-applications .op .score{display:none!important}
+/* Applications */
+.opportunities.patent-strict-applications .op{grid-template-columns:minmax(210px,.9fr) minmax(300px,1.5fr) minmax(150px,.55fr)}
+.opportunities.patent-strict-applications .op .rank,.opportunities.patent-strict-applications .op .score{display:none!important}
 .opportunities.patent-strict-applications .op>div{padding-left:0;padding-right:22px}
-
-/* Formula strip is now composed only of relations stated in the patent text. */
 .formula small{display:block;color:#6f6f69;font-size:.62rem;line-height:1.4;max-width:250px}
 
 @media(max-width:1050px){
@@ -48,6 +66,9 @@
 }
 @media(max-width:720px){
   .scene-info{right:20px!important}
+  .patent-reference-options,.patent-geometry-strip{grid-template-columns:1fr}
+  .patent-geometry-strip>div{border-right:0;border-bottom:1px solid #222;padding-left:0!important}
+  .patent-geometry-strip>div:last-child{border-bottom:0}
   .mission-shell.patent-concept-mode .mission-grid{grid-template-columns:1fr}
   .mission-shell.patent-concept-mode .mission-readout{grid-template-columns:1fr}
   .opportunities.patent-strict-applications .op{grid-template-columns:1fr}
