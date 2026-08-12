@@ -1,0 +1,55 @@
+/* RHKEARTH patent-strict presentation layer.
+   Visible quantitative displays are limited to values or relationships stated
+   in US11287508B2 / US11408961B2. Conceptual mission geometry remains clearly
+   illustrative and is not presented as measured performance. */
+
+/* Greeting sequence is cinematic / passive, not a UI selector. */
+.scene-nav{display:none!important}
+.rhk-media-credit{display:none!important}
+.scene-info{right:34px!important}
+.scene-progress{display:block}
+
+/* Keep source provenance in repo documentation, not as a public-page section. */
+#sources{display:none!important}
+
+/* Technology: only the patent-described angle relationship remains interactive. */
+.patent-strict-hidden{display:none!important}
+.controls.patent-strict-controls{display:flex;flex-direction:column;justify-content:center}
+.controls.patent-strict-controls .control{border-top:1px solid #202020}
+.patent-strict-readouts{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.patent-strict-readouts .readout{min-height:104px;display:flex;flex-direction:column;justify-content:center}
+
+/* Mission becomes a patent-concept geometry view rather than a performance dashboard. */
+.mission-shell.patent-concept-mode .scenario-row,
+.mission-shell.patent-concept-mode .mission-actions,
+.mission-shell.patent-concept-mode .control-group.patent-strict-hidden{display:none!important}
+.mission-shell.patent-concept-mode .mission-grid{grid-template-columns:260px minmax(520px,1fr) 300px}
+.mission-shell.patent-concept-mode .mission-readout{padding:20px}
+.mission-shell.patent-concept-mode .readout-block{padding:14px 0}
+.mission-shell.patent-concept-mode .readout-block b{font-size:.98rem;line-height:1.3}
+.mission-shell.patent-concept-mode #bearingCone,
+.mission-shell.patent-concept-mode #scanLine,
+.mission-shell.patent-concept-mode #stageRangeLabel{display:none!important}
+.mission-shell.patent-concept-mode .legend{max-width:390px}
+
+/* Applications remain a qualitative commercialization discussion, never a numeric chart. */
+.opportunities.patent-strict-applications .op{grid-template-columns:minmax(210px,.9fr) minmax(300px,1.5fr) minmax(180px,.7fr)}
+.opportunities.patent-strict-applications .op .rank,
+.opportunities.patent-strict-applications .op .score{display:none!important}
+.opportunities.patent-strict-applications .op>div{padding-left:0;padding-right:22px}
+
+/* Formula strip is now composed only of relations stated in the patent text. */
+.formula small{display:block;color:#6f6f69;font-size:.62rem;line-height:1.4;max-width:250px}
+
+@media(max-width:1050px){
+  .mission-shell.patent-concept-mode .mission-grid{grid-template-columns:230px 1fr}
+  .mission-shell.patent-concept-mode .mission-readout{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px;border-left:0;border-top:1px solid #202020}
+  .patent-strict-readouts{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:720px){
+  .scene-info{right:20px!important}
+  .mission-shell.patent-concept-mode .mission-grid{grid-template-columns:1fr}
+  .mission-shell.patent-concept-mode .mission-readout{grid-template-columns:1fr}
+  .opportunities.patent-strict-applications .op{grid-template-columns:1fr}
+  .patent-strict-readouts{grid-template-columns:1fr!important}
+}
