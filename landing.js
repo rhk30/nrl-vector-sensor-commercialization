@@ -3,6 +3,22 @@
 document.title='RHKEARTH | Independent Maritime Technology Assessment';
 const brand=document.querySelector('.brand strong');if(brand)brand.textContent='RHKEARTH';
 const brandSub=document.querySelector('.brand small');if(brandSub){brandSub.textContent='';brandSub.style.display='none';}
+
+// Site-wide punctuation rule: no em dashes in rendered copy, including content
+// inserted later by enhancement scripts.
+function removeEmDashes(root=document.body){
+  if(!root)return;
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+  const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+  nodes.forEach(node=>{if(node.nodeValue&&node.nodeValue.includes('—'))node.nodeValue=node.nodeValue.replaceAll('—',' / ');});
+}
+removeEmDashes();
+const punctuationGuard=new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(node=>{
+  if(node.nodeType===Node.TEXT_NODE){if(node.nodeValue?.includes('—'))node.nodeValue=node.nodeValue.replaceAll('—',' / ');}
+  else if(node.nodeType===Node.ELEMENT_NODE)removeEmDashes(node);
+})));
+punctuationGuard.observe(document.body,{childList:true,subtree:true});
+
 [
   ['editorial.css','editorial.css?v=2'],
   ['hero-fix.css','hero-fix.css?v=4'],
@@ -11,7 +27,7 @@ const brandSub=document.querySelector('.brand small');if(brandSub){brandSub.text
   ['sensor-realism.css','sensor-realism.css?v=2'],
   ['formula-layout.css','formula-layout.css?v=1'],
   ['patent-accuracy.css','patent-accuracy.css?v=2'],
-  ['patent-strict.css','patent-strict.css?v=1']
+  ['patent-strict.css','patent-strict.css?v=2']
 ].forEach(([key,href])=>{
   if(!document.querySelector(`link[data-rhk-style="${key}"]`)){
     const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.dataset.rhkStyle=key;document.head.appendChild(l);
@@ -44,8 +60,8 @@ const loadHeroMedia=()=>import('./hero-media.js?v=3').catch(err=>console.warn('R
 const loadHeroPolish=()=>import('./hero-polish.js?v=3').catch(err=>console.warn('RHKEARTH cover polish fallback:',err));
 const loadSensor=()=>import('./sensor-realism.js?v=2').catch(err=>console.warn('RHKEARTH sensor cutaway fallback:',err));
 const loadPatentAccuracy=()=>import('./patent-accuracy.js?v=2').catch(err=>console.warn('RHKEARTH patent-accuracy layer fallback:',err));
-const loadPatentStrict=()=>import('./patent-strict.js?v=2').catch(err=>console.warn('RHKEARTH patent-strict layer fallback:',err));
-const load3D=()=>import('./mission3d.js?v=2').catch(err=>console.warn('RHKEARTH 3D demonstrator fallback:',err));
+const loadPatentStrict=()=>import('./patent-strict.js?v=3').catch(err=>console.warn('RHKEARTH patent-strict layer fallback:',err));
+const load3D=()=>import('./mission3d.js?v=3').catch(err=>console.warn('RHKEARTH 3D demonstrator fallback:',err));
 function loadEnhancements(){loadHeroMedia();loadHeroPolish();loadSensor().then(loadPatentAccuracy).then(loadPatentStrict);load3D();}
 if(document.readyState==='complete')loadEnhancements();else window.addEventListener('load',loadEnhancements,{once:true});
 })();
