@@ -5,7 +5,7 @@ const brand=document.querySelector('.brand strong');if(brand)brand.textContent='
 const brandSub=document.querySelector('.brand small');if(brandSub)brandSub.textContent='Maritime Technology Assessment // 2026';
 [
   ['editorial.css','editorial.css?v=2'],
-  ['hero-fix.css','hero-fix.css?v=3']
+  ['hero-fix.css','hero-fix.css?v=4']
 ].forEach(([key,href])=>{
   if(!document.querySelector(`link[data-rhk-style="${key}"]`)){
     const l=document.createElement('link');
