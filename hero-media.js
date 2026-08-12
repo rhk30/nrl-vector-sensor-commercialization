@@ -3,11 +3,12 @@ const panel=document.querySelector('.scene-panel');if(!panel)return;
 const svg=panel.querySelector('svg');if(!svg)return;
 
 // Atmospheric context only. These media do not depict the NRL sensor in use.
-// Harbor footage is intentionally preserved exactly as previously selected.
+// Selection rule: platform-first imagery, no promotional text overlays, and no
+// discernible faces. Harbor footage is intentionally preserved unchanged.
 const media={
-  subsea:{type:'video',src:'https://upload.wikimedia.org/wikipedia/commons/6/67/Happy_120th_Birthday_to_the_U.S._Navy_Submarine_Force.webm',position:'50% 50%'},
-  fleet:{type:'video',src:'https://upload.wikimedia.org/wikipedia/commons/1/11/USS_Rafael_Peralta_Enforces_Maritime_Blockade_%281006061%29.webm',position:'52% 50%'},
-  swcc:{type:'image',src:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/US_Navy_100915-N-8689C-034_pecial_warfare_combatant-craft_crewmen_%28SWCC%29_assigned_to_Special_Boat_Team_%28SBT%29_20_pilot_an_11-meter_rigid-hull_inflat.jpg/960px-US_Navy_100915-N-8689C-034_pecial_warfare_combatant-craft_crewmen_%28SWCC%29_assigned_to_Special_Boat_Team_%28SBT%29_20_pilot_an_11-meter_rigid-hull_inflat.jpg',position:'55% 50%'},
+  subsea:{type:'image',src:'https://upload.wikimedia.org/wikipedia/commons/9/99/Flickr_-_Official_U.S._Navy_Imagery_-_USS_Virginia_makes_way_up_the_Thames_River..jpg',position:'50% 48%'},
+  fleet:{type:'video',src:'https://upload.wikimedia.org/wikipedia/commons/2/24/USN_Destroyers_hauling_it.webm',position:'50% 46%'},
+  swcc:{type:'image',src:'https://upload.wikimedia.org/wikipedia/commons/4/4f/SBT_22_on_SOC-R_boats.jpg',position:'50% 52%'},
   harbor:{type:'video',src:'https://upload.wikimedia.org/wikipedia/commons/transcoded/e/e0/Forward_View_of_CCGS_McIntyre_Bay.webm/Forward_View_of_CCGS_McIntyre_Bay.webm.360p.vp9.webm',position:'50% 50%'}
 };
 
@@ -38,10 +39,7 @@ function sync(){
   layer.querySelectorAll('.rhk-media-item').forEach(item=>{
     const on=item.dataset.scene===active;item.classList.toggle('active',on);
     const video=item.querySelector('video');
-    if(video){
-      hardMute(video);
-      if(on)video.play().catch(()=>{});else video.pause();
-    }
+    if(video){hardMute(video);if(on)video.play().catch(()=>{});else video.pause();}
   });
   panel.classList.toggle('has-live-media',!!media[active]);
 }
