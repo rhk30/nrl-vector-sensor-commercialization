@@ -1,0 +1,18 @@
+/* Keep the opening mission illustration fully inside its visual frame. */
+.scene-panel svg{
+  position:absolute;
+  top:2.5%;
+  right:1.5%;
+  bottom:2.5%;
+  left:3.5%;
+  width:95%;
+  height:95%;
+  max-width:none;
+  overflow:visible;
+}
+@media(max-width:1100px){
+  .scene-panel svg{left:2%;right:2%;width:96%;}
+}
+@media(max-width:640px){
+  .scene-panel svg{top:3%;bottom:3%;left:1.5%;right:1.5%;width:97%;height:94%;}
+}
