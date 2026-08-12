@@ -1,69 +1,59 @@
-# NRL Low-Frequency Vector Sensor — Commercialization Lab
+# NRL Low-Frequency Vector Sensor — Commercialization Assessment
 
-Interactive static website for evaluating commercialization pathways around the Naval Research Laboratory low-frequency acoustic vector sensor patent family.
+Interactive technical and commercialization assessment of a Naval Research Laboratory low-frequency acoustic vector-sensor patent family.
 
-## Patents
+## Project status
+
+This repository is an **independent evaluation project**. The patents and underlying government intellectual property are not owned by this repository's author.
+
+- The relevant patents are assigned to the **United States of America, as represented by the Secretary of the Navy**.
+- This project does **not** claim a patent license, exclusive rights, Navy sponsorship, NRL sponsorship, or an operational Navy deployment.
+- Any future commercialization rights would require the appropriate license or other agreement with the responsible government technology-transfer office.
+
+## Patents under evaluation
 
 - US11287508B2 — https://patents.google.com/patent/US11287508
 - US11408961B2 — https://patents.google.com/patent/US11408961
 
-## What the site includes
+## Live experience
 
-- Interactive low-frequency acoustic screening model
-- Mesh geometry and wavelength comparison
-- Patent architecture visualization
+The GitHub Pages site includes:
+
+- An animated military and commercial use-case landing sequence
+- A configurable vessel / submerged-source mission demonstrator
+- A low-frequency acoustic screening model
+- Patent architecture visualizations
 - Commercial opportunity ranking
-- IP / technical diligence checklist
-- 90-day de-risking plan
+- Technical and IP diligence questions
+- A proposed 90-day de-risking plan
 
-## Important limitation
+## Important technical limitation
 
-The physics panel is a **screening model**, not a validated engineering simulation. It uses basic plane-wave acoustic equations and heuristic geometry scaling anchored to publicly described NRL prototype parameters. It should not be presented as NRL-validated performance data.
+The interactive models are **illustrative screening models**, not validated NRL engineering simulations and not operational sonar-performance models. They use public literature values, basic acoustic relationships, generic user-selected source levels, and transparent heuristics to explain the patent concepts.
+
+No real submarine, ship, special-operations, or other platform acoustic-signature data is included.
 
 ## Run locally
 
-No build system is required.
-
-Open `index.html` directly in a browser, or run a tiny local web server:
+No build system is required. Open `index.html` directly or run:
 
 ```bash
 python -m http.server 8000
 ```
 
-Then open:
+Then visit `http://localhost:8000`.
 
-```text
-http://localhost:8000
-```
+## GitHub Pages
 
-## Publish with GitHub Pages
+The repository can be published from the `main` branch at `/ (root)` using **Settings → Pages → Deploy from a branch**.
 
-1. Create a new public GitHub repository.
-2. Upload `index.html`, `README.md`, and `.nojekyll`.
-3. Open **Settings → Pages**.
-4. Under **Build and deployment**, choose **Deploy from a branch**.
-5. Select the `main` branch and `/ (root)`.
-6. Save.
-
-GitHub will provide a public URL similar to:
-
-```text
-https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/
-```
-
-## Suggested repository name
-
-`nrl-vector-sensor-commercialization`
-
-## Primary sources
+## Primary technical sources
 
 - NRL / Journal of Applied Physics: *Mesh-type acoustic vector sensor*
 - US11287508B2
 - US11408961B2
-- TechLink / Defense Patent Holiday material
-
-For an external investor, government, or partner-facing version, add the full source list and citations for all market and procurement claims before publishing.
+- TechLink / Defense Patent Holiday materials
 
 ## Disclaimer
 
-Research and commercialization screening only. Not legal advice, a freedom-to-operate opinion, an engineering qualification report, or an investment recommendation.
+Independent research and commercialization screening only. Not an NRL, Department of the Navy, or Department of Defense website. Not legal advice, a freedom-to-operate opinion, an engineering qualification report, or evidence of patent ownership or licensing.
