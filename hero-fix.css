@@ -1,97 +1,110 @@
 /* RHKEARTH hero framing + motion cleanup.
-   Preserve the SVG groups' built-in translate(...) attributes so craft and sensor
-   elements do not jump to the SVG origin / top-left during CSS animation. */
+   This layer keeps the mission scenes comfortably inside the viewport at every
+   desktop aspect ratio and avoids CSS transforms replacing SVG placement. */
 
 .scene-panel{
   overflow:hidden;
 }
 
-/* Give every scene deliberate safe-area around all four edges. */
+/* Center the whole SVG inside a generous visual safe-area. Using a centered
+   percentage box is more reliable than pinning all four edges on wide screens. */
 .scene-panel svg{
   position:absolute;
-  top:4%;
-  right:4%;
-  bottom:4%;
-  left:5%;
-  width:91%;
-  height:92%;
+  top:50%;
+  left:50%;
+  right:auto;
+  bottom:auto;
+  width:84%;
+  height:84%;
   max-width:none;
   overflow:visible;
-  transform:none;
+  transform:translate(-47%,-47%);
+  transform-origin:center;
 }
 
-/* IMPORTANT: the original SVG groups already use transform="translate(...)".
-   Animating CSS `transform` on those same groups can replace that placement and
-   pull vessels/sensors toward the top-left. Individual `translate` preserves it. */
+/* Move the two tallest surface silhouettes farther from the upper boundary.
+   `translate` composes with their native SVG transform attributes. */
+.scene-group[data-scene="subsea"] > g:last-of-type{
+  translate:0 30px;
+}
+.scene-group[data-scene="fleet"] .craft-drift{
+  translate:18px 34px;
+  animation:none !important;
+}
+.scene-group[data-scene="wind"] .craft-drift{
+  translate:8px 18px;
+}
+
+/* Keep moving craft motion restrained and preserve their SVG translate(...)
+   coordinates rather than replacing them with CSS transform. */
 .craft-drift{
-  animation:rhkeCraftDrift 10s cubic-bezier(.45,0,.55,1) infinite !important;
+  animation:rhkeCraftDrift 11s cubic-bezier(.45,0,.55,1) infinite !important;
 }
 .sub-drift{
-  animation:rhkeSubDrift 11.5s cubic-bezier(.45,0,.55,1) infinite !important;
+  animation:rhkeSubDrift 12s cubic-bezier(.45,0,.55,1) infinite !important;
 }
 .sensor-ping{
-  animation:rhkeSensorPulse 3.6s ease-in-out infinite !important;
+  animation:rhkeSensorPulse 3.8s ease-in-out infinite !important;
+}
+
+/* Fleet craft intentionally stays static so its mast never approaches a crop. */
+.scene-group[data-scene="fleet"] .craft-drift{
+  animation:none !important;
+  translate:18px 34px;
 }
 
 @keyframes rhkeCraftDrift{
   0%,100%{translate:0 0;}
-  50%{translate:5px -1.5px;}
+  50%{translate:4px -1px;}
 }
 @keyframes rhkeSubDrift{
   0%,100%{translate:0 0;}
-  50%{translate:-5px 2px;}
+  50%{translate:-4px 1.5px;}
 }
 @keyframes rhkeSensorPulse{
-  0%,100%{opacity:.76;}
+  0%,100%{opacity:.80;}
   50%{opacity:1;}
 }
 
-/* Slower, thinner acoustic pulses read more like a system visualization and
-   less like a decorative website animation. */
+/* Clean, slow acoustic wavefronts. */
 .hero-wave{
-  stroke-width:.8 !important;
-  animation-duration:5.2s !important;
+  stroke-width:.72 !important;
+  animation-duration:5.8s !important;
 }
-.hero-wave:nth-child(2){animation-delay:-1.73s !important;}
-.hero-wave:nth-child(3){animation-delay:-3.46s !important;}
+.hero-wave:nth-child(2){animation-delay:-1.93s !important;}
+.hero-wave:nth-child(3){animation-delay:-3.86s !important;}
 
 @keyframes heroPulse{
-  0%{opacity:.24;transform:scale(.34);}
-  72%{opacity:.08;}
-  100%{opacity:0;transform:scale(1.08);}
+  0%{opacity:.20;transform:scale(.40);}
+  72%{opacity:.07;}
+  100%{opacity:0;transform:scale(1.02);}
 }
 
-/* Make scene changes feel deliberate rather than like a slideshow flash. */
 .scene-group{
-  transition:opacity 1.05s cubic-bezier(.22,.61,.36,1) !important;
+  transition:opacity 1.1s cubic-bezier(.22,.61,.36,1) !important;
 }
-
-/* Reduce background motion and turbine motion slightly. */
-.ocean-flow{animation-duration:14s !important;opacity:.62;}
-.rotor{animation-duration:14s !important;}
-.track-line{opacity:.38 !important;stroke-dasharray:4 7 !important;}
+.ocean-flow{animation-duration:16s !important;opacity:.54;}
+.rotor{animation-duration:16s !important;}
+.track-line{opacity:.34 !important;stroke-dasharray:4 8 !important;}
 
 @media(max-width:1100px){
   .scene-panel svg{
-    top:4%;
-    bottom:4%;
-    left:4%;
-    right:4%;
-    width:92%;
-    height:92%;
+    width:88%;
+    height:88%;
+    transform:translate(-50%,-48%);
   }
+  .scene-group[data-scene="fleet"] .craft-drift{translate:12px 38px;}
 }
 
 @media(max-width:640px){
   .scene-panel svg{
-    top:5%;
-    bottom:5%;
-    left:3%;
-    right:3%;
-    width:94%;
-    height:90%;
+    width:90%;
+    height:86%;
+    transform:translate(-50%,-48%);
   }
   .craft-drift,.sub-drift{animation:none !important;}
+  .scene-group[data-scene="fleet"] .craft-drift{translate:8px 42px;}
+  .scene-group[data-scene="subsea"] > g:last-of-type{translate:0 34px;}
 }
 
 @media(prefers-reduced-motion:reduce){
