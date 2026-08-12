@@ -3,7 +3,18 @@
 document.title='RHKEARTH | Independent Maritime Technology Assessment';
 const brand=document.querySelector('.brand strong');if(brand)brand.textContent='RHKEARTH';
 const brandSub=document.querySelector('.brand small');if(brandSub)brandSub.textContent='Maritime Technology Assessment // 2026';
-['editorial.css','hero-fix.css'].forEach(href=>{if(!document.querySelector(`link[href="${href}"]`)){const l=document.createElement('link');l.rel='stylesheet';l.href=href;document.head.appendChild(l)}});
+[
+  ['editorial.css','editorial.css?v=2'],
+  ['hero-fix.css','hero-fix.css?v=3']
+].forEach(([key,href])=>{
+  if(!document.querySelector(`link[data-rhk-style="${key}"]`)){
+    const l=document.createElement('link');
+    l.rel='stylesheet';
+    l.href=href;
+    l.dataset.rhkStyle=key;
+    document.head.appendChild(l);
+  }
+});
 
 const scenes=[
 {id:'subsea',kicker:'MILITARY CONCEPT // UNDERSEA',title:'Subsea surveillance',copy:'Illustrative moored or distributed vector-sensor nodes estimate bearing to a low-frequency submerged acoustic source without requiring a large local array.'},
