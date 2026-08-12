@@ -18,35 +18,41 @@
 .patent-reference-control{border-top:1px solid #242424;padding:18px 0}
 .patent-reference-options{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .patent-reference-options button,.mission-reference-options button,.patent-demo-presets button{appearance:none;border:1px solid #292929;background:#090909;color:#777772;font:inherit;cursor:pointer;transition:border-color .18s ease,color .18s ease,background .18s ease}
-.patent-reference-options button{min-height:72px;padding:11px 9px;text-align:left}
+.patent-reference-options button{min-height:72px;padding:11px 9px;text-align:center;white-space:normal;overflow-wrap:anywhere}
 .patent-reference-options button b{display:block;font-size:.78rem;font-weight:500;color:#d9d9d4;margin-bottom:5px}
 .patent-reference-options button span{display:block;font-size:.55rem;line-height:1.35;color:#666661}
 .patent-reference-options button:hover,.mission-reference-options button:hover,.patent-demo-presets button:hover{border-color:#555;color:#ddd}
 .patent-reference-options button.active,.mission-reference-options button.active,.patent-demo-presets button.active{border-color:#d4d6cf;background:#111311;color:#f0f0eb}
 .patent-reference-options button.active b{color:#fff}
 .patent-geometry-strip{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #242424;border-bottom:1px solid #242424;margin-top:2px}
-.patent-geometry-strip>div{padding:14px 10px 14px 0;border-right:1px solid #222}
+.patent-geometry-strip>div{padding:14px 10px 14px 0;border-right:1px solid #222;text-align:center}
 .patent-geometry-strip>div:not(:first-child){padding-left:12px}
 .patent-geometry-strip>div:last-child{border-right:0}
 .patent-geometry-strip span{display:block;font-size:.55rem;color:#62625d;line-height:1.25}
 .patent-geometry-strip b{display:block;margin-top:5px;font-size:.84rem;font-weight:470;color:#e2e2dc}
 .patent-strict-readouts{grid-template-columns:repeat(4,minmax(0,1fr))!important}
-.patent-strict-readouts .readout{min-height:112px;display:flex;flex-direction:column;justify-content:center}
+.patent-strict-readouts .readout{min-height:112px;display:flex;flex-direction:column;justify-content:center;text-align:center}
 .patent-strict-readouts .readout b{font-size:1.04rem;line-height:1.25}
 
 /* Mission demo */
 .mission-shell.patent-concept-mode .scenario-row,.mission-shell.patent-concept-mode .mission-actions,.mission-shell.patent-concept-mode .control-group.patent-strict-hidden{display:none!important}
-.mission-shell.patent-concept-mode .mission-grid{grid-template-columns:282px minmax(520px,1fr) 304px}
-.mission-shell.patent-concept-mode .mission-controls{padding:20px}
-.mission-shell.patent-concept-mode .control-group{padding:17px 0}
-.mission-shell.patent-concept-mode .control-group label{align-items:center;text-transform:none;letter-spacing:0;font-size:.64rem}
-.mission-shell.patent-concept-mode .control-group label span{color:#858580}
-.mission-shell.patent-concept-mode .control-group label strong{font-size:.7rem;color:#e0e0da}
-.mission-shell.patent-concept-mode select{margin-top:10px;border:0;border-bottom:1px solid #30302e;background:#080808;padding:10px 0;font-size:.72rem}
-.patent-demo-presets{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
-.patent-demo-presets button{min-height:38px;padding:9px 10px;font-size:.61rem;text-align:left}
-.mission-reference-options{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
-.mission-reference-options button{padding:8px 6px;font-size:.62rem}
+.mission-shell.patent-concept-mode .mission-grid{grid-template-columns:350px minmax(500px,1fr) 300px}
+.mission-shell.patent-concept-mode .mission-controls{padding:22px 24px 24px;background:#0a0b0a}
+.mission-shell.patent-concept-mode .control-group{padding:20px 0;border-top:1px solid #232323}
+.mission-shell.patent-concept-mode .control-group:first-child{padding-top:0;border-top:0}
+.mission-shell.patent-concept-mode .control-group label{display:flex;align-items:center;justify-content:center;gap:10px;min-height:18px;text-transform:none;letter-spacing:0;font-size:.64rem;text-align:center;line-height:1.35}
+.mission-shell.patent-concept-mode .control-group label span{color:#858580;text-align:center}
+.mission-shell.patent-concept-mode .control-group label strong{font-size:.7rem;color:#e0e0da;text-align:center;white-space:nowrap}
+.mission-shell.patent-concept-mode select{display:block;width:100%;height:44px;margin-top:12px;border:1px solid #2d2d2b;background:#080908;padding:0 36px 0 14px;font-size:.72rem;line-height:44px;text-align:center;text-align-last:center;color:#deded8;white-space:normal}
+.mission-shell.patent-concept-mode select:focus{outline:none;border-color:#64645f}
+
+.patent-demo-presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.patent-demo-presets button{display:flex;align-items:center;justify-content:center;width:100%;min-width:0;min-height:48px;padding:10px 12px;font-size:.61rem;line-height:1.3;text-align:center;white-space:normal;overflow-wrap:anywhere}
+
+.mission-reference-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.mission-reference-options button{display:flex;align-items:center;justify-content:center;min-width:0;min-height:40px;padding:8px 8px;font-size:.62rem;line-height:1.2;text-align:center;white-space:normal}
+
+.mission-shell.patent-concept-mode .control-group input[type=range]{display:block;width:100%;margin:14px 0 0}
 .mission-shell.patent-concept-mode .mission-readout{padding:20px}
 .mission-shell.patent-concept-mode .readout-block{padding:15px 0}
 .mission-shell.patent-concept-mode .readout-block b{font-size:.96rem;line-height:1.28}
@@ -57,19 +63,24 @@
 .opportunities.patent-strict-applications .op{grid-template-columns:minmax(210px,.9fr) minmax(300px,1.5fr) minmax(150px,.55fr)}
 .opportunities.patent-strict-applications .op .rank,.opportunities.patent-strict-applications .op .score{display:none!important}
 .opportunities.patent-strict-applications .op>div{padding-left:0;padding-right:22px}
-.formula small{display:block;color:#6f6f69;font-size:.62rem;line-height:1.4;max-width:250px}
+.formula small{display:block;color:#6f6f69;font-size:.62rem;line-height:1.4;max-width:250px;margin-left:auto;margin-right:auto}
 
-@media(max-width:1050px){
-  .mission-shell.patent-concept-mode .mission-grid{grid-template-columns:230px 1fr}
+@media(max-width:1180px){
+  .mission-shell.patent-concept-mode .mission-grid{grid-template-columns:320px minmax(460px,1fr)}
   .mission-shell.patent-concept-mode .mission-readout{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px;border-left:0;border-top:1px solid #202020}
-  .patent-strict-readouts{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:900px){
+  .mission-shell.patent-concept-mode .mission-grid{grid-template-columns:1fr}
+  .mission-shell.patent-concept-mode .mission-controls{border-right:0;border-bottom:1px solid #202020}
+  .mission-shell.patent-concept-mode .mission-readout{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:720px){
   .scene-info{right:20px!important}
   .patent-reference-options,.patent-geometry-strip{grid-template-columns:1fr}
   .patent-geometry-strip>div{border-right:0;border-bottom:1px solid #222;padding-left:0!important}
   .patent-geometry-strip>div:last-child{border-bottom:0}
-  .mission-shell.patent-concept-mode .mission-grid{grid-template-columns:1fr}
+  .mission-shell.patent-concept-mode .mission-controls{padding:20px}
+  .patent-demo-presets{grid-template-columns:1fr}
   .mission-shell.patent-concept-mode .mission-readout{grid-template-columns:1fr}
   .opportunities.patent-strict-applications .op{grid-template-columns:1fr}
   .patent-strict-readouts{grid-template-columns:1fr!important}
