@@ -5,7 +5,8 @@ const brand=document.querySelector('.brand strong');if(brand)brand.textContent='
 const brandSub=document.querySelector('.brand small');if(brandSub)brandSub.textContent='Maritime Technology Assessment // 2026';
 [
   ['editorial.css','editorial.css?v=2'],
-  ['hero-fix.css','hero-fix.css?v=4']
+  ['hero-fix.css','hero-fix.css?v=4'],
+  ['sensor-realism.css','sensor-realism.css?v=1']
 ].forEach(([key,href])=>{
   if(!document.querySelector(`link[data-rhk-style="${key}"]`)){
     const l=document.createElement('link');
@@ -26,7 +27,8 @@ const scenes=[
 let idx=0,timer=null;const dur=6000,$=id=>document.getElementById(id);function show(i,user=false){idx=(i+scenes.length)%scenes.length;const s=scenes[idx];document.querySelectorAll('.scene-group').forEach(g=>g.classList.toggle('active',g.dataset.scene===s.id));document.querySelectorAll('.scene-btn').forEach((b,n)=>b.classList.toggle('active',n===idx));if($('sceneKicker'))$('sceneKicker').textContent=s.kicker;if($('sceneTitle'))$('sceneTitle').textContent=s.title;if($('sceneCopy'))$('sceneCopy').textContent=s.copy;if($('sceneIndex'))$('sceneIndex').textContent=String(idx+1).padStart(2,'0')+' / '+String(scenes.length).padStart(2,'0');const p=$('sceneProgress');if(p){p.classList.remove('running');void p.offsetWidth;p.classList.add('running')}if(user)restart()}
 function restart(){clearInterval(timer);timer=setInterval(()=>show(idx+1),dur)}document.querySelectorAll('.scene-btn').forEach((b,i)=>b.addEventListener('click',()=>show(i,true)));document.addEventListener('visibilitychange',()=>{if(document.hidden)clearInterval(timer);else restart()});show(0);restart();
 
-// Load the optional WebGL mission view as a module. The existing SVG remains the fallback.
-const load3D=()=>import('./mission3d.js').catch(err=>console.warn('RHKEARTH 3D demonstrator fallback:',err));
-if(document.readyState==='complete')load3D();else window.addEventListener('load',load3D,{once:true});
+// Enhance the public patent model without changing the underlying screening equations.
+const loadSensor=()=>import('./sensor-realism.js?v=1').catch(err=>console.warn('RHKEARTH sensor cutaway fallback:',err));
+const load3D=()=>import('./mission3d.js?v=2').catch(err=>console.warn('RHKEARTH 3D demonstrator fallback:',err));
+if(document.readyState==='complete'){loadSensor();load3D();}else window.addEventListener('load',()=>{loadSensor();load3D();},{once:true});
 })();
