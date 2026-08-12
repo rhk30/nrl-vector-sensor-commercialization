@@ -24,10 +24,10 @@ punctuationGuard.observe(document.body,{childList:true,subtree:true});
   ['hero-fix.css','hero-fix.css?v=4'],
   ['hero-polish.css','hero-polish.css?v=3'],
   ['hero-media.css','hero-media.css?v=3'],
-  ['sensor-realism.css','sensor-realism.css?v=2'],
+  ['sensor-realism.css','sensor-realism.css?v=3'],
   ['formula-layout.css','formula-layout.css?v=1'],
   ['patent-accuracy.css','patent-accuracy.css?v=2'],
-  ['patent-strict.css','patent-strict.css?v=2']
+  ['patent-strict.css','patent-strict.css?v=3']
 ].forEach(([key,href])=>{
   if(!document.querySelector(`link[data-rhk-style="${key}"]`)){
     const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.dataset.rhkStyle=key;document.head.appendChild(l);
@@ -58,7 +58,7 @@ show(0);restart();
 
 const loadHeroMedia=()=>import('./hero-media.js?v=3').catch(err=>console.warn('RHKEARTH cover media fallback:',err));
 const loadHeroPolish=()=>import('./hero-polish.js?v=3').catch(err=>console.warn('RHKEARTH cover polish fallback:',err));
-const loadSensor=()=>import('./sensor-realism.js?v=2').catch(err=>console.warn('RHKEARTH sensor cutaway fallback:',err));
+const loadSensor=()=>import('./sensor-realism.js?v=3').catch(err=>console.warn('RHKEARTH sensor cutaway fallback:',err));
 const loadPatentAccuracy=()=>import('./patent-accuracy.js?v=2').catch(err=>console.warn('RHKEARTH patent-accuracy layer fallback:',err));
 const loadPatentStrict=()=>import('./patent-strict.js?v=3').catch(err=>console.warn('RHKEARTH patent-strict layer fallback:',err));
 const load3D=()=>import('./mission3d.js?v=3').catch(err=>console.warn('RHKEARTH 3D demonstrator fallback:',err));
