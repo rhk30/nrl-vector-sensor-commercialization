@@ -15,58 +15,75 @@ This repository is an **independent evaluation project**. The patents and underl
 - US11287508B2 — https://patents.google.com/patent/US11287508
 - US11408961B2 — https://patents.google.com/patent/US11408961
 
-## Patent-accuracy policy
+## Patent-strict quantitative policy
 
-The website now separates **patent-reported facts** from **site models / visualizations**.
+The public website separates **patent-reported facts** from **conceptual visualization**.
 
-Patent-reported prototype details used on the site include:
+Visible quantitative technology readouts are limited to values and relationships stated in the patent family, including:
 
-- 6 mm outer diameter spider-web mesh prototype
-- approximately 20 μm released-web beam / filament separation
+- 6 mm outer-diameter spider-web prototype
+- 1 μm-thick LPCVD ultra-low-stress silicon nitride film
+- approximately 20 μm released-web beam separation
 - approximately 2.7 m total fiber length in the 6 mm prototype geometry
 - 3.6 μm × 1 μm prototype filaments
-- 1 μm-thick LPCVD ultra-low-stress silicon nitride film
-- 30 nm-thick aluminum film used for the center mirror
+- 30 nm-thick aluminum center mirror
 - optical interferometric detection of center-mirror displacement
-- dipole-type directionality with peak responsivity in excess of 20 nm/Pa at 90 Hz in air
-- 530 Hz fundamental frequency reported for the first mesh prototype
-- projected equivalent minimum detectable pressure in water of approximately 76 dB re 1 μPa/√Hz; this is a projection in the patent, not an in-water validation result
-- floating-base embodiments using one or more flow meters, retaining thread and anchor
-- tower embodiments using multiple viscous-liquid flow channels, flow sensors in channel cavities, different channel orientations, and disclosed power / memory / transmitter / detachable-recovery configurations
-- specification language describing possible hull mounting on a vessel such as a submarine or AUV and shallow-water mooring near an air/water boundary
+- peak responsivity in excess of 20 nm/Pa at 90 Hz in the disclosed in-air evaluation
+- 530 Hz fundamental frequency for the first mesh prototype
+- interferometer noise floor of approximately 2 pm/√Hz
+- estimated minimum detectable pressure in air of approximately 100 μPa
+- projected equivalent minimum detectable pressure in water of approximately 76 dB re 1 μPa/√Hz; this is a patent projection, not an in-water validation result
+- mesh fiber-length relation 2L²/d for a square L × L mesh of unit size d
+- fiber-length increase factor 2L/d versus a single cantilever of length L
+- natural cos θ directivity relative to the mesh normal
+- three co-located orthogonal mesh transducers described as sufficient to reconstruct a sound-wave vector in 3-D space
 
-Any geometry, range, SNR, confidence, bearing-error, propagation-loss or animated-deformation outputs produced by the site are clearly labeled as **illustrative site calculations**, not patent performance data.
+The public mission demonstrator no longer presents site-generated SNR, detection range, confidence, propagation loss, bearing error, or modeled sensor sensitivity as performance outputs. Its remaining range/bearing geometry is illustrative only and is not an NRL performance claim.
+
+## Patent-described architectures represented
+
+- floating base with one or more flow meters, retaining thread, and anchor
+- optical readout of mesh deformation
+- optional anchor electronics including controller, transmitter, battery, processor, and memory
+- external receivers including ships, floating buoys, land-based receivers, and central controllers capable of aggregating multiple sensor outputs
+- hull mounting on a vessel such as a submarine or AUV, and shallow-water mooring near an air/water boundary
+- tower with multiple viscous-liquid flow channels and sensors in channel cavities
+- channels having different orientations
+- positively buoyant AVS used as a sonobuoy component
+- neutrally buoyant embodiments including hull-mounted sensors and/or towed arrays
+- tower embodiments with transmitter, memory, battery, and detachable surface recovery followed by transmission of stored information
 
 ## Live experience
 
 The GitHub Pages site includes:
 
-- A cinematic military and commercial use-case landing sequence with public-domain / CC0 maritime media behind conceptual system overlays
-- A configurable vessel / submerged-source mission demonstrator
-- A low-frequency acoustic screening model
-- Patent architecture visualizations
-- Commercial opportunity ranking
-- Technical and IP diligence questions
-- A proposed 90-day de-risking plan
-
-## Important technical limitation
-
-The interactive models are **illustrative screening models**, not validated NRL engineering simulations and not operational sonar-performance models. They use basic acoustic relationships, generic user-selected inputs, patent-described mechanisms, and transparent heuristics to explain the concepts.
-
-No real submarine, ship, special-operations, or other platform acoustic-signature data is included.
+- a passive cinematic military / commercial use-case sequence
+- a conceptual 3-D patent-architecture and source-direction demonstrator
+- a patent-grounded prototype cutaway
+- patent-reported quantitative facts and relationships
+- patent architecture visualizations
+- qualitative commercialization discussion
+- technical and IP diligence questions
 
 ## Cover media
 
-The landing page uses real public maritime media as atmospheric context only. The linework, bearing vectors, acoustic rings and sensor overlays are conceptual and do not imply that the photographed or filmed platforms use the NRL sensor.
+The landing page uses public maritime media as atmospheric context only. Sensor overlays are conceptual and do not imply that any photographed or filmed platform uses the NRL technology.
 
-Current media sources include:
+- submarine-force media: U.S. Navy public-domain footage
+- surface-fleet media: U.S. Navy public-domain destroyer footage
+- littoral media: U.S. Navy public-domain SWCC photograph
+- harbor media: CCGS McIntyre Bay harbor-transit footage, CC0 — intentionally retained
+- offshore-wind scene: original RHKEARTH engineering animation retained
 
-- U.S. Navy submarine-force video — public domain
-- U.S. Navy fleet video — public domain
-- U.S. Navy SWCC / Special Boat Team photograph — public domain
-- CCGS McIntyre Bay harbor-transit footage — CC0
+All hero video elements are programmatically hard-muted (`muted`, `defaultMuted`, and `volume = 0`) and display no audio controls.
 
-The wind scene retains the site's original animated engineering composition.
+Media credits are retained here in repository documentation rather than overlaid on the landing-page visual.
+
+## Important technical limitation
+
+The interactive visuals are not validated NRL engineering simulations and are not operational sonar-performance models. Vessel positions, bearings, wavefront animation, 3-D geometry, and exaggerated mesh deformation are used to explain disclosed concepts only.
+
+No real submarine, ship, special-operations, or other platform acoustic-signature data is included.
 
 ## Run locally
 
@@ -82,12 +99,10 @@ Then visit `http://localhost:8000`.
 
 The repository can be published from the `main` branch at `/ (root)` using **Settings → Pages → Deploy from a branch**.
 
-## Primary technical sources
+## Technical sources
 
 - US11287508B2
 - US11408961B2
-- NRL / Journal of Applied Physics: *Mesh-type acoustic vector sensor*
-- TechLink / Defense Patent Holiday materials
 
 ## Disclaimer
 
