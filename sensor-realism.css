@@ -1,0 +1,32 @@
+/* RHKEARTH technology-section sensor cutaway */
+.sensor-engineering{position:relative;background:linear-gradient(180deg,#080908 0%,#050605 100%);border-top:1px solid #282825;border-bottom:1px solid #282825;overflow:hidden}
+.sensor-engineering:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 31% 42%,rgba(210,218,204,.045),transparent 30%),linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:auto,28px 28px,28px 28px;opacity:.6}
+.sensor-engineering svg{position:relative;z-index:1;width:100%;height:auto;display:block;min-height:430px}
+.sensor-engineering .eng-kicker{font-family:var(--sans);font-size:10px;letter-spacing:.08em;fill:#74746f}
+.sensor-engineering .eng-title{font-family:var(--sans);font-size:14px;font-weight:520;letter-spacing:-.01em;fill:#eeeeE8}
+.sensor-engineering .eng-label{font-family:var(--sans);font-size:10px;fill:#9b9b95}
+.sensor-engineering .eng-small{font-family:var(--mono);font-size:9px;letter-spacing:.03em;fill:#73736d}
+.sensor-engineering .eng-value{font-family:var(--mono);font-size:11px;fill:#e1e4dc}
+.sensor-engineering .metal{fill:#151815;stroke:#bec5b8;stroke-width:1.1}
+.sensor-engineering .metal-dark{fill:#0a0c0a;stroke:#60665e;stroke-width:1}
+.sensor-engineering .fine{fill:none;stroke:#8f998c;stroke-width:.65}
+.sensor-engineering .fine-dim{fill:none;stroke:#555b54;stroke-width:.55}
+.sensor-engineering .optical{fill:none;stroke:#d9ddd4;stroke-width:1.2}
+.sensor-engineering .flow{fill:none;stroke:#9fa99b;stroke-width:1;stroke-dasharray:5 7;opacity:.7;animation:engFlow 5.6s linear infinite}
+.sensor-engineering .laser{stroke:#dedfd9;stroke-width:1.2;stroke-dasharray:3 3;opacity:.82}
+.sensor-engineering .dimension{stroke:#626860;stroke-width:.7;stroke-dasharray:2 3}
+.sensor-engineering .callout{stroke:#666c64;stroke-width:.7;fill:none}
+.sensor-engineering .mesh-wire{stroke:#aeb7a9;stroke-width:.55;fill:none;opacity:.82}
+.sensor-engineering .mesh-wire.minor{stroke:#747d72;stroke-width:.38;opacity:.56}
+.sensor-engineering .mesh-highlight{fill:none;stroke:#eceee8;stroke-width:.9;opacity:.88}
+.sensor-engineering .particle{fill:#b8c2b3;opacity:.52}
+.sensor-engineering .deflect-marker{fill:#e3e6df;opacity:.86}
+.sensor-engineering .probe-glow{filter:drop-shadow(0 0 4px rgba(230,233,225,.16))}
+.sensor-engineering .data-panel{fill:rgba(8,9,8,.84);stroke:#292d29;stroke-width:1}
+.sensor-engineering .wave-arrow{fill:#b4beb0;opacity:.8}
+.sensor-engineering .waterline{stroke:#363b36;stroke-width:1}
+.sensor-engineering .mesh-flex{transition:transform .18s ease,opacity .18s ease;transform-box:fill-box;transform-origin:center}
+.sensor-engineering .probe-head{transition:transform .2s ease;transform-box:fill-box;transform-origin:center}
+@keyframes engFlow{to{stroke-dashoffset:-72}}
+@media(max-width:800px){.sensor-engineering svg{min-height:360px}.sensor-engineering .eng-label{font-size:9px}.sensor-engineering .eng-small{font-size:8px}}
+@media(prefers-reduced-motion:reduce){.sensor-engineering .flow{animation:none}}
