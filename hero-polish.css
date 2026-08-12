@@ -1,39 +1,124 @@
-/* Cover-scene polish. Wind scene intentionally left unchanged. */
-.scene-group:not([data-scene="wind"]) .scene-fill{stroke-width:.9;}
-.scene-group:not([data-scene="wind"]) .scene-infra{stroke-width:.85;}
-.scene-group:not([data-scene="wind"]) .scene-caption{opacity:.72;}
-.scene-group:not([data-scene="wind"]) .scene-label{opacity:.92;}
+/* RHKEARTH cover-scene polish.
+   Same five scenes and concepts; motion is refined rather than redesigned.
+   Wind scene intentionally remains visually untouched. */
 
-.rhk-wake{stroke-linecap:round;opacity:.7;animation:rhkWake 7.5s ease-in-out infinite;}
-.rhk-depth-band{pointer-events:none;}
-.rhk-bearing-glow{pointer-events:none;animation:rhkBearing 4.8s ease-in-out infinite;}
+.scene-group:not([data-scene="wind"]){
+  opacity:0;
+  filter:blur(1.5px);
+  transition:opacity 1.45s cubic-bezier(.22,.61,.36,1),filter 1.45s cubic-bezier(.22,.61,.36,1)!important;
+}
+.scene-group:not([data-scene="wind"]).active{
+  opacity:1;
+  filter:blur(0);
+}
 
+.scene-group:not([data-scene="wind"]) .scene-fill{stroke-width:.85;}
+.scene-group:not([data-scene="wind"]) .scene-infra{stroke-width:.8;}
+.scene-group:not([data-scene="wind"]) .scene-caption{opacity:.66;}
+.scene-group:not([data-scene="wind"]) .scene-label{opacity:.9;}
+
+/* Surface wakes / faint environmental cues added by hero-polish.js. */
+.rhk-wake{
+  stroke-linecap:round;
+  opacity:.32;
+  animation:rhkWake 9.5s ease-in-out infinite;
+}
+.rhk-wake-secondary{
+  stroke-linecap:round;
+  opacity:.16;
+  animation:rhkWakeSecondary 11.5s ease-in-out infinite;
+}
+.rhk-depth-band{pointer-events:none;opacity:.045;}
+.rhk-bearing-glow{
+  pointer-events:none;
+  opacity:.16;
+  animation:rhkBearing 6.5s ease-in-out infinite;
+}
+.rhk-haze{
+  pointer-events:none;
+  opacity:.12;
+}
+
+/* Acoustic propagation: slower, softer and slightly less uniform than the
+   original icon-like pulse. Wind is intentionally excluded. */
 .scene-group[data-scene="subsea"] .hero-wave,
 .scene-group[data-scene="fleet"] .hero-wave,
 .scene-group[data-scene="swcc"] .hero-wave,
 .scene-group[data-scene="harbor"] .hero-wave{
-  stroke:#b9c0b5!important;
-  stroke-width:.58!important;
-  animation-duration:7.2s!important;
+  stroke:#c4c9c0!important;
+  stroke-width:.52!important;
+  transform-box:fill-box;
+  transform-origin:center;
+  animation-name:rhkAcousticPulse!important;
+  animation-duration:8.4s!important;
+  animation-timing-function:cubic-bezier(.12,.55,.25,1)!important;
+}
+.scene-group[data-scene="subsea"] .hero-wave:nth-of-type(2),
+.scene-group[data-scene="fleet"] .hero-wave:nth-of-type(2),
+.scene-group[data-scene="swcc"] .hero-wave:nth-of-type(2),
+.scene-group[data-scene="harbor"] .hero-wave:nth-of-type(2){animation-delay:-2.8s!important;}
+.scene-group[data-scene="subsea"] .hero-wave:nth-of-type(3),
+.scene-group[data-scene="fleet"] .hero-wave:nth-of-type(3),
+.scene-group[data-scene="swcc"] .hero-wave:nth-of-type(3),
+.scene-group[data-scene="harbor"] .hero-wave:nth-of-type(3){animation-delay:-5.6s!important;}
+
+@keyframes rhkAcousticPulse{
+  0%{opacity:0;transform:scale(.46);}
+  9%{opacity:.22;}
+  62%{opacity:.07;}
+  100%{opacity:0;transform:scale(1.08);}
 }
 
+/* Existing bearing lines stay present, but visually recede. */
 .scene-group[data-scene="subsea"] .track-line,
 .scene-group[data-scene="fleet"] .track-line,
 .scene-group[data-scene="swcc"] .track-line,
 .scene-group[data-scene="harbor"] .track-line{
-  stroke-width:.7!important;
-  opacity:.22!important;
-  stroke-dasharray:2 9!important;
+  stroke-width:.65!important;
+  opacity:.18!important;
+  stroke-dasharray:2 10!important;
 }
 
+/* Sensor nodes breathe rather than pulse. */
 .scene-group[data-scene="fleet"] .sensor-ping,
 .scene-group[data-scene="swcc"] .sensor-ping,
 .scene-group[data-scene="harbor"] .sensor-ping,
 .scene-group[data-scene="subsea"] .sensor-ping{
-  animation-duration:5.5s!important;
+  animation:rhkSensorBreathe 6.8s ease-in-out infinite!important;
 }
 
-@keyframes rhkWake{0%,100%{opacity:.32}50%{opacity:.72}}
-@keyframes rhkBearing{0%,100%{opacity:.12}50%{opacity:.3}}
+@keyframes rhkSensorBreathe{
+  0%,100%{opacity:.78;}
+  50%{opacity:1;}
+}
+@keyframes rhkWake{
+  0%,100%{opacity:.20;}
+  50%{opacity:.42;}
+}
+@keyframes rhkWakeSecondary{
+  0%,100%{opacity:.08;}
+  50%{opacity:.23;}
+}
+@keyframes rhkBearing{
+  0%,100%{opacity:.08;}
+  50%{opacity:.22;}
+}
 
-@media(prefers-reduced-motion:reduce){.rhk-wake,.rhk-bearing-glow{animation:none!important;}}
+/* Preserve the current wind scene exactly. */
+.scene-group[data-scene="wind"]{
+  filter:none!important;
+}
+
+@media(max-width:640px){
+  .rhk-wake-secondary,.rhk-haze{display:none;}
+  .scene-group:not([data-scene="wind"]){filter:none;}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .rhk-wake,.rhk-wake-secondary,.rhk-bearing-glow,
+  .scene-group:not([data-scene="wind"]) .hero-wave,
+  .scene-group:not([data-scene="wind"]) .sensor-ping{
+    animation:none!important;
+  }
+  .scene-group:not([data-scene="wind"]){transition:none!important;filter:none!important;}
+}
