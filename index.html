@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NRL Low-Frequency Vector Sensor — Commercialization Lab</title>
+  <meta name="description" content="Interactive commercialization and physics model for NRL low-frequency underwater acoustic vector sensor patents US11287508B2 and US11408961B2.">
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#11182a; --card:#172036; --chip:#1e2944;
+      --text:#edf2ff; --muted:#a8b3cc; --border:#31405f;
+      --accent:#5ea0ff; --accent2:#8fc2ff; --good:#3bc79b;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:linear-gradient(180deg,#0a1020,#0c1324 55%,#0a1020);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    a{color:var(--accent2)}
+    .wrap{max-width:1180px;margin:auto;padding:28px 20px 60px}
+    .hero{padding:24px;border:1px solid var(--border);border-radius:22px;background:rgba(17,24,42,.86)}
+    .kicker{color:var(--accent2);font-size:.82rem;text-transform:uppercase;letter-spacing:.11em}
+    h1{font-size:clamp(2rem,5vw,3.6rem);line-height:1.02;margin:.4rem 0 1rem;max-width:850px}
+    h2{margin:0 0 .8rem;font-size:1.35rem}
+    h3{margin:.2rem 0 .5rem}
+    p{line-height:1.55}
+    .muted{color:var(--muted)}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid #35517e;background:#17243d;color:#dceaff;font-size:.8rem}
+    .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}
+    .metric,.card,.node{border:1px solid var(--border);background:var(--card);border-radius:16px}
+    .metric{padding:15px}
+    .metric b{display:block;font-size:1.9rem;margin:.2rem 0}
+    .tabs,.subtabs{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0 18px}
+    button{appearance:none;background:#121b2f;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px 14px;cursor:pointer;font:inherit}
+    button.active{background:var(--accent);color:#061326;border-color:var(--accent);font-weight:700}
+    .view{display:none}.view.active{display:block}
+    .cols{display:grid;grid-template-columns:.9fr 1.1fr;gap:18px}
+    .card{padding:18px}
+    label{display:block;margin:16px 0 6px}
+    input[type=range]{width:100%;accent-color:var(--accent)}
+    .metricgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .formula-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+    .node{padding:14px}
+    .callout{border:1px solid #315d8f;border-left:4px solid var(--accent);background:#101c31;border-radius:14px;padding:14px}
+    svg{width:100%;height:auto;display:block}
+    .opportunity{padding:15px;border:1px solid var(--border);background:var(--card);border-radius:15px;margin:10px 0}
+    .bar{height:10px;background:#202b45;border-radius:99px;overflow:hidden;margin-top:11px}
+    .bar>span{display:block;height:100%;background:var(--accent);border-radius:99px}
+    .twocol{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+    .steps{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:10px}
+    .arrow{display:flex;align-items:center;color:var(--accent);font-size:1.4rem}
+    ul,ol{padding-left:1.2rem}
+    li{margin:.45rem 0;line-height:1.45}
+    footer{margin-top:28px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:.9rem}
+    @media(max-width:820px){
+      .grid4,.cols,.twocol,.formula-grid{grid-template-columns:1fr}
+      .metricgrid{grid-template-columns:1fr 1fr}
+      .steps{grid-template-columns:1fr}
+      .arrow{justify-content:center;transform:rotate(90deg)}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <div class="kicker">Naval Research Laboratory · Defense Patent Holiday</div>
+    <h1>Low-Frequency Acoustic Vector Sensor Commercialization Lab</h1>
+    <p class="muted">Interactive screening model for NRL patents <strong>US11287508B2</strong> and <strong>US11408961B2</strong>. Built to examine the underlying sensor physics, patent architecture, commercialization wedges, and technical diligence gaps.</p>
+    <div class="callout">
+      <strong>Working conclusion:</strong> pursue as a defense-first sensing technology, but treat a repeatable underwater demonstration as the key value-creation milestone. Public material supports a fabricated micro-mesh proof-of-concept and modeled underwater response; it does not, by itself, establish a field-qualified underwater product.
+    </div>
+  </section>
+
+  <section class="grid4">
+    <div class="metric"><span class="muted">Core U.S. patents</span><b>2</b><small>active grants listed by Google Patents</small></div>
+    <div class="metric"><span class="muted">Published prototype</span><b>6 mm</b><small>mesh outer diameter</small></div>
+    <div class="metric"><span class="muted">Fiber in prototype</span><b>≈2.7 m</b><small>packed into spider-web geometry</small></div>
+    <div class="metric"><span class="muted">Modeled water response</span><b>≈0.3</b><small>nm/Pa baseline estimate reported in NRL paper</small></div>
+  </section>
+
+  <nav class="tabs" aria-label="Main sections">
+    <button class="tab active" data-view="physics">Physics model</button>
+    <button class="tab" data-view="architecture">Architecture</button>
+    <button class="tab" data-view="commercial">Commercialization</button>
+    <button class="tab" data-view="ip">IP + diligence</button>
+  </nav>
+
+  <section id="physics" class="view active">
+    <div class="cols">
+      <div class="card">
+        <h2>Low-frequency screening model</h2>
+        <p class="muted">A first-order model anchored to the published NRL prototype. It is intentionally simple and should be treated as a technical screening tool, not a prediction of an engineered product.</p>
+
+        <label>Frequency: <strong><span id="freqText">90</span> Hz</strong></label>
+        <input id="freq" type="range" min="5" max="500" step="1" value="90">
+
+        <label>Sound level: <strong><span id="splText">100</span> dB re 1 μPa</strong></label>
+        <input id="spl" type="range" min="60" max="160" step="1" value="100">
+
+        <label>Wave angle to mesh normal: <strong><span id="angleText">20</span>°</strong></label>
+        <input id="angle" type="range" min="0" max="90" step="1" value="20">
+
+        <label>Mesh diameter: <strong><span id="diameterText">6.0</span> mm</strong></label>
+        <input id="diameter" type="range" min="3" max="12" step=".5" value="6">
+
+        <label>Fiber spacing: <strong><span id="spacingText">20</span> μm</strong></label>
+        <input id="spacing" type="range" min="10" max="80" step="2" value="20">
+      </div>
+
+      <div>
+        <div class="metricgrid">
+          <div class="metric"><span class="muted">Acoustic pressure</span><b id="pressureOut">—</b><small>Pa RMS</small></div>
+          <div class="metric"><span class="muted">Particle velocity</span><b id="velocityOut">—</b><small>nm/s</small></div>
+          <div class="metric"><span class="muted">Viscous penetration</span><b id="penetrationOut">—</b><small>μm</small></div>
+          <div class="metric"><span class="muted">Approx. mesh deflection</span><b id="deflectionOut">—</b><small>screening estimate</small></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <svg viewBox="0 0 700 330" role="img" aria-label="Schematic comparison between compact mesh vector sensor and wavelength scale array">
+            <defs>
+              <marker id="arrowHead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5ea0ff"/></marker>
+            </defs>
+            <g fill="none" stroke="#31405f" stroke-width="2">
+              <path d="M25 74 Q80 44 135 74 T245 74"/>
+              <path d="M25 107 Q80 77 135 107 T245 107" opacity=".7"/>
+              <path d="M25 140 Q80 110 135 140 T245 140" opacity=".45"/>
+            </g>
+            <text x="25" y="28" fill="#a8b3cc" font-size="14">incoming low-frequency field</text>
+            <line x1="145" y1="196" x2="298" y2="128" stroke="#5ea0ff" stroke-width="4" marker-end="url(#arrowHead)"/>
+            <circle cx="350" cy="108" r="52" fill="#17243d" stroke="#5ea0ff" stroke-width="2"/>
+            <g transform="translate(350 108)" stroke="#5ea0ff" stroke-width="1.5">
+              <circle r="30" fill="none"/><line x1="-38" y1="0" x2="38" y2="0"/><line x1="0" y1="-38" x2="0" y2="38"/>
+              <line x1="-27" y1="-27" x2="27" y2="27"/><line x1="-27" y1="27" x2="27" y2="-27"/>
+            </g>
+            <text x="302" y="180" fill="#edf2ff" font-size="14">micro-mesh</text>
+            <line x1="350" y1="160" x2="350" y2="232" stroke="#31405f" stroke-width="2"/>
+            <rect x="307" y="232" width="86" height="40" rx="8" fill="#172036" stroke="#31405f"/>
+            <text x="328" y="257" fill="#edf2ff" font-size="13">readout</text>
+
+            <line x1="455" y1="84" x2="655" y2="84" stroke="#31405f" stroke-width="2"/>
+            <circle cx="465" cy="84" r="7" fill="#5ea0ff"/><circle cx="645" cy="84" r="7" fill="#5ea0ff"/>
+            <text x="455" y="45" fill="#a8b3cc" font-size="13">illustrative ¼-wavelength array</text>
+            <text id="arraySpanSvg" x="475" y="116" fill="#edf2ff" font-size="15">—</text>
+            <text id="fiberSvg" x="455" y="202" fill="#edf2ff" font-size="15">—</text>
+            <text x="455" y="226" fill="#a8b3cc" font-size="12">estimated total fiber length</text>
+            <text id="directionSvg" x="455" y="276" fill="#edf2ff" font-size="15">—</text>
+          </svg>
+        </div>
+        <div id="modelInterpretation" class="callout" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div class="formula-grid">
+      <div class="node"><strong>Plane-wave particle velocity</strong><p>v = p / (ρc)</p></div>
+      <div class="node"><strong>Directional projection</strong><p>output ∝ cos(θ)</p></div>
+      <div class="node"><strong>Viscous length scale</strong><p>δᵥ ≈ √[ μ / (πρf) ]</p></div>
+    </div>
+    <p class="muted">Assumptions: seawater ρ≈1025 kg/m³, sound speed c≈1500 m/s, dynamic viscosity μ≈1.0 mPa·s. Geometry scaling is based on the published 6 mm / 20 μm prototype and is only a heuristic.</p>
+  </section>
+
+  <section id="architecture" class="view">
+    <div class="subtabs">
+      <button class="mode active" data-mode="base">Floating base</button>
+      <button class="mode" data-mode="tower">Channel tower / sonobuoy</button>
+      <button class="mode" data-mode="hull">Hull / towed integration</button>
+    </div>
+
+    <div class="cols">
+      <div class="card">
+        <svg viewBox="0 0 700 500" role="img" aria-label="Patent architecture schematic">
+          <rect x="0" y="0" width="700" height="145" fill="#111b31"/>
+          <line x1="0" y1="145" x2="700" y2="145" stroke="#5ea0ff" stroke-width="2"/>
+          <text x="22" y="32" fill="#a8b3cc" font-size="14">surface</text>
+
+          <g id="baseDiagram">
+            <circle cx="350" cy="240" r="60" fill="#172036" stroke="#5ea0ff" stroke-width="3"/>
+            <text x="315" y="245" fill="#edf2ff" font-size="14">floating base</text>
+            <g stroke="#5ea0ff" stroke-width="5">
+              <line x1="350" y1="180" x2="350" y2="135"/><line x1="350" y1="300" x2="350" y2="345"/>
+              <line x1="290" y1="240" x2="245" y2="240"/><line x1="410" y1="240" x2="455" y2="240"/>
+            </g>
+            <text x="465" y="244" fill="#a8b3cc" font-size="13">orthogonal flow meters</text>
+            <line x1="350" y1="300" x2="350" y2="410" stroke="#31405f" stroke-width="2"/>
+            <rect x="305" y="410" width="90" height="42" rx="8" fill="#172036" stroke="#31405f"/>
+            <text x="327" y="436" fill="#edf2ff" font-size="13">anchor</text>
+          </g>
+
+          <g id="towerDiagram" style="display:none">
+            <rect x="285" y="180" width="130" height="180" rx="28" fill="#172036" stroke="#5ea0ff" stroke-width="3"/>
+            <path d="M315 205 L385 335" stroke="#5ea0ff" stroke-width="18" opacity=".45"/>
+            <path d="M385 205 L315 335" stroke="#5ea0ff" stroke-width="18" opacity=".45"/>
+            <circle cx="350" cy="270" r="12" fill="#5ea0ff"/>
+            <text x="430" y="230" fill="#edf2ff" font-size="14">multiple flow channels</text>
+            <text x="430" y="255" fill="#a8b3cc" font-size="13">different orientations / liquids</text>
+            <text x="430" y="280" fill="#a8b3cc" font-size="13">mesh sensors in cavities</text>
+            <line x1="350" y1="360" x2="350" y2="410" stroke="#31405f" stroke-width="2" stroke-dasharray="6 5"/>
+            <rect x="292" y="410" width="116" height="45" rx="8" fill="#172036" stroke="#31405f"/>
+            <text x="308" y="438" fill="#edf2ff" font-size="13">anchor / control</text>
+            <path d="M350 180 L350 110" stroke="#5ea0ff" stroke-width="2" stroke-dasharray="5 5"/>
+            <text x="370" y="118" fill="#a8b3cc" font-size="13">optional detach + surface</text>
+          </g>
+
+          <g id="hullDiagram" style="display:none">
+            <path d="M150 260 Q350 140 560 250 Q430 330 180 315 Z" fill="#172036" stroke="#31405f" stroke-width="3"/>
+            <rect x="315" y="290" width="90" height="36" rx="10" fill="#17243d" stroke="#5ea0ff" stroke-width="2"/>
+            <text x="328" y="313" fill="#edf2ff" font-size="13">AVS module</text>
+            <line x1="405" y1="308" x2="515" y2="350" stroke="#5ea0ff" stroke-width="2"/>
+            <text x="470" y="380" fill="#a8b3cc" font-size="13">hull / tow-body concept</text>
+          </g>
+        </svg>
+      </div>
+
+      <div>
+        <div class="card">
+          <h2 id="modeTitle"></h2>
+          <p id="modeDescription"></p>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h2>Signal chain</h2>
+          <div class="node">low-frequency acoustic field</div><div style="text-align:center;color:var(--accent)">↓</div>
+          <div class="node">particle motion / relative fluid displacement</div><div style="text-align:center;color:var(--accent)">↓</div>
+          <div class="node">micro-mesh deformation</div><div style="text-align:center;color:var(--accent)">↓</div>
+          <div class="node">optical / displacement readout</div><div style="text-align:center;color:var(--accent)">↓</div>
+          <div class="node">bearing + intensity estimation</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="commercial" class="view">
+    <h2>Commercial opportunity ranking</h2>
+    <p class="muted">These scores are screening judgments, not audited market-size estimates. They weight patent fit, buyer pull, low-frequency advantage, deployability, and competitive difficulty.</p>
+    <div id="opportunityList"></div>
+
+    <div class="twocol" style="margin-top:18px">
+      <div class="card">
+        <h2>Defense-first wedge</h2>
+        <ul>
+          <li>Vector sensing can provide directional information in a footprint far smaller than a conventional low-frequency beamforming aperture.</li>
+          <li>The strongest near-term use cases are sonobuoy, distributed ASW sensing, UUV/AUV payloads, and fixed subsea surveillance nodes.</li>
+          <li>Commercialization should likely occur through an OEM / prime / program partner rather than by trying to become a full sonobuoy manufacturer.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Dual-use wedge</h2>
+        <ul>
+          <li>Directional passive acoustic monitoring for marine mammals and offshore projects.</li>
+          <li>Ports, subsea infrastructure, machinery, and leak/source localization.</li>
+          <li>Oceanographic profiling floats and persistent acoustic observatories.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 style="margin-top:22px">Recommended product path</h2>
+    <div class="steps">
+      <div class="node"><strong>1 · Characterization head</strong><p>Tank-testable sensing package that reproduces the mesh response with a practical readout.</p></div>
+      <div class="arrow">→</div>
+      <div class="node"><strong>2 · Moored directional node</strong><p>Known-source bearing tests, logger, power, telemetry, and self-noise characterization.</p></div>
+      <div class="arrow">→</div>
+      <div class="node"><strong>3 · OEM payload</strong><p>Transition the sensing core into sonobuoy, UUV, seabed-node, or environmental-monitoring platforms.</p></div>
+    </div>
+  </section>
+
+  <section id="ip" class="view">
+    <div class="twocol">
+      <div class="card">
+        <h2>US 11,287,508 B2</h2>
+        <p><strong>Foundational mesh / floating architecture.</strong></p>
+        <ul>
+          <li>Priority date: May 3, 2017.</li>
+          <li>Granted: March 29, 2022.</li>
+          <li>Core claims cover a micro/nano two-dimensional mesh flow meter used for acoustic direction-of-arrival sensing, with multiple deployment embodiments.</li>
+        </ul>
+        <p><a href="https://patents.google.com/patent/US11287508" target="_blank" rel="noopener">Open patent</a></p>
+      </div>
+      <div class="card">
+        <h2>US 11,408,961 B2</h2>
+        <p><strong>Continuation-in-part / channel-tower architecture.</strong></p>
+        <ul>
+          <li>Filed: February 20, 2020.</li>
+          <li>Granted: August 9, 2022.</li>
+          <li>Claims extend into multi-channel viscous-liquid sensing, differently oriented channels, batteries, memory, telemetry, anchors, and detachable/surfacing embodiments.</li>
+        </ul>
+        <p><a href="https://patents.google.com/patent/US11408961" target="_blank" rel="noopener">Open patent</a></p>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:14px">
+      <strong>IP interpretation:</strong> the defensible package is broader than “a directional hydrophone.” It combines a mesh particle-velocity transducer with deployment and fluid-channel architectures. Other vector-sensor mechanisms exist, so this is not a freedom-to-operate or validity opinion.
+    </div>
+
+    <div class="twocol" style="margin-top:18px">
+      <div class="card">
+        <h2>Publicly evidenced</h2>
+        <ul>
+          <li>Fabricated silicon-nitride spider-web prototype.</li>
+          <li>6 mm outer diameter with roughly 20 μm filament spacing.</li>
+          <li>Approximately 2.7 m of fiber in the published mesh geometry.</li>
+          <li>Measured directional response in air at low frequency.</li>
+          <li>Underwater response modeled in the NRL publication.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Critical diligence gaps</h2>
+        <ul>
+          <li>Actual in-water sensitivity, bandwidth, self-noise, and bearing error.</li>
+          <li>Flow and tether noise.</li>
+          <li>Biofouling, corrosion, sediment, shock, and long-duration packaging.</li>
+          <li>Readout SWaP and cost.</li>
+          <li>Manufacturing yield and calibration drift.</li>
+          <li>Status of any surviving NRL prototypes or unpublished test data.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h2>Questions to take to NRL / TechLink</h2>
+      <ol>
+        <li>Has either architecture ever been tested underwater? Request raw sensitivity, noise-floor, and DOA-error data.</li>
+        <li>What fabrication masks, process flows, CAD, readout designs, and calibration procedures can transfer?</li>
+        <li>Are physical prototypes, packaged dies, or test fixtures available?</li>
+        <li>What were the main technical failure modes during development?</li>
+        <li>What frequency range and minimum detectable pressure were actually demonstrated in water, if any?</li>
+        <li>Which programs funded follow-on work after the published prototype?</li>
+        <li>Can the optical readout be replaced by a lower-SWaP scheme while preserving useful claim coverage?</li>
+        <li>What rights, data, and technical assistance are available under the current evaluation-license pathway?</li>
+      </ol>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h2>90-day de-risking plan</h2>
+      <p><span class="badge">0–30 days</span> Secure evaluation rights, inventor access, technical-data inventory, prototype status, and a claim-level review.</p>
+      <p><span class="badge">30–60 days</span> Reproduce the published response, characterize readout noise and mesh durability, and document fabrication yield.</p>
+      <p><span class="badge">60–90 days</span> Run a calibrated underwater test against a reference sensor and measure sensitivity, bearing error, bandwidth, flow sensitivity, and self-noise.</p>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h2>Primary sources</h2>
+      <ul>
+        <li><a href="https://patents.google.com/patent/US11287508" target="_blank" rel="noopener">US11287508B2 — Acoustic vector sensor patent</a></li>
+        <li><a href="https://patents.google.com/patent/US11408961" target="_blank" rel="noopener">US11408961B2 — Viscous-flow channel / vector sensor patent</a></li>
+        <li><a href="https://pubs.aip.org/aip/jap/article/122/3/034504/154871/Mesh-type-acoustic-vector-sensor" target="_blank" rel="noopener">Journal of Applied Physics (2017) — Mesh-type acoustic vector sensor</a></li>
+      </ul>
+      <p class="muted">Add TechLink, Navy SBIR/STTR, NOAA, BOEM, and competitor citations to this section as you finalize external-facing diligence.</p>
+    </div>
+  </section>
+
+  <footer>
+    Research / commercialization screening tool only. Not legal advice, an engineering qualification report, or an investment recommendation.
+  </footer>
+</div>
+
+<script>
+  const tabs = document.querySelectorAll('.tab');
+  const views = document.querySelectorAll('.view');
+  tabs.forEach(btn => btn.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('active'));
+    views.forEach(x => x.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.view).classList.add('active');
+  }));
+
+  const inputs = {
+    freq: document.getElementById('freq'),
+    spl: document.getElementById('spl'),
+    angle: document.getElementById('angle'),
+    diameter: document.getElementById('diameter'),
+    spacing: document.getElementById('spacing')
+  };
+
+  function fmt(v,d=2){ return Number(v).toLocaleString(undefined,{maximumFractionDigits:d}); }
+
+  function updateModel(){
+    const f=+inputs.freq.value, spl=+inputs.spl.value, angle=+inputs.angle.value, D=+inputs.diameter.value, d=+inputs.spacing.value;
+    document.getElementById('freqText').textContent=f;
+    document.getElementById('splText').textContent=spl;
+    document.getElementById('angleText').textContent=angle;
+    document.getElementById('diameterText').textContent=D.toFixed(1);
+    document.getElementById('spacingText').textContent=d;
+
+    const rho=1025, c=1500, mu=.001;
+    const p=1e-6*Math.pow(10,spl/20);
+    const v=p/(rho*c);
+    const penetration=Math.sqrt(mu/(Math.PI*rho*f));
+    const fiberLength=2.7*Math.pow(D/6,2)*(20/d);
+    const geometryScale=fiberLength/2.7;
+    const directional=Math.abs(Math.cos(angle*Math.PI/180));
+    const responsivityNmPa=.3*geometryScale;
+    const deflectionNm=responsivityNmPa*p*directional;
+    const quarterLambda=(c/f)/4;
+
+    document.getElementById('pressureOut').textContent=p<.01?p.toExponential(2):fmt(p,3);
+    document.getElementById('velocityOut').textContent=fmt(v*1e9,3);
+    document.getElementById('penetrationOut').textContent=fmt(penetration*1e6,1);
+    document.getElementById('deflectionOut').textContent=deflectionNm<.001?fmt(deflectionNm*1000,3)+' pm':fmt(deflectionNm,4)+' nm';
+    document.getElementById('arraySpanSvg').textContent='¼λ ≈ '+fmt(quarterLambda,2)+' m at '+f+' Hz';
+    document.getElementById('fiberSvg').textContent='mesh fiber ≈ '+fmt(fiberLength,2)+' m';
+    document.getElementById('directionSvg').textContent='directional projection ≈ '+fmt(directional*100,0)+'%';
+
+    let note='At '+f+' Hz, wavelength in seawater is approximately '+fmt(c/f,1)+' m. ';
+    note+='This is why compact local particle-motion sensing can be attractive relative to relying only on spatial phase differences across a large aperture. ';
+    note+='The selected angle retains about '+fmt(directional*100,0)+'% of the ideal projected response. ';
+    note+=(penetration*1e6>3.6)
+      ? 'The viscous penetration depth remains above the published prototype beam-width scale, broadly consistent with the regime discussed by NRL.'
+      : 'The viscous penetration depth is approaching the published beam-width scale, so this simplified model becomes less trustworthy.';
+    document.getElementById('modelInterpretation').textContent=note;
+  }
+  Object.values(inputs).forEach(el=>el.addEventListener('input',updateModel));
+  updateModel();
+
+  const modes={
+    base:{
+      title:'Floating-base architecture',
+      description:'A floating base carries multiple directional flow meters and is coupled by a retaining thread to an anchor or lower assembly. The concept exploits relative motion between the structure and surrounding fluid to extract particle-motion direction.'
+    },
+    tower:{
+      title:'Viscous-liquid channel tower',
+      description:'The continuation-in-part adds multiple channels with viscous liquid, differently oriented sensing paths, and embodiments for onboard memory, power, telemetry, anchoring, and detachable surface recovery.'
+    },
+    hull:{
+      title:'Hull / towed integration concept',
+      description:'The sensing core can be considered as an OEM module for vessel, UUV, tow-body, or fixed-node integration. The biggest technical challenges here are platform vibration, hydrodynamic flow noise, calibration, and packaging.'
+    }
+  };
+  const modeBtns=document.querySelectorAll('.mode');
+  function setMode(name){
+    modeBtns.forEach(b=>b.classList.toggle('active',b.dataset.mode===name));
+    ['base','tower','hull'].forEach(m=>{
+      document.getElementById(m+'Diagram').style.display=m===name?'block':'none';
+    });
+    document.getElementById('modeTitle').textContent=modes[name].title;
+    document.getElementById('modeDescription').textContent=modes[name].description;
+  }
+  modeBtns.forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+  setMode('base');
+
+  const opps=[
+    ['ASW sonobuoy / distributed sensing',9.4,'Best direct fit if low-frequency directionality, packaging, and noise performance survive underwater testing.','Navy / primes / sonobuoy OEMs'],
+    ['UUV / AUV directional acoustic payload',8.8,'Strong size and aperture logic; integration is attractive if platform self-noise can be controlled.','Navy UUV programs / maritime robotics OEMs'],
+    ['Port, cable & subsea perimeter surveillance',8.3,'Persistent directional nodes could classify and localize low-frequency vessel and machinery signatures.','Naval bases / ports / infrastructure operators'],
+    ['Directional environmental PAM',7.9,'Direction-of-arrival can add source-location context to passive acoustic monitoring.','NOAA / offshore wind / environmental contractors'],
+    ['Offshore machinery / leak source localization',7.2,'Useful in principle, but incumbent sensing and inspection systems are mature.','Offshore energy / subsea inspection firms'],
+    ['Geophysical / seismic acquisition',6.8,'Relevant frequency regime, but geophones and ocean-bottom-node ecosystems are sophisticated and entrenched.','Seismic equipment OEMs'],
+    ['Underwater communications receiver',6.5,'Vector reception can spatially reject interference, but existing vector/MEMS solutions create competition.','Modem / AUV manufacturers'],
+    ['In-air industrial acoustics',4.8,'The original mesh demonstrates in-air behavior, but commercial particle-velocity sensors already exist.','Acoustic instrumentation firms']
+  ];
+  const list=document.getElementById('opportunityList');
+  opps.forEach((o,i)=>{
+    const div=document.createElement('div');
+    div.className='opportunity';
+    div.innerHTML='<div><strong>'+(i+1)+'. '+o[0]+'</strong> <span class="badge">'+o[1].toFixed(1)+'/10</span></div>'+
+      '<p>'+o[2]+'</p><small class="muted">Likely buyer / partner: '+o[3]+'</small>'+
+      '<div class="bar"><span style="width:'+(o[1]*10)+'%"></span></div>';
+    list.appendChild(div);
+  });
+</script>
+</body>
+</html>
