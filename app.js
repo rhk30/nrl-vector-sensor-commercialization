@@ -1,41 +1,157 @@
-(()=>{'use strict';const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),fmt=(v,d=2)=>Number(v).toLocaleString(undefined,{maximumFractionDigits:d});
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
-// Main technology tabs
-const tabs=document.querySelectorAll('.tab'),views=document.querySelectorAll('.view');tabs.forEach(b=>b.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remove('active'));views.forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.view).classList.add('active')}));
+// ---------------------------------------------------------------------------
+// Navigation / technology tabs
+// ---------------------------------------------------------------------------
+const tabs=document.querySelectorAll('.tab');
+const views=document.querySelectorAll('.view');
+tabs.forEach(btn=>btn.addEventListener('click',()=>{
+  tabs.forEach(x=>x.classList.remove('active'));
+  views.forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  $(btn.dataset.view)?.classList.add('active');
+}));
 
-// First-order mesh physics screening model
-const P={freq:$('freq'),spl:$('spl'),angle:$('angle'),diameter:$('diameter'),spacing:$('spacing')};
-function updatePhysics(){if(!P.freq)return;const f=+P.freq.value,spl=+P.spl.value,a=+P.angle.value,D=+P.diameter.value,d=+P.spacing.value;[$('freqText'),$('splText'),$('angleText'),$('diameterText'),$('spacingText')].forEach((el,i)=>{if(!el)return;el.textContent=[f,spl,a,D.toFixed(1),d][i]});const rho=1025,c=1500,mu=.001,p=1e-6*Math.pow(10,spl/20),v=p/(rho*c),pen=Math.sqrt(mu/(Math.PI*rho*f)),fiber=2.7*Math.pow(D/6,2)*(20/d),proj=Math.abs(Math.cos(a*Math.PI/180)),def=.3*(fiber/2.7)*p*proj,q=(c/f)/4;$('pressureOut').textContent=p<.01?p.toExponential(2):fmt(p,3);$('velocityOut').textContent=fmt(v*1e9,3);$('penetrationOut').textContent=fmt(pen*1e6,1);$('deflectionOut').textContent=def<.001?fmt(def*1000,3)+' pm':fmt(def,4)+' nm';$('arraySpanSvg').textContent='¼λ ≈ '+fmt(q,2)+' m @ '+f+' Hz';$('fiberSvg').textContent='MESH FIBER ≈ '+fmt(fiber,2)+' m';$('directionSvg').textContent='PROJECTED RESPONSE ≈ '+fmt(proj*100,0)+'%';let n='At '+f+' Hz, wavelength in seawater is approximately '+fmt(c/f,1)+' m. A compact vector sensor is attractive where directional information is needed without relying only on a wavelength-scale aperture. At '+a+'° incidence, the simplified directional projection retains about '+fmt(proj*100,0)+'% of ideal response. ';n+=(pen*1e6>3.6?'The viscous penetration depth remains above the published prototype beam-width scale.':'The viscous length scale is approaching the published beam-width scale; the simplified model is increasingly uncertain.');$('modelInterpretation').textContent=n}
-Object.values(P).forEach(x=>x&&x.addEventListener('input',updatePhysics));updatePhysics();
+// ---------------------------------------------------------------------------
+// Patent-described directional relationship only.
+// US11287508B2 states that out-of-plane mesh displacement is expected to give
+// a natural cos(theta) directivity relative to the mesh normal. This is a
+// normalized geometry display, not a calibrated sensitivity model.
+// ---------------------------------------------------------------------------
+const angle=$('angle');
+function updatePatentDirectivity(){
+  const a=+(angle?.value||0);
+  const pct=Math.abs(Math.cos(a*Math.PI/180))*100;
+  if($('angleText'))$('angleText').textContent=Math.round(a);
+  if($('deflectionOut'))$('deflectionOut').textContent=pct.toFixed(0)+'%';
+  if($('directionSvg'))$('directionSvg').textContent='NORMALIZED cos θ ≈ '+pct.toFixed(0)+'%';
+}
+angle?.addEventListener('input',updatePatentDirectivity);
+updatePatentDirectivity();
 
-// Patent architecture switcher
-const modes={base:['Floating-base architecture','Multiple directional flow meters are carried by a floating structure coupled to an anchor or lower assembly. Relative motion between the structure and surrounding fluid provides a path to local particle-motion sensing.'],tower:['Viscous-liquid channel tower','The continuation-in-part introduces differently oriented viscous-liquid channels, sensing cavities, onboard power, memory, telemetry, anchoring and detachable recovery embodiments.'],hull:['Platform integration concept','An OEM sensing module can be considered for UUV, hull, tow-body or fixed-node integration. Platform vibration, hydrodynamic flow noise, packaging and calibration become the dominant engineering risks.']};
-const mb=document.querySelectorAll('.mode');function setMode(m){mb.forEach(b=>b.classList.toggle('active',b.dataset.mode===m));['base','tower','hull'].forEach(x=>{const e=$(x+'Diagram');if(e)e.style.display=x===m?'block':'none'});if($('modeTitle'))$('modeTitle').textContent=modes[m][0];if($('modeDescription'))$('modeDescription').textContent=modes[m][1]}mb.forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));setMode('base');
+// ---------------------------------------------------------------------------
+// Patent architecture switcher. Copy below is limited to embodiments actually
+// described in US11287508B2 / US11408961B2.
+// ---------------------------------------------------------------------------
+const modes={
+  base:[
+    'Floating-base embodiment',
+    'US11287508B2 describes a floating base carrying one or more flow meters, coupled by a retaining thread to an anchor. The base is suspended in water and free to move in directions of interest.'
+  ],
+  tower:[
+    'Viscous-channel tower embodiment',
+    'US11408961B2 describes a tower with multiple flow channels containing viscous liquid, flow sensors inside channel cavities, channels with different orientations, and tethered / recoverable embodiments.'
+  ],
+  hull:[
+    'Hull / AUV mounting described in specification',
+    'US11287508B2 states that implementations can mount the vector sensor on the hull of a vessel such as a submarine or AUV, or moor the sensor in shallow water near an air/water boundary.'
+  ]
+};
+const modeButtons=document.querySelectorAll('.mode');
+function setMode(mode){
+  modeButtons.forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  ['base','tower','hull'].forEach(name=>{const el=$(name+'Diagram');if(el)el.style.display=name===mode?'block':'none';});
+  if($('modeTitle'))$('modeTitle').textContent=modes[mode][0];
+  if($('modeDescription'))$('modeDescription').textContent=modes[mode][1];
+}
+modeButtons.forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+setMode('base');
 
-// Commercial opportunity screen
-const opps=[['ASW sonobuoy / distributed sensing',9.4,'Direct low-frequency directional-sensing fit; strongest defense transition thesis.','Navy / primes / OEMs'],['UUV / AUV acoustic payload',8.8,'High value if compact directionality survives platform self-noise and flow.','UUV programs / robotics'],['Port + subsea surveillance',8.3,'Persistent directional nodes for vessel, machinery and infrastructure signatures.','Bases / ports / operators'],['Directional environmental PAM',7.9,'Bearing can add source-location context to passive acoustic monitoring.','NOAA ecosystem / offshore'],['Offshore source localization',7.2,'Relevant for machinery and subsea events; mature incumbents raise the bar.','Energy / inspection'],['Geophysical acquisition',6.8,'Low-frequency relevance, but established geophone and seabed-node markets.','Survey / seismic OEMs'],['Underwater communications RX',6.5,'Vector reception can reject interference; competitive MEMS/vector landscape.','Modem / AUV OEMs'],['In-air industrial acoustics',4.8,'Prototype evidence exists, but compact particle-velocity sensing is established.','Instrumentation']];
-const list=$('opportunityList');if(list){opps.forEach((o,i)=>{const r=document.createElement('div');r.className='op';r.innerHTML='<div class="rank">0'+(i+1)+'</div><div class="name">'+o[0]+'</div><div class="why">'+o[2]+'</div><div class="buyer">'+o[3]+'</div><div class="score">'+o[1].toFixed(1)+'/10<div class="scorebar"><span style="width:'+(o[1]*10)+'%"></span></div></div>';list.appendChild(r)})}
+// ---------------------------------------------------------------------------
+// Applications fallback. These are patent-described contexts, not ranked market
+// opportunities. patent-strict.js refines the presentation when available.
+// ---------------------------------------------------------------------------
+const patentContexts=[
+  ['Acoustic source localization','The patent describes using particle-velocity orientation for wave-vector / DOA information and assisting localization of a sound source.','US11287508B2'],
+  ['Submarine / AUV hull mounting','The specification explicitly describes mounting on a vessel hull such as a submarine or AUV.','US11287508B2'],
+  ['Shallow-water mooring','The specification describes mooring in shallow water close to an air/water boundary.','US11287508B2'],
+  ['Sonobuoy component','A positively buoyant AVS tower is expressly described as a component of a sonobuoy.','US11408961B2'],
+  ['Towed array','Applications for neutrally buoyant AVS embodiments expressly include towed arrays.','US11408961B2'],
+  ['DC / slowly varying flow','The mesh-type transducer is described for DC flow measurement and slowly varying viscous flow.','US11287508B2'],
+  ['Multi-sensor aggregation','A central controller may aggregate data from multiple floating-base vector sensors.','US11287508B2'],
+  ['Surface recovery + telemetry','The tower may detach, float to the surface, and transmit information stored in memory.','US11408961B2']
+];
+const opportunityList=$('opportunityList');
+if(opportunityList){
+  opportunityList.innerHTML='';
+  patentContexts.forEach(c=>{
+    const row=document.createElement('div');row.className='op';
+    row.innerHTML='<div class="name">'+c[0]+'</div><div class="why">'+c[1]+'</div><div class="buyer">'+c[2]+'</div>';
+    opportunityList.appendChild(row);
+  });
+}
 
-// Mission demonstrator -------------------------------------------------------
-const M={target:$('targetType'),config:$('sensorConfig'),freq:$('missionFreq'),range:$('missionRange'),bearing:$('missionBearing'),source:$('missionSource'),noise:$('missionNoise')};
+// ---------------------------------------------------------------------------
+// Mission concept demonstrator.
+// The controls change only illustrative source geometry and patent-described
+// architecture. No sonar equation, SNR, range prediction, confidence score,
+// bearing-error model, acoustic signature, or sensitivity estimate is computed.
+// ---------------------------------------------------------------------------
+const M={
+  target:$('targetType'),
+  config:$('sensorConfig'),
+  range:$('missionRange'),
+  bearing:$('missionBearing'),
+  freq:$('missionFreq')
+};
 let running=true,phase=0,last=performance.now();
-const presets={surface:{target:'surface',config:'floating',freq:180,range:3.2,bearing:62,source:146,noise:82},submerged:{target:'submarine',config:'tower',freq:90,range:5.1,bearing:218,source:138,noise:78},monitor:{target:'surface',config:'platform',freq:240,range:1.8,bearing:315,source:132,noise:84}};
-function setVal(id,v){const el=$(id);if(el){el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}))}}
-function applyPreset(name){const p=presets[name];if(!p)return;M.target.value=p.target;M.config.value=p.config;setVal('missionFreq',p.freq);setVal('missionRange',p.range);setVal('missionBearing',p.bearing);setVal('missionSource',p.source);setVal('missionNoise',p.noise);document.querySelectorAll('.scenario-btn').forEach(b=>b.classList.toggle('active',b.dataset.scenario===name));updateMission()}
-document.querySelectorAll('.scenario-btn').forEach(b=>b.addEventListener('click',()=>applyPreset(b.dataset.scenario)));
 
-function configLabel(v){return v==='floating'?'Floating base / orthogonal meters':v==='tower'?'Viscous-channel tower':'Platform-integrated module'}
-function targetLabel(v){return v==='surface'?'Surface vessel':v==='submarine'?'Submerged vessel':'Acoustic source'}
-function missionMath(){const f=+M.freq.value,rkm=+M.range.value,b=+M.bearing.value,sl=+M.source.value,nl=+M.noise.value,rm=Math.max(1,rkm*1000),rho=1025,c=1500;const absorption=.00035*Math.pow(f/100,2);const tl=20*Math.log10(rm)+absorption*rkm;const rl=sl-tl;const snr=rl-nl;const pressure=1e-6*Math.pow(10,rl/20);const velocity=pressure/(rho*c);const theta=b*Math.PI/180;const vx=velocity*Math.sin(theta),vy=velocity*Math.cos(theta);const mesh=.3*pressure;const confidence=clamp(18+3.4*(snr+6),8,98);const error=clamp(30*Math.exp(-Math.max(snr,-5)/11),1.2,38);return{f,rkm,b,sl,nl,tl,rl,snr,pressure,velocity,vx,vy,mesh,confidence,error,wavelength:c/f}}
-function setText(id,text){const e=$(id);if(e)e.textContent=text}
-function updateTargetGraphic(type){const ship=$('surfaceTarget'),sub=$('subTarget'),src=$('sourceTarget');if(ship)ship.style.display=type==='surface'?'block':'none';if(sub)sub.style.display=type==='submarine'?'block':'none';if(src)src.style.display=type==='source'?'block':'none'}
-function updateSensorGraphic(config){['floatingSensor','towerSensor','platformSensor'].forEach(id=>{const e=$(id);if(e)e.style.display='none'});const map={floating:'floatingSensor',tower:'towerSensor',platform:'platformSensor'};const e=$(map[config]);if(e)e.style.display='block'}
-function updateMission(){if(!M.freq)return;const x=missionMath();setText('missionFreqText',x.f+' Hz');setText('missionRangeText',x.rkm.toFixed(1)+' km');setText('missionBearingText',Math.round(x.b)+'°');setText('missionSourceText',Math.round(x.sl)+' dB');setText('missionNoiseText',Math.round(x.nl)+' dB');setText('targetLabel',targetLabel(M.target.value));setText('configLabel',configLabel(M.config.value));setText('receivedLevel',x.rl.toFixed(1)+' dB');setText('missionSNR',(x.snr>=0?'+':'')+x.snr.toFixed(1)+' dB');setText('particleMotion',x.velocity<1e-9?(x.velocity*1e12).toFixed(2)+' pm/s':(x.velocity*1e9).toFixed(2)+' nm/s');setText('meshResponse',x.mesh<.001?(x.mesh*1000).toFixed(3)+' pm':x.mesh.toFixed(3)+' nm');setText('bearingEstimate',Math.round(x.b)+'° ± '+x.error.toFixed(1)+'°');setText('missionConfidence',Math.round(x.confidence)+'%');setText('wavelengthReadout',x.wavelength.toFixed(1)+' m');setText('missionTL',x.tl.toFixed(1)+' dB');const cb=$('confidenceBar');if(cb)cb.style.width=x.confidence+'%';const va=$('vectorArrow');if(va){va.style.transform='rotate('+(x.b-90)+'deg)';va.style.width=(26+52*x.confidence/100)+'px'};updateTargetGraphic(M.target.value);updateSensorGraphic(M.config.value);drawMission(x)}
-Object.values(M).forEach(e=>e&&e.addEventListener('input',updateMission));if(M.target)M.target.addEventListener('change',updateMission);if(M.config)M.config.addEventListener('change',updateMission);
+function targetLabel(v){return v==='surface'?'Surface vessel context':v==='submarine'?'Submerged vessel context':'Generic acoustic source';}
+function updateTargetGraphic(type){
+  if($('surfaceTarget'))$('surfaceTarget').style.display=type==='surface'?'block':'none';
+  if($('subTarget'))$('subTarget').style.display=type==='submarine'?'block':'none';
+  if($('sourceTarget'))$('sourceTarget').style.display=type==='source'?'block':'none';
+}
+function updateSensorGraphic(config){
+  ['floatingSensor','towerSensor','platformSensor'].forEach(id=>{if($(id))$(id).style.display='none';});
+  const map={floating:'floatingSensor',tower:'towerSensor',platform:'platformSensor'};
+  if($(map[config]))$(map[config]).style.display='block';
+}
+function drawMission(){
+  if(!M.bearing||!M.range)return;
+  const bearing=+M.bearing.value;
+  const spacing=clamp(+M.range.value/8.5,0,.98);
+  const cx=400,cy=300,rad=245,rr=Math.max(70,spacing*rad);
+  const ang=bearing*Math.PI/180;
+  const tx=cx+rr*Math.sin(ang),ty=cy-rr*Math.cos(ang);
+  const target=$('targetGroup');if(target)target.setAttribute('transform','translate('+tx+' '+ty+') rotate('+bearing+')');
+  const line=$('trueBearingLine');if(line){line.setAttribute('x1',cx);line.setAttribute('y1',cy);line.setAttribute('x2',tx);line.setAttribute('y2',ty);}
+  if($('northBearing'))$('northBearing').textContent=('000'+Math.round(bearing)).slice(-3)+'°';
+  if($('stageRangeLabel'))$('stageRangeLabel').textContent='';
+  if($('stageTargetLabel')){$('stageTargetLabel').setAttribute('x',tx+16);$('stageTargetLabel').setAttribute('y',ty+3);$('stageTargetLabel').textContent=targetLabel(M.target?.value||'source').toUpperCase();}
+  document.querySelectorAll('.wave-ring').forEach(r=>{r.setAttribute('cx',tx);r.setAttribute('cy',ty);});
 
-function drawMission(x){const cx=400,cy=300,maxRange=8.5,rad=245,rr=clamp(x.rkm/maxRange,0,.98)*rad,ang=x.b*Math.PI/180,tx=cx+rr*Math.sin(ang),ty=cy-rr*Math.cos(ang);const t=$('targetGroup');if(t)t.setAttribute('transform','translate('+tx+' '+ty+') rotate('+x.b+')');const trueLine=$('trueBearingLine');if(trueLine){trueLine.setAttribute('x1',cx);trueLine.setAttribute('y1',cy);trueLine.setAttribute('x2',tx);trueLine.setAttribute('y2',ty)}const uncertainty=$('bearingCone');if(uncertainty){const a1=(x.b-x.error)*Math.PI/180,a2=(x.b+x.error)*Math.PI/180,r=235,x1=cx+r*Math.sin(a1),y1=cy-r*Math.cos(a1),x2=cx+r*Math.sin(a2),y2=cy-r*Math.cos(a2);uncertainty.setAttribute('d','M '+cx+' '+cy+' L '+x1+' '+y1+' A '+r+' '+r+' 0 0 1 '+x2+' '+y2+' Z');uncertainty.setAttribute('opacity',String(clamp(.34-x.confidence*.0025,.07,.3)))}const north=$('northBearing');if(north)north.textContent=('000'+Math.round(x.b)).slice(-3)+'°';const rangeLbl=$('stageRangeLabel');if(rangeLbl){rangeLbl.setAttribute('x',tx+16);rangeLbl.setAttribute('y',ty-15);rangeLbl.textContent=x.rkm.toFixed(1)+' km'}const targetTxt=$('stageTargetLabel');if(targetTxt){targetTxt.setAttribute('x',tx+16);targetTxt.setAttribute('y',ty+3);targetTxt.textContent=targetLabel(M.target.value).toUpperCase()}const rings=document.querySelectorAll('.wave-ring');rings.forEach((r,i)=>{r.setAttribute('cx',tx);r.setAttribute('cy',ty)});const sx=$('sensorXbar'),sy=$('sensorYbar');if(sx){const norm=Math.min(1,Math.abs(x.vx)/(Math.abs(x.vx)+Math.abs(x.vy)+1e-18));sx.setAttribute('width',String(75*norm));sx.setAttribute('x',x.vx>=0?'400':String(400-75*norm))}if(sy){const norm=Math.min(1,Math.abs(x.vy)/(Math.abs(x.vx)+Math.abs(x.vy)+1e-18));sy.setAttribute('height',String(75*norm));sy.setAttribute('y',x.vy>=0?String(300-75*norm):'300')}}
+  // X/Y bars represent normalized bearing components only.
+  const sx=$('sensorXbar'),sy=$('sensorYbar');
+  const xComp=Math.sin(ang),yComp=Math.cos(ang);
+  if(sx){const w=75*Math.abs(xComp);sx.setAttribute('width',String(w));sx.setAttribute('x',xComp>=0?'400':String(400-w));}
+  if(sy){const h=75*Math.abs(yComp);sy.setAttribute('height',String(h));sy.setAttribute('y',yComp>=0?String(300-h):'300');}
+}
+function updateMission(){
+  const f=+(M.freq?.value||90),b=+(M.bearing?.value||0),r=+(M.range?.value||3.2);
+  if($('missionFreqText'))$('missionFreqText').textContent=f+' Hz';
+  if($('missionBearingText'))$('missionBearingText').textContent=Math.round(b)+'°';
+  if($('missionRangeText'))$('missionRangeText').textContent=r<3?'Near':r<6?'Mid':'Far';
+  if($('targetLabel'))$('targetLabel').textContent=targetLabel(M.target?.value||'source');
+  updateTargetGraphic(M.target?.value||'source');
+  updateSensorGraphic(M.config?.value||'floating');
+  drawMission();
+}
+Object.values(M).forEach(el=>{if(!el)return;el.addEventListener('input',updateMission);el.addEventListener('change',updateMission);});
 
-function animate(now){const dt=(now-last)/1000;last=now;if(running)phase=(phase+dt*.28)%1;const rings=document.querySelectorAll('.wave-ring');rings.forEach((r,i)=>{const q=(phase+i/4)%1;r.setAttribute('r',String(18+96*q));r.setAttribute('opacity',String(.42*(1-q)))});const scan=$('scanLine');if(scan){const a=(now*.018)%360;scan.setAttribute('transform','rotate('+a+' 400 300)')}requestAnimationFrame(animate)}
-const runBtn=$('runMission');if(runBtn)runBtn.addEventListener('click',()=>{running=!running;runBtn.textContent=running?'Pause animation':'Resume animation';runBtn.classList.toggle('primary',running)});const resetBtn=$('resetMission');if(resetBtn)resetBtn.addEventListener('click',()=>applyPreset('surface'));
-applyPreset('surface');requestAnimationFrame(animate);
+function animate(now){
+  const dt=(now-last)/1000;last=now;
+  if(running)phase=(phase+dt*.28)%1;
+  document.querySelectorAll('.wave-ring').forEach((ring,i)=>{const q=(phase+i/4)%1;ring.setAttribute('r',String(18+96*q));ring.setAttribute('opacity',String(.34*(1-q)));});
+  requestAnimationFrame(animate);
+}
+const runBtn=$('runMission');if(runBtn)runBtn.addEventListener('click',()=>{running=!running;runBtn.textContent=running?'Pause animation':'Resume animation';});
+const resetBtn=$('resetMission');if(resetBtn)resetBtn.addEventListener('click',()=>{if(M.target){M.target.value='source';M.target.dispatchEvent(new Event('change',{bubbles:true}));}if(M.config){M.config.value='floating';M.config.dispatchEvent(new Event('change',{bubbles:true}));}if(M.bearing){M.bearing.value='42';M.bearing.dispatchEvent(new Event('input',{bubbles:true}));}if(M.range){M.range.value='3';M.range.dispatchEvent(new Event('input',{bubbles:true}));}if(M.freq){M.freq.value='90';M.freq.dispatchEvent(new Event('input',{bubbles:true}));}});
+
+// Remove performance-looking elements in the base layer as a fail-safe.
+if($('bearingCone'))$('bearingCone').style.display='none';
+if($('scanLine'))$('scanLine').style.display='none';
+updateMission();requestAnimationFrame(animate);
 })();
