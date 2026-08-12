@@ -1,0 +1,33 @@
+/* Center the three technology equations inside their cells. */
+.formulas{
+  align-items:stretch;
+}
+.formula{
+  min-height:112px;
+  padding:22px 24px!important;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  gap:10px;
+}
+.formula b{
+  display:block;
+  margin:0;
+  font-size:.78rem;
+  font-weight:460;
+  line-height:1.35;
+  color:#c9c9c3;
+}
+.formula code{
+  display:block;
+  margin:0!important;
+  font-size:.86rem;
+  line-height:1.25;
+  color:#e1e3dc!important;
+  white-space:nowrap;
+}
+@media(max-width:800px){
+  .formula{min-height:94px;}
+}
