@@ -1,0 +1,39 @@
+/* Cover-scene polish. Wind scene intentionally left unchanged. */
+.scene-group:not([data-scene="wind"]) .scene-fill{stroke-width:.9;}
+.scene-group:not([data-scene="wind"]) .scene-infra{stroke-width:.85;}
+.scene-group:not([data-scene="wind"]) .scene-caption{opacity:.72;}
+.scene-group:not([data-scene="wind"]) .scene-label{opacity:.92;}
+
+.rhk-wake{stroke-linecap:round;opacity:.7;animation:rhkWake 7.5s ease-in-out infinite;}
+.rhk-depth-band{pointer-events:none;}
+.rhk-bearing-glow{pointer-events:none;animation:rhkBearing 4.8s ease-in-out infinite;}
+
+.scene-group[data-scene="subsea"] .hero-wave,
+.scene-group[data-scene="fleet"] .hero-wave,
+.scene-group[data-scene="swcc"] .hero-wave,
+.scene-group[data-scene="harbor"] .hero-wave{
+  stroke:#b9c0b5!important;
+  stroke-width:.58!important;
+  animation-duration:7.2s!important;
+}
+
+.scene-group[data-scene="subsea"] .track-line,
+.scene-group[data-scene="fleet"] .track-line,
+.scene-group[data-scene="swcc"] .track-line,
+.scene-group[data-scene="harbor"] .track-line{
+  stroke-width:.7!important;
+  opacity:.22!important;
+  stroke-dasharray:2 9!important;
+}
+
+.scene-group[data-scene="fleet"] .sensor-ping,
+.scene-group[data-scene="swcc"] .sensor-ping,
+.scene-group[data-scene="harbor"] .sensor-ping,
+.scene-group[data-scene="subsea"] .sensor-ping{
+  animation-duration:5.5s!important;
+}
+
+@keyframes rhkWake{0%,100%{opacity:.32}50%{opacity:.72}}
+@keyframes rhkBearing{0%,100%{opacity:.12}50%{opacity:.3}}
+
+@media(prefers-reduced-motion:reduce){.rhk-wake,.rhk-bearing-glow{animation:none!important;}}
