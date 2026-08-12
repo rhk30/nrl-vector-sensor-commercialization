@@ -6,6 +6,7 @@ const brandSub=document.querySelector('.brand small');if(brandSub){brandSub.text
 [
   ['editorial.css','editorial.css?v=2'],
   ['hero-fix.css','hero-fix.css?v=4'],
+  ['hero-polish.css','hero-polish.css?v=1'],
   ['sensor-realism.css','sensor-realism.css?v=1']
 ].forEach(([key,href])=>{
   if(!document.querySelector(`link[data-rhk-style="${key}"]`)){
@@ -24,11 +25,13 @@ const scenes=[
 {id:'harbor',kicker:'COMMERCIAL + SECURITY // PORTS',title:'Harbor and infrastructure monitoring',copy:'Directional passive sensing can add source bearing to vessel, machinery and subsea-infrastructure acoustic events around ports and critical waterways.'},
 {id:'wind',kicker:'COMMERCIAL // OFFSHORE ENERGY',title:'Offshore wind monitoring',copy:'Vector sensing could complement passive acoustic monitoring by adding direction-of-arrival context around construction, operations and marine-life monitoring programs.'}
 ];
-let idx=0,timer=null;const dur=6000,$=id=>document.getElementById(id);function show(i,user=false){idx=(i+scenes.length)%scenes.length;const s=scenes[idx];document.querySelectorAll('.scene-group').forEach(g=>g.classList.toggle('active',g.dataset.scene===s.id));document.querySelectorAll('.scene-btn').forEach((b,n)=>b.classList.toggle('active',n===idx));if($('sceneKicker'))$('sceneKicker').textContent=s.kicker;if($('sceneTitle'))$('sceneTitle').textContent=s.title;if($('sceneCopy'))$('sceneCopy').textContent=s.copy;if($('sceneIndex'))$('sceneIndex').textContent=String(idx+1).padStart(2,'0')+' / '+String(scenes.length).padStart(2,'0');const p=$('sceneProgress');if(p){p.classList.remove('running');void p.offsetWidth;p.classList.add('running')}if(user)restart()}
+let idx=0,timer=null;const dur=7000,$=id=>document.getElementById(id);function show(i,user=false){idx=(i+scenes.length)%scenes.length;const s=scenes[idx];document.querySelectorAll('.scene-group').forEach(g=>g.classList.toggle('active',g.dataset.scene===s.id));document.querySelectorAll('.scene-btn').forEach((b,n)=>b.classList.toggle('active',n===idx));if($('sceneKicker'))$('sceneKicker').textContent=s.kicker;if($('sceneTitle'))$('sceneTitle').textContent=s.title;if($('sceneCopy'))$('sceneCopy').textContent=s.copy;if($('sceneIndex'))$('sceneIndex').textContent=String(idx+1).padStart(2,'0')+' / '+String(scenes.length).padStart(2,'0');const p=$('sceneProgress');if(p){p.classList.remove('running');void p.offsetWidth;p.classList.add('running')}if(user)restart()}
 function restart(){clearInterval(timer);timer=setInterval(()=>show(idx+1),dur)}document.querySelectorAll('.scene-btn').forEach((b,i)=>b.addEventListener('click',()=>show(i,true)));document.addEventListener('visibilitychange',()=>{if(document.hidden)clearInterval(timer);else restart()});show(0);restart();
 
+// Enhance the cover composition without changing the preferred wind scene.
+const loadHeroPolish=()=>import('./hero-polish.js?v=1').catch(err=>console.warn('RHKEARTH cover polish fallback:',err));
 // Enhance the public patent model without changing the underlying screening equations.
 const loadSensor=()=>import('./sensor-realism.js?v=1').catch(err=>console.warn('RHKEARTH sensor cutaway fallback:',err));
 const load3D=()=>import('./mission3d.js?v=2').catch(err=>console.warn('RHKEARTH 3D demonstrator fallback:',err));
-if(document.readyState==='complete'){loadSensor();load3D();}else window.addEventListener('load',()=>{loadSensor();load3D();},{once:true});
+if(document.readyState==='complete'){loadHeroPolish();loadSensor();load3D();}else window.addEventListener('load',()=>{loadHeroPolish();loadSensor();load3D();},{once:true});
 })();
