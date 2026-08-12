@@ -1,4 +1,4 @@
-# RHKEARTH — NRL Low-Frequency Vector Sensor Assessment
+# RHKEARTH: NRL Low-Frequency Vector Sensor Assessment
 
 Interactive technical and commercialization assessment of a Naval Research Laboratory low-frequency acoustic vector-sensor patent family.
 
@@ -12,8 +12,8 @@ This repository is an **independent evaluation project**. The patents and underl
 
 ## Patents under evaluation
 
-- US11287508B2 — https://patents.google.com/patent/US11287508
-- US11408961B2 — https://patents.google.com/patent/US11408961
+- US11287508B2: https://patents.google.com/patent/US11287508
+- US11408961B2: https://patents.google.com/patent/US11408961
 
 ## Patent-strict quantitative policy
 
@@ -38,7 +38,7 @@ Visible quantitative technology readouts are limited to values and relationships
 - natural cos θ directivity relative to the mesh normal
 - three co-located orthogonal mesh transducers described as sufficient to reconstruct a sound-wave vector in 3-D space
 
-The public mission demonstrator no longer presents site-generated SNR, detection range, confidence, propagation loss, bearing error, or modeled sensor sensitivity as performance outputs. Its remaining range/bearing geometry is illustrative only and is not an NRL performance claim.
+The public mission demonstrator does not present site-generated SNR, detection range, confidence, propagation loss, bearing error, or modeled sensor sensitivity as performance outputs. Source distance is represented only as normalized scene spacing. Bearing is illustrative geometry, not an NRL accuracy claim.
 
 ## Patent-described architectures represented
 
@@ -62,7 +62,7 @@ The GitHub Pages site includes:
 - a patent-grounded prototype cutaway
 - patent-reported quantitative facts and relationships
 - patent architecture visualizations
-- qualitative commercialization discussion
+- qualitative commercialization discussion clearly separated from patent claims
 - technical and IP diligence questions
 
 ## Cover media
@@ -71,8 +71,8 @@ The landing page uses public maritime media as atmospheric context only. Sensor 
 
 - submarine-force media: U.S. Navy public-domain footage
 - surface-fleet media: U.S. Navy public-domain destroyer footage
-- littoral media: U.S. Navy public-domain SWCC photograph
-- harbor media: CCGS McIntyre Bay harbor-transit footage, CC0 — intentionally retained
+- littoral media: U.S. Navy public-domain Special Warfare image
+- harbor media: CCGS McIntyre Bay harbor-transit footage, CC0, intentionally retained
 - offshore-wind scene: original RHKEARTH engineering animation retained
 
 All hero video elements are programmatically hard-muted (`muted`, `defaultMuted`, and `volume = 0`) and display no audio controls.
