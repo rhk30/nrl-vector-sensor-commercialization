@@ -3,73 +3,52 @@ const physics=document.getElementById('physics');
 const anchor=physics?.querySelector('.patent-directivity-panel');
 if(!physics||!anchor)return;
 
-const panel=document.createElement('section');
-panel.className='vector-reconstruction-panel';
-panel.innerHTML=`
-  <div class="vr-head">
-    <div>
-      <span class="vr-kicker">3-AXIS GEOMETRY // US11287508B2</span>
-      <h3>Orthogonal vector reconstruction</h3>
-      <p>The patent states that three co-located orthogonal mesh transducers can reconstruct the sound-wave vector in 3-D. This demonstrator applies that statement as pure direction-cosine geometry. It does not model amplitude, calibration, noise, or bearing error.</p>
-    </div>
-    <div class="vr-norm"><span>VECTOR NORM</span><b id="vrNorm">1.000000</b><small>√(E² + N² + U²)</small></div>
+const card=document.createElement('section');
+card.className='vector-extension-card';
+card.innerHTML=`
+  <div class="vec-copy">
+    <span class="vec-kicker">WHY THREE MESHES MATTER // US11287508B2</span>
+    <h3>One mesh measures a projection. Three orthogonal meshes resolve direction.</h3>
+    <p>The cosine plot above describes a single mesh. The patent then states that three co-located orthogonal mesh transducers can reconstruct the sound-wave vector in 3-D. Each mesh supplies one signed directional projection; together those three projections define the incoming unit vector.</p>
+    <div class="vec-formula"><code>k̂ = [Rₓ, Rᵧ, R_z] / √(Rₓ² + Rᵧ² + R_z²)</code><span>Normalized geometry only. A real instrument still requires calibration, alignment, phase convention and measured error characterization.</span></div>
   </div>
-  <div class="vr-grid">
-    <div class="vr-controls">
-      <label><span>Source bearing β</span><strong id="vrAzText">45°</strong></label>
-      <input id="vrAz" type="range" min="0" max="359" step="1" value="45">
-      <small>Display convention: clockwise from north.</small>
-      <label><span>Source elevation ε</span><strong id="vrElText">0°</strong></label>
-      <input id="vrEl" type="range" min="-90" max="90" step="1" value="0">
-      <small>Display convention: positive above the horizontal plane.</small>
-      <div class="vr-formula"><b>Incoming unit wave vector</b><code>k̂ = −[cos ε sin β, cos ε cos β, sin ε]</code><small>East, north, up coordinate convention chosen only for this visualization.</small></div>
-    </div>
-    <div class="vr-results">
-      <div class="vr-axis-row"><span>East-normal mesh</span><div class="vr-track"><i class="vr-zero"></i><b id="vrEastBar"></b></div><strong id="vrEast">−0.707</strong><small>k̂ · n̂E = cos θE</small></div>
-      <div class="vr-axis-row"><span>North-normal mesh</span><div class="vr-track"><i class="vr-zero"></i><b id="vrNorthBar"></b></div><strong id="vrNorth">−0.707</strong><small>k̂ · n̂N = cos θN</small></div>
-      <div class="vr-axis-row"><span>Up-normal mesh</span><div class="vr-track"><i class="vr-zero"></i><b id="vrUpBar"></b></div><strong id="vrUp">0.000</strong><small>k̂ · n̂U = cos θU</small></div>
-      <div class="vr-check"><span>Reconstructed source bearing</span><b id="vrBearingCheck">045°</b><span>Reconstructed source elevation</span><b id="vrElevationCheck">0°</b></div>
-    </div>
-  </div>
-  <div class="vr-foot"><span>Each channel is normalized to its own peak response.</span><span>Signed outputs preserve dipole polarity. A real instrument would additionally require calibration, phase convention, alignment knowledge, and measured noise/error characterization.</span></div>`;
-anchor.insertAdjacentElement('afterend',panel);
+  <div class="vec-visual" aria-label="Animated three-axis vector projection explanation">
+    <svg viewBox="0 0 520 310" role="img" aria-label="Three orthogonal mesh projections reconstructing an incoming unit vector">
+      <defs><marker id="vecArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#dce2d8"/></marker></defs>
+      <circle cx="250" cy="153" r="108" class="vec-ring"/>
+      <circle cx="250" cy="153" r="72" class="vec-ring inner"/>
+      <line x1="250" y1="153" x2="398" y2="153" class="vec-axis"/><text x="409" y="157" class="vec-label">X</text>
+      <line x1="250" y1="153" x2="250" y2="42" class="vec-axis"/><text x="245" y="30" class="vec-label">Z</text>
+      <line x1="250" y1="153" x2="158" y2="245" class="vec-axis"/><text x="143" y="259" class="vec-label">Y</text>
+      <line id="vecIncoming" x1="250" y1="153" x2="340" y2="78" class="vec-incoming" marker-end="url(#vecArrow)"/>
+      <circle id="vecTip" cx="340" cy="78" r="5" class="vec-tip"/>
+      <line id="vecProjX" x1="250" y1="153" x2="340" y2="153" class="vec-proj"/>
+      <line id="vecProjZ" x1="340" y1="153" x2="340" y2="78" class="vec-proj"/>
+      <g transform="translate(22 56)"><text class="vec-small">SIGNED NORMALIZED CHANNELS</text><text id="vecRx" y="28" class="vec-value">Rₓ +0.707</text><text id="vecRy" y="50" class="vec-value">Rᵧ -0.354</text><text id="vecRz" y="72" class="vec-value">R_z +0.612</text></g>
+      <g transform="translate(338 225)"><text class="vec-small">VECTOR NORM</text><text id="vecNorm" y="28" class="vec-value big">1.000</text></g>
+    </svg>
+    <div class="vec-caption">Animation is a unit-vector geometry example, not a measured NRL data trace.</div>
+  </div>`;
+anchor.insertAdjacentElement('afterend',card);
 
 const style=document.createElement('style');
 style.textContent=`
-.vector-reconstruction-panel{margin-top:18px;border:1px solid rgba(169,181,155,.18);background:#080a08;padding:20px}.vr-head{display:flex;justify-content:space-between;gap:24px}.vr-kicker{font:10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em;color:#a9b59b}.vr-head h3{margin:5px 0 7px;font-size:22px}.vr-head p{max-width:790px;margin:0;color:#929a91;font-size:12px;line-height:1.55}.vr-norm{min-width:170px;padding:11px 13px;border:1px solid rgba(169,181,155,.18);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.vr-norm span,.vr-norm small{display:block;font-size:9px;color:#858e85}.vr-norm b{display:block;margin:7px 0;color:#eef0ea;font-size:15px}.vr-grid{display:grid;grid-template-columns:minmax(210px,.72fr) minmax(0,1.28fr);gap:24px;margin-top:20px}.vr-controls label{display:flex;justify-content:space-between;gap:12px;color:#b8beb6;font:10px ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:13px}.vr-controls label:first-child{margin-top:0}.vr-controls input{width:100%;margin:8px 0 4px}.vr-controls>small{display:block;color:#737c73;font:9px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}.vr-formula{margin-top:18px;padding:12px;border:1px solid rgba(169,181,155,.15);background:#0b0d0b}.vr-formula b,.vr-formula code,.vr-formula small{display:block}.vr-formula b{color:#aeb6ac;font:10px ui-monospace,SFMono-Regular,Menlo,monospace}.vr-formula code{color:#eef0ea;font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;margin:8px 0}.vr-formula small{color:#737c73;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}.vr-results{border-left:1px solid rgba(169,181,155,.14);padding-left:22px}.vr-axis-row{display:grid;grid-template-columns:150px minmax(180px,1fr) 72px;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid rgba(169,181,155,.10)}.vr-axis-row>span{color:#aeb6ad;font:10px ui-monospace,SFMono-Regular,Menlo,monospace}.vr-axis-row>strong{color:#eef0e9;font:12px ui-monospace,SFMono-Regular,Menlo,monospace;text-align:right}.vr-axis-row>small{grid-column:2/4;color:#6f776f;font:9px ui-monospace,SFMono-Regular,Menlo,monospace}.vr-track{position:relative;height:14px;background:#111411;border:1px solid #292e29;overflow:hidden}.vr-zero{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#596159;z-index:2}.vr-track b{position:absolute;top:2px;bottom:2px;background:#cdd4c9}.vr-check{display:grid;grid-template-columns:1fr auto;gap:7px 14px;margin-top:16px;padding:12px;background:#0b0d0b;border:1px solid rgba(169,181,155,.12);font:10px ui-monospace,SFMono-Regular,Menlo,monospace;color:#858e85}.vr-check b{color:#edf0e9;text-align:right}.vr-foot{display:flex;justify-content:space-between;gap:20px;margin-top:17px;padding-top:10px;border-top:1px solid rgba(169,181,155,.12);color:#7d857d;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}.vr-foot span:last-child{max-width:620px;text-align:right}
-@media(max-width:850px){.vr-head{display:block}.vr-norm{margin-top:14px;max-width:190px}.vr-grid{grid-template-columns:1fr}.vr-results{border-left:0;padding-left:0;border-top:1px solid rgba(169,181,155,.14);padding-top:10px}}
-@media(max-width:560px){.vector-reconstruction-panel{padding:14px}.vr-axis-row{grid-template-columns:1fr 62px}.vr-axis-row .vr-track{grid-column:1/3}.vr-axis-row>small{grid-column:1/3}.vr-foot{display:block}.vr-foot span{display:block}.vr-foot span:last-child{text-align:left;margin-top:6px}}
+.vector-extension-card{display:grid;grid-template-columns:minmax(280px,.82fr) minmax(0,1.18fr);gap:1px;margin-top:18px;border:1px solid rgba(169,181,155,.16);background:rgba(169,181,155,.13)}.vec-copy,.vec-visual{background:#080a08}.vec-copy{padding:24px 22px;display:flex;flex-direction:column;justify-content:center}.vec-kicker{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em;color:#a9b59b}.vec-copy h3{font-size:21px;line-height:1.12;margin:7px 0 10px}.vec-copy p{margin:0;color:#8e978e;font-size:10px;line-height:1.58}.vec-formula{margin-top:18px;padding-top:13px;border-top:1px solid rgba(169,181,155,.14)}.vec-formula code,.vec-formula span{display:block}.vec-formula code{color:#e7ebe3;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}.vec-formula span{margin-top:7px;color:#747d74;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}.vec-visual{padding:12px 14px 10px;display:flex;flex-direction:column;justify-content:center}.vec-visual svg{width:100%;height:auto;display:block}.vec-ring{fill:none;stroke:#252b25;stroke-width:1}.vec-ring.inner{opacity:.55}.vec-axis{stroke:#596159;stroke-width:1}.vec-incoming{stroke:#e0e5dc;stroke-width:1.7}.vec-proj{stroke:#8f998c;stroke-width:1;stroke-dasharray:4 5}.vec-tip{fill:#eef1ea}.vec-label,.vec-small,.vec-value{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.vec-label{fill:#9ca69a;font-size:10px}.vec-small{fill:#727b72;font-size:8px}.vec-value{fill:#cfd6cb;font-size:10px}.vec-value.big{font-size:15px}.vec-caption{padding:8px 4px 0;border-top:1px solid rgba(169,181,155,.10);color:#747d74;font:8px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;text-align:right}@media(max-width:820px){.vector-extension-card{grid-template-columns:1fr}.vec-copy{padding:18px}.vec-visual{padding:8px 10px}}
 `;
 document.head.appendChild(style);
 
-const az=document.getElementById('vrAz'),el=document.getElementById('vrEl');
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const rx=document.getElementById('vecRx'),ry=document.getElementById('vecRy'),rz=document.getElementById('vecRz'),normEl=document.getElementById('vecNorm'),line=document.getElementById('vecIncoming'),tip=document.getElementById('vecTip'),px=document.getElementById('vecProjX'),pz=document.getElementById('vecProjZ');
 const signed=v=>(v>=0?'+':'')+v.toFixed(3);
-function setBar(id,v){const b=document.getElementById(id);if(!b)return;const mag=clamp(Math.abs(v),0,1)*50;b.style.width=mag+'%';b.style.left=v>=0?'50%':(50-mag)+'%';}
-function wrap360(d){return ((d%360)+360)%360;}
-function update(){
-  const beta=(+az.value)*Math.PI/180,eps=(+el.value)*Math.PI/180;
-  const east=-Math.cos(eps)*Math.sin(beta);
-  const north=-Math.cos(eps)*Math.cos(beta);
-  const up=-Math.sin(eps);
-  const norm=Math.hypot(east,north,up);
-  document.getElementById('vrAzText').textContent=Math.round(+az.value)+'°';
-  document.getElementById('vrElText').textContent=Math.round(+el.value)+'°';
-  document.getElementById('vrEast').textContent=signed(east);document.getElementById('vrNorth').textContent=signed(north);document.getElementById('vrUp').textContent=signed(up);document.getElementById('vrNorm').textContent=norm.toFixed(6);
-  setBar('vrEastBar',east);setBar('vrNorthBar',north);setBar('vrUpBar',up);
-  // Reconstruct source direction from k = -s using atan2(East,North).
-  const srcE=-east,srcN=-north,srcU=-up;
-  let bearingDeg=wrap360(Math.atan2(srcE,srcN)*180/Math.PI);
-  const elevationDeg=Math.atan2(srcU,Math.hypot(srcE,srcN))*180/Math.PI;
-  // At exactly vertical incidence bearing is undefined; say so instead of inventing one.
-  document.getElementById('vrBearingCheck').textContent=Math.hypot(srcE,srcN)<1e-9?'undefined':String(Math.round(bearingDeg)).padStart(3,'0')+'°';
-  document.getElementById('vrElevationCheck').textContent=(elevationDeg>=0?'+':'')+Math.round(elevationDeg)+'°';
+const start=performance.now();
+function animate(now){
+  const t=(now-start)/1000;
+  const beta=.65+Math.sin(t*.22)*.8;
+  const elev=.38+Math.sin(t*.16+.9)*.34;
+  const X=Math.cos(elev)*Math.cos(beta),Y=Math.cos(elev)*Math.sin(beta),Z=Math.sin(elev),norm=Math.hypot(X,Y,Z);
+  if(rx)rx.textContent='Rₓ '+signed(X);if(ry)ry.textContent='Rᵧ '+signed(Y);if(rz)rz.textContent='R_z '+signed(Z);if(normEl)normEl.textContent=norm.toFixed(3);
+  const ox=250,oy=153,s=116,tx=ox+X*s,ty=oy-Z*s;
+  line?.setAttribute('x2',tx.toFixed(1));line?.setAttribute('y2',ty.toFixed(1));tip?.setAttribute('cx',tx.toFixed(1));tip?.setAttribute('cy',ty.toFixed(1));px?.setAttribute('x2',tx.toFixed(1));pz?.setAttribute('x1',tx.toFixed(1));pz?.setAttribute('x2',tx.toFixed(1));pz?.setAttribute('y2',ty.toFixed(1));
+  requestAnimationFrame(animate);
 }
-az.addEventListener('input',update);el.addEventListener('input',update);update();
-
-// Mathematical invariants for the coordinate transform.
-for(const [b,e] of [[0,0],[45,0],[90,0],[180,0],[315,30],[120,-45],[0,90],[0,-90]]){
-  const br=b*Math.PI/180,er=e*Math.PI/180,E=-Math.cos(er)*Math.sin(br),N=-Math.cos(er)*Math.cos(br),U=-Math.sin(er);
-  console.assert(Math.abs(Math.hypot(E,N,U)-1)<1e-12,'RHKEARTH audit: orthogonal unit-vector reconstruction');
-}
+requestAnimationFrame(animate);
 })();
