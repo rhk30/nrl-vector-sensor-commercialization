@@ -45,4 +45,6 @@ function sync(){
 }
 new MutationObserver(sync).observe(panel,{subtree:true,attributes:true,attributeFilter:['class']});
 sync();
+
+import('./hero-overlay-rework.js?v=1').catch(err=>console.warn('RHKEARTH hero overlay fallback:',err));
 })();
