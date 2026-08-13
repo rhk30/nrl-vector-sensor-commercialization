@@ -15,9 +15,13 @@ This repository is an **independent evaluation project**.
 - US11287508B2: https://patents.google.com/patent/US11287508B2/en
 - US11408961B2: https://patents.google.com/patent/US11408961B2/en
 
+Published prototype work:
+
+- J. Appl. Phys. 122, 034504 (2017), “Mesh-type acoustic vector sensor,” DOI 10.1063/1.4994174
+
 See [`PATENT_AUDIT.md`](PATENT_AUDIT.md) for the public-site evidence and wording boundary.
 
-## What the patents publicly support
+## What the public sources support
 
 ### Reported prototype evidence
 
@@ -31,14 +35,15 @@ See [`PATENT_AUDIT.md`](PATENT_AUDIT.md) for the public-site evidence and wordin
 - in-air dipole-type directionality
 - peak responsivity in excess of 20 nm/Pa at 90 Hz in the in-air prototype evaluation
 
-### Patent estimates / projections
+### Patent / paper estimates and projections
 
-- interferometer noise floor of approximately 2 pm/√Hz used in the MDP estimate
-- estimated air MDP of approximately 100 μPa
+- interferometer displacement-noise spectral density of approximately 2 pm/√Hz used in the MDP estimate
+- estimated air MDP spectral density of approximately 100 μPa/√Hz
+- projected water responsivity of approximately 0.3 nm/Pa
 - projected equivalent water pressure spectral density of approximately 76 dB re 1 μPa/√Hz
-- approximately 10 mm floating-base radius estimate for 10 Hz operation
+- approximately 10 mm floating-base radius estimate for operation in the 10 Hz range
 
-The water MDP value is a **patent projection, not an in-water validation result**.
+The water responsivity and water MDP values are **projections, not in-water validation results**.
 
 ### Patent-described mechanisms and embodiments
 
@@ -54,9 +59,9 @@ The water MDP value is a **patent projection, not an in-water validation result*
 - viscous-liquid channel tower embodiments
 - neutrally buoyant hull-mounted and/or towed-array applications
 - positively buoyant AVS / sonobuoy embodiment
-- optional tower power, memory, transmitter, and surface recovery / telemetry
+- optional tower power, memory, transmitter, detachment, surfacing, and telemetry
 
-## What the public patents do not establish
+## What the public sources do not establish
 
 The website does not present the following as known product specifications:
 
@@ -74,7 +79,7 @@ The website does not present the following as known product specifications:
 The public presentation is intentionally compact:
 
 1. thesis and maritime context;
-2. technology / system architecture with patent-reported evidence;
+2. technology / system architecture with source-grounded evidence;
 3. patent-grounded bearing-geometry demonstrator;
 4. defense and dual-use application evaluation.
 
@@ -88,7 +93,7 @@ The public site contains:
 - a 2-D deployment / source-bearing demonstrator focused on geometry rather than sonar performance;
 - patent-grounded floating-base, tower, hull/AUV, towed, and sonobuoy context views;
 - a micro-mesh cutaway and signed cosine directivity visualization;
-- progressive disclosure of patent-reported quantitative values;
+- progressive disclosure of source-grounded quantitative values;
 - an illustrative maritime operating picture for application context;
 - a commercial-context media reel separating evaluation hypotheses from patent deployment claims.
 
@@ -113,7 +118,7 @@ Hero video elements are muted and preloaded to make scene transitions smoother. 
 
 ## Quantitative display policy
 
-The site may show relationships expressly stated in the patents, including:
+The site may show relationships expressly stated in the patents / published prototype work, including:
 
 - `R / Rmax = cos θ`
 - ideal square-mesh fiber length `2L² / d`
