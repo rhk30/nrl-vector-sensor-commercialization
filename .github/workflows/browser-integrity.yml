@@ -1,0 +1,92 @@
+name: browser integrity
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install selenium
+      - name: Start local site
+        run: python -m http.server 8000 >/tmp/rhk-http.log 2>&1 &
+      - name: Validate rendered site
+        run: |
+          python - <<'PY'
+          import math,time
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+
+          def fail(msg): raise AssertionError(msg)
+          opts=Options();opts.add_argument('--headless=new');opts.add_argument('--no-sandbox');opts.add_argument('--disable-dev-shm-usage');opts.set_capability('goog:loggingPrefs',{'browser':'ALL'})
+          d=webdriver.Chrome(options=opts);wait=WebDriverWait(d,30)
+          js=lambda s,*a:d.execute_script(s,*a)
+          def set_bearing(value):
+              el=d.find_element(By.ID,'missionBearing')
+              js("arguments[0].value=arguments[1];arguments[0].dispatchEvent(new Event('input',{bubbles:true}));",el,str(value));time.sleep(.25)
+          def num(s): return float(s.replace('−','-').replace('+','').strip())
+          try:
+              d.set_window_size(1440,1000);d.get('http://127.0.0.1:8000/')
+              wait.until(lambda x:x.execute_script('return document.readyState')=='complete')
+              wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.static-tech-head')))
+              wait.until(EC.presence_of_element_located((By.ID,'engThetaAnnotation')))
+              wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.market-motion-v10')))
+              wait.until(lambda x:x.execute_script('return !!window.RHKEARTH_INTEGRITY?.checked'));time.sleep(1)
+
+              for legacy in ['missionRange','missionSource','missionNoise','missionSNR','missionTL','missionConfidence','receivedLevel']:
+                  if d.find_elements(By.ID,legacy): fail('legacy performance element: '+legacy)
+              angle=d.find_element(By.ID,'angle')
+              if angle.get_attribute('type')!='hidden' or not angle.get_attribute('disabled') or angle.get_attribute('value')!='20': fail('static 20-degree state')
+              ann=d.find_element(By.ID,'engThetaAnnotation').get_attribute('textContent') or ''
+              if not all(x in ann for x in ['20°','+0.940','ILLUSTRATIVE']): fail('20-degree analytical annotation')
+
+              cards=d.find_elements(By.CSS_SELECTOR,'.audited-reference-grid .audit-readout')
+              if len(cards)!=3: fail('evidence card count')
+              evidence=' '.join(x.text for x in cards)
+              if not all(x in evidence for x in ['20 nm/Pa','530 Hz','100 μPa/√Hz']): fail('evidence values')
+
+              audit=js('return window.RHKEARTH_INTEGRITY')
+              if abs(audit['cos20']-math.cos(math.radians(20)))>1e-12: fail('cos20 math')
+              if abs(audit['airMdpPaPerRootHz']-100e-6)>1e-12: fail('air MDP math')
+              if abs(audit['projectedWaterMdpDb']-76.47817481888637)>1e-9: fail('water projection math')
+
+              for deg in [0,90,180,270,315]:
+                  set_bearing(deg)
+                  east=num(d.find_element(By.ID,'geoEast').text);north=num(d.find_element(By.ID,'geoNorth').text)
+                  if abs(east+math.sin(math.radians(deg)))>.002 or abs(north+math.cos(math.radians(deg)))>.002: fail('DOA geometry '+str(deg))
+              if d.find_elements(By.CSS_SELECTOR,'#market .mm10-node .ring'): fail('passive node range rings')
+
+              son=next((b for b in d.find_elements(By.CSS_SELECTOR,'.patent-demo-presets button') if 'Sonobuoy' in b.text),None)
+              if not son: fail('sonobuoy control')
+              js('arguments[0].click()',son);time.sleep(.6)
+              art=d.find_element(By.ID,'deploymentVisualArt')
+              if 'POSITIVE-BUOYANCY AVS' not in (art.get_attribute('textContent') or ''): fail('sonobuoy patent wording')
+              if art.find_elements(By.CSS_SELECTOR,'.deploy-buoy'): fail('extra sonobuoy float')
+
+              body=d.find_element(By.TAG_NAME,'body').text
+              for badtext in ['Received level','Signal / noise','Propagation loss','Confidence']:
+                  if badtext in body: fail('legacy visible wording: '+badtext)
+
+              for sel in ['.sensor-engineering','.mission-shell','.market-motion-v10']:
+                  r=js('const r=document.querySelector(arguments[0]).getBoundingClientRect();return [r.width,r.height]',sel)
+                  if r[0]<250 or r[1]<100: fail('collapsed section '+sel)
+              errors=[x.get('message','') for x in d.get_log('browser') if any(t in x.get('message','') for t in ['Uncaught ','SyntaxError','ReferenceError','TypeError:']) and 'ERR_' not in x.get('message','')]
+              if errors: fail('runtime errors: '+' | '.join(errors[:5]))
+
+              d.set_window_size(390,844);d.get('http://127.0.0.1:8000/');wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.static-tech-head')));time.sleep(1.2)
+              o=js('return [document.documentElement.scrollWidth,document.documentElement.clientWidth,document.body.scrollWidth]')
+              if o[0]>o[1]+2 or o[2]>o[1]+2: fail('mobile horizontal overflow '+str(o))
+              print('PASS: rendered RHKEARTH technical integrity')
+          finally:
+              d.quit()
+          PY
