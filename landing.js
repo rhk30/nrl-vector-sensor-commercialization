@@ -38,7 +38,7 @@ document.querySelector('#market .path')?.remove();
 
 // Immediately suppress legacy prototype-performance controls before the audited
 // modules load. These controls are not patent measurements and should never flash.
-['missionSource','missionNoise'].forEach(id=>document.getElementById(id)?.closest('.control-group')?.remove());
+['missionSource','missionNoise','missionFreq'].forEach(id=>document.getElementById(id)?.closest('.control-group')?.remove());
 const earlyMetrics=document.querySelectorAll('.metrics .metric');
 if(earlyMetrics[3]){const l=earlyMetrics[3].querySelector('.label'),v=earlyMetrics[3].querySelector('.value'),s=earlyMetrics[3].querySelector('.sub');if(l)l.textContent='Prototype fundamental';if(v)v.textContent='530 Hz';if(s)s.textContent='reported for the first mesh prototype';}
 const earlyMission=document.querySelector('#mission .section-head .section-title p');if(earlyMission)earlyMission.textContent='Choose a patent-described deployment context and inspect source-bearing geometry. The demonstrator does not calculate detection performance.';
@@ -61,10 +61,10 @@ punctuationGuard.observe(document.body,{childList:true,subtree:true});
 
 [
   ['editorial.css','editorial.css?v=2'],
-  ['hero-fix.css','hero-fix.css?v=4'],
+  ['hero-fix.css','hero-fix.css?v=5'],
   ['hero-polish.css','hero-polish.css?v=3'],
-  ['hero-media.css','hero-media.css?v=3'],
-  ['sensor-realism.css','sensor-realism.css?v=4'],
+  ['hero-media.css','hero-media.css?v=4'],
+  ['sensor-realism.css','sensor-realism.css?v=5'],
   ['formula-layout.css','formula-layout.css?v=1'],
   ['patent-accuracy.css','patent-accuracy.css?v=2'],
   ['patent-strict.css','patent-strict.css?v=3']
@@ -96,18 +96,20 @@ function restart(){clearInterval(timer);timer=setInterval(()=>show(idx+1),dur);}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)clearInterval(timer);else restart();});
 show(0);restart();
 
-const loadHeroMedia=()=>import('./hero-media.js?v=3').catch(err=>console.warn('RHKEARTH cover media fallback:',err));
+const loadHeroMedia=()=>import('./hero-media.js?v=4').catch(err=>console.warn('RHKEARTH cover media fallback:',err));
 const loadHeroPolish=()=>import('./hero-polish.js?v=3').catch(err=>console.warn('RHKEARTH cover polish fallback:',err));
-const loadSensor=()=>import('./sensor-realism.js?v=4').catch(err=>console.warn('RHKEARTH sensor cutaway fallback:',err));
+const loadSensor=()=>import('./sensor-realism.js?v=5').catch(err=>console.warn('RHKEARTH sensor cutaway fallback:',err));
 const loadPatentAccuracy=()=>import('./patent-accuracy.js?v=2').catch(err=>console.warn('RHKEARTH patent-accuracy layer fallback:',err));
 const loadPatentStrict=()=>import('./patent-strict.js?v=3').catch(err=>console.warn('RHKEARTH patent-strict layer fallback:',err));
 const loadDemoMechanics=()=>import('./demo-mechanics.js?v=2').catch(err=>console.warn('RHKEARTH demonstrator mechanics fallback:',err));
 const loadFinalAudit=()=>import('./patent-final-audit.js?v=1').catch(err=>console.warn('RHKEARTH final patent audit fallback:',err));
+const loadVectorReconstruction=()=>import('./vector-reconstruction.js?v=1').catch(err=>console.warn('RHKEARTH vector reconstruction fallback:',err));
+const loadPatentGuide=()=>import('./demo-patent-guide.js?v=1').catch(err=>console.warn('RHKEARTH patent guide fallback:',err));
 const load3D=()=>import('./mission3d-audited.js?v=1').catch(err=>console.warn('RHKEARTH audited 3D demonstrator fallback:',err));
 function loadEnhancements(){
   loadHeroMedia();
   loadHeroPolish();
-  loadSensor().then(loadPatentAccuracy).then(loadPatentStrict).then(loadDemoMechanics).then(loadFinalAudit).then(load3D);
+  loadSensor().then(loadPatentAccuracy).then(loadPatentStrict).then(loadDemoMechanics).then(loadFinalAudit).then(loadVectorReconstruction).then(loadPatentGuide).then(load3D);
 }
 if(document.readyState==='complete')loadEnhancements();else window.addEventListener('load',loadEnhancements,{once:true});
 })();
