@@ -1,0 +1,159 @@
+name: site smoke test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install selenium
+      - name: Start local site
+        run: |
+          python -m http.server 8000 >/tmp/rhk-http.log 2>&1 &
+          echo $! > /tmp/rhk-http.pid
+      - name: Browser smoke test
+        run: |
+          python - <<'PY'
+          import math, time, sys
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+
+          def fail(msg):
+              print('FAIL:', msg)
+              raise AssertionError(msg)
+
+          opts=Options()
+          opts.add_argument('--headless=new')
+          opts.add_argument('--no-sandbox')
+          opts.add_argument('--disable-dev-shm-usage')
+          opts.add_argument('--autoplay-policy=no-user-gesture-required')
+          opts.set_capability('goog:loggingPrefs', {'browser':'ALL'})
+          d=webdriver.Chrome(options=opts)
+          wait=WebDriverWait(d,15)
+
+          def js(script,*args):
+              return d.execute_script(script,*args)
+
+          def set_range(el,val):
+              js("arguments[0].value=arguments[1]; arguments[0].dispatchEvent(new Event('input',{bubbles:true}));",el,str(val))
+              time.sleep(.12)
+
+          try:
+              d.set_window_size(1440,1000)
+              d.get('http://127.0.0.1:8000/')
+              wait.until(lambda x: x.execute_script('return document.readyState')=='complete')
+              wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.market-motion-v10')))
+              wait.until(EC.presence_of_element_located((By.ID,'auditDirectivity')))
+              time.sleep(1.0)
+
+              assert d.title=='RHKEARTH'
+
+              # Hero: five visible manual controls and direct selection.
+              hero=d.find_elements(By.CSS_SELECTOR,'.scene-nav .scene-btn')
+              assert len(hero)==5, len(hero)
+              assert js("return getComputedStyle(document.querySelector('.scene-nav')).display")!='none'
+              for i,b in enumerate(hero):
+                  d.execute_script('arguments[0].click()',b)
+                  time.sleep(.10)
+                  active=d.find_elements(By.CSS_SELECTOR,'.scene-nav .scene-btn.active')
+                  assert len(active)==1
+                  assert active[0].text==hero[i].text
+                  assert hero[i].get_attribute('aria-pressed')=='true'
+
+              # Physical-model directivity endpoints.
+              phys=d.find_element(By.CSS_SELECTOR,'.tab[data-view="physics"]')
+              d.execute_script('arguments[0].click()',phys)
+              angle=d.find_element(By.ID,'angle')
+              for deg,expected in [(0,1.0),(90,0.0),(180,-1.0)]:
+                  set_range(angle,deg)
+                  val=float(d.find_element(By.ID,'auditDirectivity').text)
+                  if abs(val-expected)>.001: fail(f'directivity {deg}° -> {val}, expected {expected}')
+                  p=float(d.find_element(By.ID,'plotResponse').text)
+                  if abs(p-expected)>.001: fail(f'plot response {deg}° -> {p}, expected {expected}')
+
+              # Demonstrator vector geometry at 42 degrees.
+              bearing=d.find_element(By.ID,'missionBearing')
+              set_range(bearing,42)
+              east=float(d.find_element(By.ID,'auditEast').text)
+              north=float(d.find_element(By.ID,'auditNorth').text)
+              norm=float(d.find_element(By.ID,'auditNorm').text)
+              if abs(east-(-math.sin(math.radians(42))))>.002: fail(f'east component {east}')
+              if abs(north-(-math.cos(math.radians(42))))>.002: fail(f'north component {north}')
+              if abs(norm-1.0)>.001: fail(f'vector norm {norm}')
+
+              # Deployment presets should not unexpectedly rewrite source geometry.
+              rng=d.find_element(By.ID,'missionRange')
+              set_range(bearing,77)
+              set_range(rng,4.1)
+              presets=d.find_elements(By.CSS_SELECTOR,'.patent-demo-presets button')
+              assert len(presets)==4
+              for b in presets:
+                  set_range(bearing,77); set_range(rng,4.1)
+                  d.execute_script('arguments[0].click()',b)
+                  time.sleep(.20)
+                  bv=float(bearing.get_attribute('value'))
+                  rv=float(rng.get_attribute('value'))
+                  if abs(bv-77)>.001 or abs(rv-4.1)>.001:
+                      fail(f'preset {b.text} changed geometry to bearing={bv}, range={rv}')
+
+              # Applications: persistent platforms and receiver label within the circular frame box.
+              for sel in ['#m10Warship','#m10Fastcraft','#m10Submarine']:
+                  el=d.find_element(By.CSS_SELECTOR,sel)
+                  t1=el.get_attribute('transform')
+                  time.sleep(.25)
+                  t2=el.get_attribute('transform')
+                  assert t1 and t2 and t1!=t2
+                  assert el.is_displayed()
+              label=d.find_element(By.XPATH,"//*[name()='svg' and contains(@class,'mm10-scene')]//*[name()='text'][.//*[name()='tspan'][contains(.,'EXTERNAL RECEIVER')]]")
+              circle=d.find_element(By.CSS_SELECTOR,'.mm10-circle')
+              lr=js('return arguments[0].getBoundingClientRect()',label)
+              cr=js('return arguments[0].getBoundingClientRect()',circle)
+              if lr['left']<cr['left']-1 or lr['right']>cr['right']+1: fail(f'receiver label clips horizontally: {lr} vs {cr}')
+
+              # Commercial reel exists and every tab can be selected manually.
+              wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.commercial-context-media')))
+              ccm=d.find_elements(By.CSS_SELECTOR,'.ccm-tabs button')
+              assert len(ccm)==5
+              for b in ccm:
+                  d.execute_script('arguments[0].click()',b); time.sleep(.08)
+                  assert 'active' in b.get_attribute('class').split()
+
+              # JS runtime errors (ignore network/media loading errors).
+              bad=[]
+              for entry in d.get_log('browser'):
+                  m=entry.get('message','')
+                  if any(x in m for x in ['Uncaught ','SyntaxError','ReferenceError','TypeError:']) and 'ERR_' not in m:
+                      bad.append(m)
+              if bad: fail('runtime JS errors: '+ ' | '.join(bad[:5]))
+
+              # Mobile pass: no page-level horizontal overflow and main controls remain visible.
+              d.set_window_size(390,844)
+              d.get('http://127.0.0.1:8000/')
+              wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.market-motion-v10')))
+              wait.until(EC.presence_of_element_located((By.ID,'auditDirectivity')))
+              time.sleep(.8)
+              overflow=js('return {sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,bw:document.body.scrollWidth}')
+              if overflow['sw']>overflow['cw']+2 or overflow['bw']>overflow['cw']+2: fail(f'mobile horizontal overflow {overflow}')
+              nav=d.find_element(By.CSS_SELECTOR,'.scene-nav')
+              assert nav.is_displayed()
+              assert len(d.find_elements(By.CSS_SELECTOR,'.scene-nav .scene-btn'))==5
+              app_circle=d.find_element(By.CSS_SELECTOR,'.mm10-circle')
+              ar=js('return arguments[0].getBoundingClientRect()',app_circle)
+              vw=js('return window.innerWidth')
+              if ar['width']>vw+1: fail(f'applications circle wider than viewport: {ar["width"]}>{vw}')
+
+              print('PASS: RHKEARTH browser smoke tests')
+          finally:
+              d.quit()
+          PY
