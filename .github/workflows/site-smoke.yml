@@ -22,11 +22,12 @@ jobs:
       - name: Browser smoke test
         run: |
           python - <<'PY'
-          import math, time, sys
+          import math, time
           from selenium import webdriver
           from selenium.webdriver.common.by import By
+          from selenium.webdriver.common.keys import Keys
           from selenium.webdriver.chrome.options import Options
-          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support.ui import WebDriverWait, Select
           from selenium.webdriver.support import expected_conditions as EC
 
           def fail(msg):
@@ -42,9 +43,7 @@ jobs:
           d=webdriver.Chrome(options=opts)
           wait=WebDriverWait(d,15)
 
-          def js(script,*args):
-              return d.execute_script(script,*args)
-
+          def js(script,*args): return d.execute_script(script,*args)
           def set_range(el,val):
               js("arguments[0].value=arguments[1]; arguments[0].dispatchEvent(new Event('input',{bubbles:true}));",el,str(val))
               time.sleep(.12)
@@ -56,48 +55,63 @@ jobs:
               wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.market-motion-v10')))
               wait.until(EC.presence_of_element_located((By.ID,'auditDirectivity')))
               time.sleep(1.0)
-
               assert d.title=='RHKEARTH'
 
-              # Hero: five visible manual controls and direct selection.
+              # Hero manual controls.
               hero=d.find_elements(By.CSS_SELECTOR,'.scene-nav .scene-btn')
-              assert len(hero)==5, len(hero)
+              assert len(hero)==5
               assert js("return getComputedStyle(document.querySelector('.scene-nav')).display")!='none'
               for i,b in enumerate(hero):
-                  d.execute_script('arguments[0].click()',b)
-                  time.sleep(.10)
+                  js('arguments[0].click()',b);time.sleep(.10)
                   active=d.find_elements(By.CSS_SELECTOR,'.scene-nav .scene-btn.active')
-                  assert len(active)==1
-                  assert active[0].text==hero[i].text
+                  assert len(active)==1 and active[0].text==hero[i].text
                   assert hero[i].get_attribute('aria-pressed')=='true'
 
-              # Hero remote-media failure must reveal the static fallback, then recover.
-              d.execute_script('arguments[0].click()',hero[1])
-              time.sleep(.15)
+              # Hero keyboard navigation.
+              js('arguments[0].click()',hero[0]);hero[0].send_keys(Keys.ARROW_RIGHT);time.sleep(.12)
+              assert 'active' in hero[1].get_attribute('class').split()
+
+              # Hero automatic cycle is actually 13 seconds.
+              js('arguments[0].click()',hero[0]);time.sleep(13.35)
+              assert 'active' in hero[1].get_attribute('class').split()
+
+              # Remote-media failure reveals static fallback, then recovers.
               panel=d.find_element(By.CSS_SELECTOR,'.scene-panel')
               fleet_video=d.find_element(By.CSS_SELECTOR,'.rhk-media-item[data-scene="fleet"] video')
               js("arguments[0].classList.add('has-live-media')",panel)
-              js("arguments[0].dispatchEvent(new Event('error'))",fleet_video)
-              time.sleep(.08)
+              js("arguments[0].dispatchEvent(new Event('error'))",fleet_video);time.sleep(.08)
               if 'has-live-media' in panel.get_attribute('class').split(): fail('hero video error did not reveal static fallback')
-              js("arguments[0].dispatchEvent(new Event('playing'))",fleet_video)
-              time.sleep(.08)
+              js("arguments[0].dispatchEvent(new Event('playing'))",fleet_video);time.sleep(.08)
               if 'has-live-media' not in panel.get_attribute('class').split(): fail('hero media did not recover after playback resumed')
 
+              # System architecture switches.
+              arch=d.find_element(By.CSS_SELECTOR,'.tab[data-view="architecture"]');js('arguments[0].click()',arch)
+              modes=d.find_elements(By.CSS_SELECTOR,'#architecture .mode')
+              assert len(modes)>=3
+              diagram_ids=['baseDiagram','towerDiagram','hullDiagram']
+              for i,b in enumerate(modes[:3]):
+                  js('arguments[0].click()',b);time.sleep(.08)
+                  assert d.find_element(By.ID,diagram_ids[i]).is_displayed()
+
               # Physical-model directivity endpoints.
-              phys=d.find_element(By.CSS_SELECTOR,'.tab[data-view="physics"]')
-              d.execute_script('arguments[0].click()',phys)
+              phys=d.find_element(By.CSS_SELECTOR,'.tab[data-view="physics"]');js('arguments[0].click()',phys)
               angle=d.find_element(By.ID,'angle')
               for deg,expected in [(0,1.0),(90,0.0),(180,-1.0)]:
                   set_range(angle,deg)
                   val=float(d.find_element(By.ID,'auditDirectivity').text)
-                  if abs(val-expected)>.001: fail(f'directivity {deg}° -> {val}, expected {expected}')
                   p=float(d.find_element(By.ID,'plotResponse').text)
-                  if abs(p-expected)>.001: fail(f'plot response {deg}° -> {p}, expected {expected}')
+                  if abs(val-expected)>.001 or abs(p-expected)>.001: fail(f'directivity endpoint failed at {deg}°: {val}, {p}')
+
+              # Extended patent data disclosure opens and closes.
+              disclosure=d.find_element(By.CSS_SELECTOR,'.patent-fact-disclosure button')
+              fact_grid=d.find_element(By.CSS_SELECTOR,'.patent-fact-grid')
+              js('arguments[0].click()',disclosure);time.sleep(.08)
+              assert 'show-extended' in fact_grid.get_attribute('class').split()
+              js('arguments[0].click()',disclosure);time.sleep(.08)
+              assert 'show-extended' not in fact_grid.get_attribute('class').split()
 
               # Demonstrator vector geometry at 42 degrees.
-              bearing=d.find_element(By.ID,'missionBearing')
-              set_range(bearing,42)
+              bearing=d.find_element(By.ID,'missionBearing');set_range(bearing,42)
               east=float(d.find_element(By.ID,'auditEast').text)
               north=float(d.find_element(By.ID,'auditNorth').text)
               norm=float(d.find_element(By.ID,'auditNorm').text)
@@ -105,73 +119,59 @@ jobs:
               if abs(north-(-math.cos(math.radians(42))))>.002: fail(f'north component {north}')
               if abs(norm-1.0)>.001: fail(f'vector norm {norm}')
 
-              # Deployment presets should not unexpectedly rewrite source geometry.
-              rng=d.find_element(By.ID,'missionRange')
-              set_range(bearing,77)
-              set_range(rng,4.1)
-              presets=d.find_elements(By.CSS_SELECTOR,'.patent-demo-presets button')
-              assert len(presets)==4
-              for b in presets:
-                  set_range(bearing,77); set_range(rng,4.1)
-                  d.execute_script('arguments[0].click()',b)
-                  time.sleep(.20)
-                  bv=float(bearing.get_attribute('value'))
-                  rv=float(rng.get_attribute('value'))
-                  if abs(bv-77)>.001 or abs(rv-4.1)>.001:
-                      fail(f'preset {b.text} changed geometry to bearing={bv}, range={rv}')
+              # Manual source and architecture controls update audited readouts.
+              target=d.find_element(By.ID,'targetType');Select(target).select_by_value('submarine');target.dispatch_event if False else None
+              js("arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",target);time.sleep(.12)
+              assert 'Submerged' in d.find_element(By.ID,'demoSource').text
+              config=d.find_element(By.ID,'sensorConfig');Select(config).select_by_value('platform')
+              js("arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",config);time.sleep(.12)
+              assert 'Hull' in d.find_element(By.ID,'demoDeployment').text or 'AUV' in d.find_element(By.ID,'demoDeployment').text
 
-              # Applications: persistent platforms and receiver label within the circular frame box.
+              # Deployment presets preserve current source geometry.
+              rng=d.find_element(By.ID,'missionRange');set_range(bearing,77);set_range(rng,4.1)
+              presets=d.find_elements(By.CSS_SELECTOR,'.patent-demo-presets button');assert len(presets)==4
+              for b in presets:
+                  set_range(bearing,77);set_range(rng,4.1);js('arguments[0].click()',b);time.sleep(.20)
+                  bv=float(bearing.get_attribute('value'));rv=float(rng.get_attribute('value'))
+                  if abs(bv-77)>.001 or abs(rv-4.1)>.001: fail(f'preset {b.text} changed geometry to bearing={bv}, range={rv}')
+
+              # Applications: platforms remain present/moving, all three emit wavefronts, receiver label stays inside circle.
               for sel in ['#m10Warship','#m10Fastcraft','#m10Submarine']:
-                  el=d.find_element(By.CSS_SELECTOR,sel)
-                  t1=el.get_attribute('transform')
-                  time.sleep(.25)
-                  t2=el.get_attribute('transform')
-                  assert t1 and t2 and t1!=t2
-                  assert el.is_displayed()
+                  el=d.find_element(By.CSS_SELECTOR,sel);t1=el.get_attribute('transform');time.sleep(.30);t2=el.get_attribute('transform')
+                  assert t1 and t2 and t1!=t2 and el.is_displayed()
+              for sel in ['#m10WaveWar .mm10-wave','#m10WaveFast .mm10-wave','#m10WaveSub .mm10-wave']:
+                  assert len(d.find_elements(By.CSS_SELECTOR,sel))==4
               label=d.find_element(By.XPATH,"//*[name()='svg' and contains(@class,'mm10-scene')]//*[name()='text'][.//*[name()='tspan'][contains(.,'EXTERNAL RECEIVER')]]")
               circle=d.find_element(By.CSS_SELECTOR,'.mm10-circle')
-              lr=js('return arguments[0].getBoundingClientRect()',label)
-              cr=js('return arguments[0].getBoundingClientRect()',circle)
+              lr=js('return arguments[0].getBoundingClientRect()',label);cr=js('return arguments[0].getBoundingClientRect()',circle)
               if lr['left']<cr['left']-1 or lr['right']>cr['right']+1: fail(f'receiver label clips horizontally: {lr} vs {cr}')
 
-              # Commercial reel exists and every tab can be selected manually.
+              # Commercial reel manual tabs.
               wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.commercial-context-media')))
-              ccm=d.find_elements(By.CSS_SELECTOR,'.ccm-tabs button')
-              assert len(ccm)==5
+              ccm=d.find_elements(By.CSS_SELECTOR,'.ccm-tabs button');assert len(ccm)==5
               for b in ccm:
-                  d.execute_script('arguments[0].click()',b); time.sleep(.08)
-                  assert 'active' in b.get_attribute('class').split()
+                  js('arguments[0].click()',b);time.sleep(.08);assert 'active' in b.get_attribute('class').split()
 
-              # JS runtime errors (ignore network/media loading errors).
+              # Runtime JS errors (ignore network/media loading errors).
               bad=[]
               for entry in d.get_log('browser'):
                   m=entry.get('message','')
-                  if any(x in m for x in ['Uncaught ','SyntaxError','ReferenceError','TypeError:']) and 'ERR_' not in m:
-                      bad.append(m)
+                  if any(x in m for x in ['Uncaught ','SyntaxError','ReferenceError','TypeError:']) and 'ERR_' not in m: bad.append(m)
               if bad: fail('runtime JS errors: '+ ' | '.join(bad[:5]))
 
-              # Mobile pass: no page-level horizontal overflow and main controls remain visible.
-              d.set_window_size(390,844)
-              d.get('http://127.0.0.1:8000/')
+              # Mobile pass.
+              d.set_window_size(390,844);d.get('http://127.0.0.1:8000/')
               wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.market-motion-v10')))
-              wait.until(EC.presence_of_element_located((By.ID,'auditDirectivity')))
-              time.sleep(.8)
+              wait.until(EC.presence_of_element_located((By.ID,'auditDirectivity')));time.sleep(.8)
               overflow=js('return {sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,bw:document.body.scrollWidth}')
               if overflow['sw']>overflow['cw']+2 or overflow['bw']>overflow['cw']+2:
-                  offenders=js("""
-                    const vw=document.documentElement.clientWidth;
-                    return [...document.querySelectorAll('body *')].map(el=>{const r=el.getBoundingClientRect();return {tag:el.tagName,cls:el.className?.baseVal||el.className||'',id:el.id||'',left:Math.round(r.left),right:Math.round(r.right),width:Math.round(r.width)}}).filter(x=>x.right>vw+2||x.left<-2).sort((a,b)=>(b.right-vw)-(a.right-vw)).slice(0,15);
-                  """)
+                  offenders=js("""const vw=document.documentElement.clientWidth;return [...document.querySelectorAll('body *')].map(el=>{const r=el.getBoundingClientRect();return {tag:el.tagName,cls:el.className?.baseVal||el.className||'',id:el.id||'',left:Math.round(r.left),right:Math.round(r.right),width:Math.round(r.width)}}).filter(x=>x.right>vw+2||x.left<-2).slice(0,15);""")
                   fail(f'mobile horizontal overflow {overflow}; offenders={offenders}')
-              nav=d.find_element(By.CSS_SELECTOR,'.scene-nav')
-              assert nav.is_displayed()
-              assert len(d.find_elements(By.CSS_SELECTOR,'.scene-nav .scene-btn'))==5
-              app_circle=d.find_element(By.CSS_SELECTOR,'.mm10-circle')
-              ar=js('return arguments[0].getBoundingClientRect()',app_circle)
-              vw=js('return window.innerWidth')
+              nav=d.find_element(By.CSS_SELECTOR,'.scene-nav');assert nav.is_displayed();assert len(d.find_elements(By.CSS_SELECTOR,'.scene-nav .scene-btn'))==5
+              app_circle=d.find_element(By.CSS_SELECTOR,'.mm10-circle');ar=js('return arguments[0].getBoundingClientRect()',app_circle);vw=js('return window.innerWidth')
               if ar['width']>vw+1: fail(f'applications circle wider than viewport: {ar["width"]}>{vw}')
 
-              print('PASS: RHKEARTH browser smoke tests')
+              print('PASS: RHKEARTH expanded browser smoke tests')
           finally:
               d.quit()
           PY
