@@ -4,10 +4,9 @@ document.title='RHKEARTH | Independent Maritime Technology Assessment';
 const brand=document.querySelector('.brand strong');if(brand)brand.textContent='RHKEARTH';
 const brandSub=document.querySelector('.brand small');if(brandSub){brandSub.textContent='';brandSub.style.display='none';}
 
-// Remove internal-planning blocks from the public diligence section.
-document.querySelector('#diligence .roadmap')?.remove();
-document.querySelector('#diligence .split')?.remove();
-document.querySelector('#diligence .questions')?.remove();
+// Remove the public diligence section and any navigation or CTA links to it.
+document.querySelector('#diligence')?.remove();
+document.querySelectorAll('a[href="#diligence"]').forEach(a=>a.remove());
 
 // Site-wide punctuation rule: no em dashes in rendered copy, including content
 // inserted later by enhancement scripts.
