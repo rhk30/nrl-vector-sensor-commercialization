@@ -1,0 +1,47 @@
+name: release integrity
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax
+        run: |
+          for f in *.js; do node --check "$f"; done
+      - name: Patent-safe source boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          html=Path('index.html').read_text(encoding='utf-8')
+          banned=[
+            'id="missionRange"','id="missionSource"','id="missionNoise"',
+            'id="missionSNR"','id="missionTL"','id="missionConfidence"',
+            'id="receivedLevel"','simple spreading-loss model','≈2.5 KM',
+            'Modeled water response','Bearing + intensity estimate'
+          ]
+          found=[x for x in banned if x in html]
+          if found:
+              raise SystemExit('Legacy performance UI found: '+', '.join(found))
+          required=[
+            'No physical range','id="missionBearing"','id="angle"',
+            'No patent ownership, license, Navy sponsorship or operational deployment'
+          ]
+          missing=[x for x in required if x not in html]
+          if missing:
+              raise SystemExit('Missing safety boundary: '+', '.join(missing))
+          readme=Path('README.md').read_text(encoding='utf-8')
+          if '100 μPa/√Hz' not in readme:
+              raise SystemExit('README must retain air MDP spectral-density units')
+          if 'surfacing, and telemetry' not in readme:
+              raise SystemExit('README must use surfacing/telemetry wording')
+          audit=Path('PATENT_AUDIT.md').read_text(encoding='utf-8')
+          for token in ['R/Rmax = cos θ','k̂ = (−sin β, −cos β)','Projected equivalent water pressure spectral density']:
+              if token not in audit:
+                  raise SystemExit('PATENT_AUDIT missing: '+token)
+          print('PASS: release source boundary')
+          PY
