@@ -1,15 +1,9 @@
 # Third-party notices
 
-## Ohio submarine GLB
+The current public presentation path does **not** load the previously evaluated third-party Ohio-class submarine GLB model.
 
-The Applications visualization may load the Ohio submarine GLB model from:
+Maritime photographs and video used as illustrative operating context are loaded from external Wikimedia Commons media URLs. Those assets remain subject to the licensing and attribution terms stated on their respective source pages.
 
-`Abdalrahman-Alhamod/Submarine-Simulation-System`
+The site uses this media only as contextual imagery. It is not evidence that any photographed or filmed platform uses the evaluated NRL technology, and it does not represent an NRL-validated sensor installation or operational deployment.
 
-Source repository: https://github.com/Abdalrahman-Alhamod/Submarine-Simulation-System
-
-Copyright (c) 2024 Abdalrahman Alhamod
-
-Licensed under the MIT License. The upstream repository contains the full license text.
-
-The model is used only as illustrative maritime operating context. It is not an NRL patent drawing, does not represent an NRL-validated sensor installation, and is not evidence of operational deployment.
+Before any third-party media is redistributed, bundled locally, or reused outside the website, its individual source-page license and attribution requirements should be verified.
