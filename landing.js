@@ -23,10 +23,6 @@ const earlyMetrics=document.querySelectorAll('.metrics .metric');if(earlyMetrics
 const earlyMission=document.querySelector('#mission .section-head .section-title p');if(earlyMission)earlyMission.textContent='Choose a patent-described deployment context and inspect source-bearing geometry. The demonstrator does not calculate detection performance.';
 document.querySelectorAll('.mission-stage svg text').forEach(t=>{if(/KM/i.test(t.textContent||''))t.style.display='none';});
 
-// Presentation-safe fallback: before the later audit modules load, suppress the
-// abandoned arbitrary calculator controls and em-dash readouts. If an enhancement
-// ever fails, the page falls back to one normalized directivity control rather
-// than exposing an unfinished physics calculator.
 const earlyPhysics=document.getElementById('physics');
 if(earlyPhysics){
   const angleControl=document.getElementById('angle')?.closest('.control');
@@ -64,7 +60,7 @@ removeEmDashes();const punctuationGuard=new MutationObserver(records=>records.fo
   ['sensor-realism.css','sensor-realism.css?v=5'],
   ['formula-layout.css','formula-layout.css?v=1'],
   ['patent-accuracy.css','patent-accuracy.css?v=2'],
-  ['patent-strict.css','patent-strict.css?v=3']
+  ['patent-strict.css','patent-strict.css?v=4']
 ].forEach(([key,href])=>{if(!document.querySelector(`link[data-rhk-style="${key}"]`)){const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.dataset.rhkStyle=key;document.head.appendChild(l);}});
 
 const sceneButtons=[...document.querySelectorAll('.scene-btn')];['Subsea','Towed AVS','Littoral','Harbor','Sonobuoy'].forEach((label,i)=>{if(sceneButtons[i])sceneButtons[i].textContent=label;});
@@ -78,7 +74,7 @@ const scenes=[
 let idx=0,timer=null;const dur=13000,$=id=>document.getElementById(id);
 function show(i){idx=(i+scenes.length)%scenes.length;const s=scenes[idx];document.querySelectorAll('.scene-group').forEach(g=>g.classList.toggle('active',g.dataset.scene===s.id));sceneButtons.forEach((b,n)=>{b.classList.toggle('active',n===idx);b.setAttribute('aria-pressed',n===idx?'true':'false');});if($('sceneKicker'))$('sceneKicker').textContent=s.kicker;if($('sceneTitle'))$('sceneTitle').textContent=s.title;if($('sceneCopy'))$('sceneCopy').textContent=s.copy;if($('sceneIndex'))$('sceneIndex').textContent=String(idx+1).padStart(2,'0')+' / '+String(scenes.length).padStart(2,'0');const p=$('sceneProgress');if(p){p.style.setProperty('--scene-duration',dur+'ms');p.classList.remove('running');void p.offsetWidth;p.classList.add('running');}}
 function restart(){clearInterval(timer);timer=setInterval(()=>show(idx+1),dur);}
-sceneButtons.forEach((btn,i)=>{btn.type='button';btn.addEventListener('click',()=>{show(i);restart();});btn.addEventListener('keydown',e=>{if(e.key==='ArrowRight'){e.preventDefault();const n=(i+1)%sceneButtons.length;sceneButtons[n].focus();show(n);restart();}else if(e.key==='ArrowLeft'){e.preventDefault();const n=(i-1+sceneButtons.length)%sceneButtons.length;sceneButtons[n].focus();show(n);restart();}});});
+sceneButtons.forEach((btn,i)=>{btn.type='button';btn.addEventListener('click',()=>{show(i);restart();});btn.addEventListener('keydown',e=>{if(e.key==='ArrowRight'){e.preventDefault();const n=(i+1)%sceneButtons.length;sceneButtons[n].focus();show(n);restart();}else if(e.key==='ArrowLeft'){e.preventDefault();const n=(i-1+sceneButtons.length;sceneButtons[n].focus();show(n);restart();}});});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)clearInterval(timer);else restart();});show(0);restart();
 
 const loadInvestorAudit=()=>import('./investor-audit.js?v=5').catch(err=>console.warn('RHKEARTH site audit fallback:',err));
@@ -87,11 +83,11 @@ const loadHeroPolish=()=>import('./hero-polish.js?v=3').catch(err=>console.warn(
 const loadSensor=()=>import('./sensor-realism.js?v=5').catch(err=>console.warn('RHKEARTH sensor cutaway fallback:',err));
 const loadPatentAccuracy=()=>import('./patent-accuracy.js?v=2').catch(err=>console.warn('RHKEARTH patent-accuracy layer fallback:',err));
 const loadPatentStrict=()=>import('./patent-strict.js?v=3').catch(err=>console.warn('RHKEARTH patent-strict layer fallback:',err));
-const loadDemoMechanics=()=>import('./demo-mechanics.js?v=2').catch(err=>console.warn('RHKEARTH demonstrator mechanics fallback:',err));
+const loadDemoMechanics=()=>import('./demo-mechanics.js?v=3').catch(err=>console.warn('RHKEARTH demonstrator mechanics fallback:',err));
 const loadFinalAudit=()=>import('./patent-final-audit.js?v=1').catch(err=>console.warn('RHKEARTH final patent audit fallback:',err));
 const loadFactDisclosure=()=>import('./patent-facts-disclosure.js?v=2').catch(err=>console.warn('RHKEARTH patent disclosure fallback:',err));
 const loadTechnologyUnified=()=>import('./technology-unified.js?v=2').catch(err=>console.warn('RHKEARTH unified technology exhibit fallback:',err));
-const loadPatentGuide=()=>import('./demo-patent-guide.js?v=2').catch(err=>console.warn('RHKEARTH patent guide fallback:',err));
+const loadPatentGuide=()=>import('./demo-patent-guide.js?v=4').catch(err=>console.warn('RHKEARTH patent guide fallback:',err));
 const loadMarketBridge=()=>import('./market-bridge-v3.js?v=2').catch(err=>console.warn('RHKEARTH applications bridge fallback:',err));
 function loadEnhancements(){loadInvestorAudit();loadHeroMedia();loadHeroPolish();loadSensor().then(loadPatentAccuracy).then(loadPatentStrict).then(loadDemoMechanics).then(loadFinalAudit).then(loadFactDisclosure).then(loadTechnologyUnified).then(loadPatentGuide).then(loadMarketBridge);}
 if(document.readyState==='complete')loadEnhancements();else window.addEventListener('load',loadEnhancements,{once:true});
