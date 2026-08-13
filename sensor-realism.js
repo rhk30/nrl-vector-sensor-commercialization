@@ -28,9 +28,11 @@ host.innerHTML=`
       <path class="flow" d="M0 79 C48 50 98 107 148 79 S246 51 296 79" marker-end="url(#engArrow)"/>
       <path class="flow" d="M0 118 C48 89 98 146 148 118 S246 90 296 118" marker-end="url(#engArrow)"/>
       <g opacity=".48"><circle class="particle" cx="38" cy="178" r="2.4"/><circle class="particle" cx="76" cy="161" r="2.1"/><circle class="particle" cx="112" cy="184" r="2.6"/><circle class="particle" cx="151" cy="165" r="2.2"/><circle class="particle" cx="188" cy="185" r="2.4"/><circle class="particle" cx="226" cy="163" r="2.2"/><circle class="particle" cx="264" cy="182" r="2.5"/></g>
-      <line id="engFlowVector" x1="42" y1="232" x2="233" y2="232" class="optical" marker-end="url(#engArrow)"/>
-      <text x="42" y="262" class="eng-small">PARTICLE-VELOCITY ORIENTATION</text>
-      <text id="engAngleValue" x="42" y="282" class="eng-value">0° incidence</text>
+      <line x1="42" y1="232" x2="245" y2="232" class="fine-dim"/>
+      <text x="42" y="218" class="eng-small">MESH-NORMAL REFERENCE</text>
+      <line id="engFlowVector" x1="42" y1="232" x2="222" y2="232" class="optical" marker-end="url(#engArrow)"/>
+      <text x="42" y="354" class="eng-small">PARTICLE-VELOCITY ORIENTATION</text>
+      <text id="engAngleValue" x="42" y="376" class="eng-value">0° incidence</text>
     </g>
   </g>
 
@@ -53,7 +55,6 @@ host.innerHTML=`
     <ellipse id="engDeflectHalo" cx="0" cy="0" rx="38" ry="18" fill="none" stroke="#e4e7df" stroke-width=".7" opacity=".25"/>
     <circle id="engDeflectPoint" class="deflect-marker" cx="0" cy="0" r="3.2"/>
 
-    <!-- Fine web callout -->
     <line x1="-105" y1="-28" x2="-184" y2="-54" class="callout"/>
     <g class="eng-callout-card" transform="translate(-324 -91)">
       <rect width="174" height="54" rx="4"/>
@@ -61,7 +62,6 @@ host.innerHTML=`
       <text x="12" y="40" class="eng-small">viscous drag → out-of-plane deformation</text>
     </g>
 
-    <!-- Normal displacement callout -->
     <line x1="84" y1="52" x2="169" y2="78" class="callout"/>
     <g class="eng-callout-card" transform="translate(176 55)">
       <rect width="192" height="58" rx="4"/>
@@ -69,7 +69,6 @@ host.innerHTML=`
       <text x="14" y="43" class="eng-small">detected optically</text>
     </g>
 
-    <!-- Dimension -->
     <line x1="-150" y1="142" x2="150" y2="142" class="dimension"/>
     <line x1="-150" y1="133" x2="-150" y2="151" class="dimension"/>
     <line x1="150" y1="133" x2="150" y2="151" class="dimension"/>
@@ -77,16 +76,14 @@ host.innerHTML=`
     <text x="0" y="147" class="eng-value" text-anchor="middle">6 mm OD</text>
   </g>
 
-  <!-- Patent reference -->
   <g transform="translate(825 62)">
     <rect width="244" height="112" rx="8" class="data-panel"/>
     <text x="18" y="27" class="eng-kicker">PATENT REFERENCE</text>
     <text id="arraySpanSvg" x="18" y="54" class="eng-value">6 mm prototype OD</text>
-    <text id="fiberSvg" x="18" y="79" class="eng-value">≈20 μm beam separation</text>
+    <text id="fiberSvg" x="18" y="79" class="eng-value">≈20 μm filament separation</text>
     <text id="directionSvg" x="18" y="104" class="eng-value">≈2.7 m total fiber</text>
   </g>
 
-  <!-- Optical probe -->
   <g class="probe-glow" transform="translate(842 230)">
     <rect x="0" y="0" width="210" height="92" rx="8" class="metal"/>
     <circle cx="22" cy="46" r="9" class="metal-dark"/>
@@ -97,7 +94,6 @@ host.innerHTML=`
     <circle id="engProbeSpot" cx="-210" cy="48" r="4" fill="#e3e6df" opacity=".86"/>
   </g>
 
-  <!-- Signal processing -->
   <path d="M947 322 V354" class="fine-dim"/>
   <g transform="translate(822 354)">
     <rect width="250" height="78" rx="8" class="metal-dark"/>
@@ -105,7 +101,6 @@ host.innerHTML=`
     <text x="125" y="55" class="eng-small" text-anchor="middle">displacement → vector component</text>
   </g>
 
-  <!-- Floating / moored embodiment -->
   <g transform="translate(402 468)">
     <path d="M0 0 H246 L222 42 H24Z" class="metal"/>
     <line x1="123" y1="42" x2="123" y2="66" class="fine-dim"/>
@@ -116,9 +111,9 @@ host.innerHTML=`
   <div class="cutaway-copy">
     <div class="cutaway-kicker">Patent-grounded conceptual cutaway</div>
     <div class="cutaway-title">Micro-mesh particle-motion transducer with optical displacement readout.</div>
-    <div class="cutaway-note">Mechanism and labeled dimensions follow US11287508B2 / US11408961B2. Overall package geometry is illustrative. Mesh movement is exaggerated and normalized only to show the patent-described cosine-type directional response.</div>
+    <div class="cutaway-note">Mechanism and labeled dimensions follow US11287508B2 / US11408961B2. Overall package geometry is illustrative. Mesh movement is exaggerated and normalized only to show the magnitude of the patent-described cosine-type directional response.</div>
   </div>
-  <div id="engVisualScale" class="cutaway-status">Normalized cos θ display · not displacement magnitude</div>
+  <div id="engVisualScale" class="cutaway-status">Normalized |cos θ| display · not displacement magnitude</div>
 </div>`;
 
 const angle=document.getElementById('angle');
@@ -134,11 +129,16 @@ function update(){
   const spot=document.getElementById('engProbeSpot');if(spot)spot.setAttribute('cy',String(48+px*.35));
   const laser=document.getElementById('engLaser');if(laser)laser.setAttribute('y2',String(48+px*.35));
   const angleValue=document.getElementById('engAngleValue');if(angleValue)angleValue.textContent=`${Math.round(a)}° incidence`;
-  const vector=document.getElementById('engFlowVector');if(vector){const len=115+proj*80,ar=(a-18)*Math.PI/180;vector.setAttribute('x2',String(42+Math.cos(ar)*len));vector.setAttribute('y2',String(232+Math.sin(ar)*len*.25));}
-  const scale=document.getElementById('engVisualScale');if(scale)scale.textContent=`Normalized cos θ display: ${(proj*100).toFixed(0)}% · deformation magnitude not modeled`;
+  const vector=document.getElementById('engFlowVector');
+  if(vector){
+    const len=180,ar=a*Math.PI/180;
+    vector.setAttribute('x2',String(42+Math.cos(ar)*len));
+    vector.setAttribute('y2',String(232+Math.sin(ar)*len));
+  }
+  const scale=document.getElementById('engVisualScale');if(scale)scale.textContent=`Normalized |cos θ| display: ${(proj*100).toFixed(0)}% · deformation magnitude not modeled`;
   const p1=document.getElementById('arraySpanSvg'),p2=document.getElementById('fiberSvg'),p3=document.getElementById('directionSvg');
   if(p1)p1.textContent='6 mm prototype OD';
-  if(p2)p2.textContent='≈20 μm beam separation';
+  if(p2)p2.textContent='≈20 μm filament separation';
   if(p3)p3.textContent='≈2.7 m total fiber';
 }
 angle?.addEventListener('input',update);
