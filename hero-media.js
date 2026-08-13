@@ -19,8 +19,6 @@ Object.entries(media).forEach(([id,m])=>{
   if(m.type==='video'){
     const v=document.createElement('video');v.src=m.src;v.loop=true;v.playsInline=true;v.autoplay=true;v.preload='auto';v.disablePictureInPicture=true;v.setAttribute('aria-hidden','true');v.style.objectPosition=m.position||'50% 50%';hardMute(v);
     v.addEventListener('volumechange',()=>{if(!v.muted||v.volume!==0)hardMute(v);});
-    // Keep the small set of muted context videos warm so switching scenes is only
-    // a composited crossfade rather than a pause/load/restart cycle.
     v.addEventListener('canplay',()=>{if(!document.hidden)v.play().catch(()=>{});},{once:true});
     videos.push(v);wrap.appendChild(v);
   }else{
@@ -42,4 +40,5 @@ new MutationObserver(sync).observe(panel,{subtree:true,attributes:true,attribute
 document.addEventListener('visibilitychange',keepVideosWarm);sync();
 
 import('./hero-overlay-rework.js?v=2').catch(err=>console.warn('RHKEARTH hero overlay fallback:',err));
+import('./investor-audit.js?v=1').catch(err=>console.warn('RHKEARTH investor audit fallback:',err));
 })();
