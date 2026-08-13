@@ -86,7 +86,7 @@ const loadPatentStrict=()=>import('./patent-strict.js?v=3').catch(err=>console.w
 const loadDemoMechanics=()=>import('./demo-mechanics.js?v=3').catch(err=>console.warn('RHKEARTH demonstrator mechanics fallback:',err));
 const loadFinalAudit=()=>import('./patent-final-audit.js?v=1').catch(err=>console.warn('RHKEARTH final patent audit fallback:',err));
 const loadFactDisclosure=()=>import('./patent-facts-disclosure.js?v=2').catch(err=>console.warn('RHKEARTH patent disclosure fallback:',err));
-const loadTechnologyUnified=()=>import('./technology-unified.js?v=5').catch(err=>console.warn('RHKEARTH unified technology exhibit fallback:',err));
+const loadTechnologyUnified=()=>import('./technology-unified.js?v=6').catch(err=>console.warn('RHKEARTH unified technology exhibit fallback:',err));
 const loadPatentGuide=()=>import('./demo-patent-guide.js?v=4').catch(err=>console.warn('RHKEARTH patent guide fallback:',err));
 const loadMarketBridge=()=>import('./market-bridge-v3.js?v=2').catch(err=>console.warn('RHKEARTH applications bridge fallback:',err));
 function loadEnhancements(){loadInvestorAudit();loadHeroMedia();loadHeroPolish();loadSensor().then(loadPatentAccuracy).then(loadPatentStrict).then(loadDemoMechanics).then(loadFinalAudit).then(loadFactDisclosure).then(loadTechnologyUnified).then(loadPatentGuide).then(loadMarketBridge);}
