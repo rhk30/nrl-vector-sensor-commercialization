@@ -88,7 +88,7 @@ document.addEventListener('visibilitychange',()=>{
 window.addEventListener('pageshow',()=>{const v=videoByScene.get(currentScene);if(v)safePlay(v);});
 sync();
 
-import('./hero-overlay-rework.js?v=4')
+import('./hero-overlay-rework.js?v=5')
   .then(()=>import('./hero-overlay-safe.js?v=1'))
   .catch(err=>console.warn('RHKEARTH hero overlay fallback:',err));
 })();
