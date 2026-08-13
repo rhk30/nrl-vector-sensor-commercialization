@@ -4,6 +4,9 @@ document.title='RHKEARTH | Independent Maritime Technology Assessment';
 const brand=document.querySelector('.brand strong');if(brand)brand.textContent='RHKEARTH';
 const brandSub=document.querySelector('.brand small');if(brandSub){brandSub.textContent='';brandSub.style.display='none';}
 
+// Remove the 90-day roadmap from the public diligence section.
+document.querySelector('#diligence .roadmap')?.remove();
+
 // Site-wide punctuation rule: no em dashes in rendered copy, including content
 // inserted later by enhancement scripts.
 function removeEmDashes(root=document.body){
