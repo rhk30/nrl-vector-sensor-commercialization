@@ -71,13 +71,12 @@ The website does not present the following as known product specifications:
 
 ## Public-site organization
 
-The site is intentionally ordered for technical and investor review:
+The public presentation is intentionally compact:
 
-1. thesis and key evidence
-2. technology / system architecture
-3. patent-grounded demonstrator
-4. defense and dual-use application evaluation
-5. evidence, technical gaps, and IP / rights status
+1. thesis and maritime context;
+2. technology / system architecture with patent-reported evidence;
+3. patent-grounded bearing-geometry demonstrator;
+4. defense and dual-use application evaluation.
 
 System architecture is the default Technology view; the physical mesh / directivity model is the second view.
 
@@ -85,16 +84,17 @@ System architecture is the default Technology view; the physical mesh / directiv
 
 The public site contains:
 
-- cinematic maritime context media with patent-specific overlays
-- a conceptual 3-D deployment / source-bearing demonstrator
-- patent-grounded floating-base, tower, hull/AUV, towed, and sonobuoy context views
-- a micro-mesh cutaway and signed cosine directivity visualization
-- progressive disclosure of patent-reported quantitative values
-- a real-time conceptual maritime operating picture for application context
+- cinematic maritime context media with patent-specific overlays;
+- a 2-D deployment / source-bearing demonstrator focused on geometry rather than sonar performance;
+- patent-grounded floating-base, tower, hull/AUV, towed, and sonobuoy context views;
+- a micro-mesh cutaway and signed cosine directivity visualization;
+- progressive disclosure of patent-reported quantitative values;
+- an illustrative maritime operating picture for application context;
+- a commercial-context media reel separating evaluation hypotheses from patent deployment claims.
 
-The visualizations are **not validated NRL engineering simulations** and are not operational sonar-performance models. Source positions, bearings, wavefront animation, vehicle motion, and 3-D geometry explain disclosed concepts only.
+The visualizations are **not validated NRL engineering simulations** and are not operational sonar-performance models. Source positions, bearings, wavefront animation, vehicle motion, and scene geometry explain disclosed concepts or clearly labeled evaluation hypotheses only.
 
-No real submarine, ship, special-operations, or other platform acoustic-signature data is included.
+No real submarine, ship, special-operations, commercial-vessel, or other platform acoustic-signature data is included.
 
 ## Landing-page media
 
@@ -109,7 +109,7 @@ Current context media includes:
 
 The fifth hero state is a patent-focused sonobuoy / AVS-tower schematic rather than a claim of a real deployment.
 
-Hero video elements are muted and preloaded to make scene transitions smoother.
+Hero video elements are muted and preloaded to make scene transitions smoother. The scene tabs can also be selected manually.
 
 ## Quantitative display policy
 
