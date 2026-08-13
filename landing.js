@@ -1,8 +1,26 @@
 (()=>{'use strict';
 // RHKEARTH presentation layer. Content remains an independent NRL technology assessment.
-document.title='RHKEARTH | Independent Maritime Technology Assessment';
+document.title='RHKEARTH';
 const brand=document.querySelector('.brand strong');if(brand)brand.textContent='RHKEARTH';
 const brandSub=document.querySelector('.brand small');if(brandSub){brandSub.textContent='';brandSub.style.display='none';}
+
+// RHKEARTH identity: use the project logo in the header, browser tab and share metadata.
+const logoUrl='./rhkearth-logo.svg?v=1';
+const mark=document.querySelector('.brand .mark');
+if(mark){mark.classList.add('rhkearth-logo-mark');mark.setAttribute('aria-label','RHKEARTH logo');}
+const brandStyle=document.createElement('style');
+brandStyle.textContent=`.brand .rhkearth-logo-mark{width:32px;height:32px;border:0!important;background:url("${logoUrl}") center/contain no-repeat;flex:0 0 32px}.brand .rhkearth-logo-mark:before,.brand .rhkearth-logo-mark:after{display:none!important}`;
+document.head.appendChild(brandStyle);
+let favicon=document.querySelector('link[rel~="icon"]');if(!favicon){favicon=document.createElement('link');favicon.rel='icon';document.head.appendChild(favicon);}favicon.type='image/svg+xml';favicon.href=logoUrl;
+let apple=document.querySelector('link[rel="apple-touch-icon"]');if(!apple){apple=document.createElement('link');apple.rel='apple-touch-icon';document.head.appendChild(apple);}apple.href=logoUrl;
+const absoluteLogo='https://rhk30.github.io/nrl-vector-sensor-commercialization/rhkearth-logo.svg';
+function setMeta(selector,attr,value){let el=document.head.querySelector(selector);if(!el){el=document.createElement('meta');const m=selector.match(/meta\[(property|name)="([^"]+)"\]/);if(m)el.setAttribute(m[1],m[2]);document.head.appendChild(el);}el.setAttribute(attr,value);}
+setMeta('meta[property="og:title"]','content','RHKEARTH');
+setMeta('meta[property="og:image"]','content',absoluteLogo);
+setMeta('meta[property="og:type"]','content','website');
+setMeta('meta[name="twitter:card"]','content','summary');
+setMeta('meta[name="twitter:title"]','content','RHKEARTH');
+setMeta('meta[name="twitter:image"]','content',absoluteLogo);
 
 // Remove the public diligence section and any navigation or CTA links to it.
 document.querySelector('#diligence')?.remove();
