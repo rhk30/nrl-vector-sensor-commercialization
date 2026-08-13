@@ -17,13 +17,18 @@ brandStyle.textContent=`.brand{gap:10px!important}.brand .rhkearth-logo-mark{wid
 document.head.appendChild(brandStyle);
 let favicon=document.querySelector('link[rel~="icon"]');if(!favicon){favicon=document.createElement('link');favicon.rel='icon';document.head.appendChild(favicon);}favicon.type='image/svg+xml';favicon.href=logoUrl;
 let apple=document.querySelector('link[rel="apple-touch-icon"]');if(!apple){apple=document.createElement('link');apple.rel='apple-touch-icon';document.head.appendChild(apple);}apple.href=logoUrl;
-const absoluteLogo='https://rhk30.github.io/nrl-vector-sensor-commercialization/rhkearth-logo.svg';
+const absoluteLogo='https://rhkearth.com/rhkearth-logo.svg';
+const shareTitle='RHKEARTH | Hear the field. Resolve the direction.';
+const shareDescription='RHKEARTH is an early-stage deep-tech venture focused on compact underwater acoustic sensing and low-frequency sound localization. We are exploring technologies that enable distributed, directional sensing for maritime defense, environmental monitoring, autonomous systems, and ocean research.';
 function setMeta(selector,attr,value){let el=document.head.querySelector(selector);if(!el){el=document.createElement('meta');const m=selector.match(/meta\[(property|name)="([^"]+)"\]/);if(m)el.setAttribute(m[1],m[2]);document.head.appendChild(el);}el.setAttribute(attr,value);}
-setMeta('meta[property="og:title"]','content','RHKEARTH');
+setMeta('meta[property="og:title"]','content',shareTitle);
+setMeta('meta[property="og:description"]','content',shareDescription);
+setMeta('meta[property="og:url"]','content','https://rhkearth.com/');
 setMeta('meta[property="og:image"]','content',absoluteLogo);
 setMeta('meta[property="og:type"]','content','website');
 setMeta('meta[name="twitter:card"]','content','summary');
-setMeta('meta[name="twitter:title"]','content','RHKEARTH');
+setMeta('meta[name="twitter:title"]','content',shareTitle);
+setMeta('meta[name="twitter:description"]','content',shareDescription);
 setMeta('meta[name="twitter:image"]','content',absoluteLogo);
 
 // Remove public-facing internal planning / diligence sections.
