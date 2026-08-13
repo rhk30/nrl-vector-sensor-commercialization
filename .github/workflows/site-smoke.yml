@@ -18,11 +18,10 @@ jobs:
       - name: Start local site
         run: |
           python -m http.server 8000 >/tmp/rhk-http.log 2>&1 &
-          echo $! > /tmp/rhk-http.pid
-      - name: Browser smoke test
+      - name: Browser integrity test
         run: |
           python - <<'PY'
-          import time
+          import math,time
           from selenium import webdriver
           from selenium.webdriver.common.by import By
           from selenium.webdriver.chrome.options import Options
@@ -30,69 +29,56 @@ jobs:
           from selenium.webdriver.support import expected_conditions as EC
 
           def fail(msg):
-              print('FAIL:', msg)
-              raise AssertionError(msg)
-
-          opts=Options()
-          opts.add_argument('--headless=new')
-          opts.add_argument('--no-sandbox')
-          opts.add_argument('--disable-dev-shm-usage')
-          opts.set_capability('goog:loggingPrefs', {'browser':'ALL'})
-          d=webdriver.Chrome(options=opts)
-          wait=WebDriverWait(d,20)
-
+              print('FAIL:',msg);raise AssertionError(msg)
+          opts=Options();opts.add_argument('--headless=new');opts.add_argument('--no-sandbox');opts.add_argument('--disable-dev-shm-usage');opts.set_capability('goog:loggingPrefs',{'browser':'ALL'})
+          d=webdriver.Chrome(options=opts);wait=WebDriverWait(d,25)
+          js=lambda s,*a:d.execute_script(s,*a)
+          def set_range(el,val):
+              js("arguments[0].value=arguments[1];arguments[0].dispatchEvent(new Event('input',{bubbles:true}));",el,str(val));time.sleep(.15)
           try:
-              d.set_window_size(1440,1000)
-              d.get('http://127.0.0.1:8000/')
-              wait.until(lambda x: x.execute_script('return document.readyState')=='complete')
+              d.set_window_size(1440,1000);d.get('http://127.0.0.1:8000/')
+              wait.until(lambda x:x.execute_script('return document.readyState')=='complete')
               wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.static-tech-head')))
               wait.until(EC.presence_of_element_located((By.ID,'engThetaAnnotation')))
               wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.market-motion-v10')))
-              time.sleep(.8)
-
-              assert d.title=='RHKEARTH'
-
-              # Static technology exhibit replaces the old angle simulator.
-              if d.find_elements(By.CSS_SELECTOR,'#angle:not([disabled])'):
-                  fail('legacy interactive incidence-angle control is active')
-              if d.find_elements(By.ID,'auditDirectivity'):
-                  fail('legacy interactive normalized-response card is still present')
-
-              annotation=d.find_element(By.ID,'engThetaAnnotation').text
-              assert '20°' in annotation
-              assert '+0.940' in annotation
-              assert 'ILLUSTRATIVE' in annotation
-
+              wait.until(lambda x:x.execute_script('return !!window.RHKEARTH_INTEGRITY?.checked'));time.sleep(.8)
+              if d.title!='RHKEARTH':fail('title')
+              angle=d.find_element(By.ID,'angle')
+              if not angle.get_attribute('disabled'):fail('angle control active')
+              if d.find_elements(By.ID,'auditDirectivity'):fail('legacy directivity card visible')
+              ann=d.find_element(By.ID,'engThetaAnnotation').get_attribute('textContent') or ''
+              for token in ['20°','+0.940','ILLUSTRATIVE']:
+                  if token not in ann:fail('missing analytical annotation '+token)
+              if len(d.find_elements(By.CSS_SELECTOR,'#integrityPlaneWave .integrity-phase-front'))!=3:fail('phase fronts')
+              if js("return [...document.querySelectorAll('#engField .flow')].filter(e=>getComputedStyle(e).display!=='none').length"):fail('wavy rays visible')
               cards=d.find_elements(By.CSS_SELECTOR,'.audited-reference-grid .audit-readout')
-              if len(cards)!=3:
-                  fail(f'expected 3 prototype evidence cards, found {len(cards)}')
-              card_text=' '.join(c.text for c in cards)
-              assert '20 nm/Pa' in card_text
-              assert '530 Hz' in card_text
-              assert '100 μPa' in card_text
-
-              # Direction demonstrator still loads its reviewer geometry.
-              wait.until(EC.presence_of_element_located((By.ID,'missionBearing')))
-              wait.until(EC.presence_of_element_located((By.ID,'incomingWaveVector')))
-
-              bad=[]
-              for entry in d.get_log('browser'):
-                  m=entry.get('message','')
-                  if any(x in m for x in ['Uncaught ','SyntaxError','ReferenceError','TypeError:']) and 'ERR_' not in m:
-                      bad.append(m)
-              if bad:
-                  fail('runtime JS errors: '+' | '.join(bad[:5]))
-
-              # Basic mobile overflow guard.
-              d.set_window_size(390,844)
-              d.get('http://127.0.0.1:8000/')
-              wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.static-tech-head')))
-              time.sleep(.8)
-              overflow=d.execute_script('return {sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,bw:document.body.scrollWidth}')
-              if overflow['sw']>overflow['cw']+2 or overflow['bw']>overflow['cw']+2:
-                  fail(f'mobile horizontal overflow {overflow}')
-
-              print('PASS: RHKEARTH static technology and demonstrator smoke test')
-          finally:
-              d.quit()
+              if len(cards)!=3:fail('evidence card count')
+              txt=' '.join(c.text for c in cards)
+              for token in ['20 nm/Pa','530 Hz','100 μPa/√Hz']:
+                  if token not in txt:fail('missing evidence '+token)
+              audit=js('return window.RHKEARTH_INTEGRITY')
+              if abs(audit['cos20']-math.cos(math.radians(20)))>1e-12:fail('cos20')
+              if abs(audit['airMdpPaPerRootHz']-100e-6)>1e-12:fail('air MDP')
+              if abs(audit['projectedWaterMdpDb']-76.47817481888637)>1e-9:fail('water MDP')
+              bearing=d.find_element(By.ID,'missionBearing');rng=d.find_element(By.ID,'missionRange');rg=rng.find_element(By.XPATH,'ancestor::*[contains(@class,"control-group")][1]')
+              if js('return getComputedStyle(arguments[0]).display',rg)!='none':fail('range visible')
+              set_range(bearing,315)
+              e=float(d.find_element(By.ID,'auditEast').text);n=float(d.find_element(By.ID,'auditNorth').text);norm=float(d.find_element(By.ID,'auditNorm').text);heading=int(d.find_element(By.ID,'auditIncomingHeading').text.replace('°',''))
+              if abs(e-math.sqrt(.5))>.002 or abs(n+math.sqrt(.5))>.002 or abs(norm-1)>.001 or heading!=135:fail('315 geometry')
+              for deg in [0,90,180,270]:
+                  set_range(bearing,deg);e=float(d.find_element(By.ID,'auditEast').text);n=float(d.find_element(By.ID,'auditNorth').text)
+                  if abs(e+math.sin(math.radians(deg)))>.002 or abs(n+math.cos(math.radians(deg)))>.002:fail('cardinal geometry '+str(deg))
+              if d.find_elements(By.CSS_SELECTOR,'#market .mm10-node .ring'):fail('passive node rings')
+              son=next((b for b in d.find_elements(By.CSS_SELECTOR,'.patent-demo-presets button') if 'Sonobuoy' in b.text),None)
+              if son:
+                  js('arguments[0].click()',son);time.sleep(.3);art=d.find_element(By.ID,'deploymentVisualArt')
+                  if 'POSITIVE-BUOYANCY AVS' not in (art.get_attribute('textContent') or ''):fail('sonobuoy tower')
+                  if art.find_elements(By.CSS_SELECTOR,'.deploy-buoy'):fail('extra sonobuoy float')
+              bad=[x.get('message','') for x in d.get_log('browser') if any(t in x.get('message','') for t in ['Uncaught ','SyntaxError','ReferenceError','TypeError:']) and 'ERR_' not in x.get('message','')]
+              if bad:fail('runtime errors: '+' | '.join(bad[:5]))
+              d.set_window_size(390,844);d.get('http://127.0.0.1:8000/');wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.static-tech-head')));time.sleep(1)
+              o=js('return {sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,bw:document.body.scrollWidth}')
+              if o['sw']>o['cw']+2 or o['bw']>o['cw']+2:fail('mobile overflow '+str(o))
+              print('PASS: RHKEARTH patent/math/site integrity audit')
+          finally:d.quit()
           PY
