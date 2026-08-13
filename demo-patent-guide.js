@@ -1,9 +1,7 @@
 (()=>{'use strict';
 const $=id=>document.getElementById(id),q=(s,r=document)=>r.querySelector(s),qa=(s,r=document)=>Array.from(r.querySelectorAll(s));
 
-// ---------------------------------------------------------------------------
 // Mission demonstrator: make the patent logic explicit as the user interacts.
-// ---------------------------------------------------------------------------
 const mission=q('.mission-shell');
 if(mission&&!q('.patent-demo-guide',mission)){
   const guide=document.createElement('section');guide.className='patent-demo-guide';
@@ -25,6 +23,7 @@ if(mission&&!q('.patent-demo-guide',mission)){
   const style=document.createElement('style');style.textContent=`
   .patent-demo-guide{border-bottom:1px solid rgba(169,181,155,.16);background:#080a08;padding:18px 20px}.pdg-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.pdg-kicker{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em;color:#a9b59b}.pdg-head h3{margin:5px 0 0;font-size:19px}.pdg-status{min-width:132px;padding:8px 10px;border:1px solid rgba(169,181,155,.16);font:9px ui-monospace,SFMono-Regular,Menlo,monospace;color:#7f887f}.pdg-status span,.pdg-status b{display:block}.pdg-status b{margin-top:5px;color:#e9ece5;font-size:11px}.pdg-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:rgba(169,181,155,.13);margin-top:15px;border:1px solid rgba(169,181,155,.13)}.pdg-steps article{display:grid;grid-template-columns:auto 1fr;gap:9px;padding:12px;background:#0b0d0b;min-height:92px}.pdg-steps article>span{font:10px ui-monospace,SFMono-Regular,Menlo,monospace;color:#7c857c}.pdg-steps b{display:block;font-size:11px;color:#dfe3da}.pdg-steps p{margin:5px 0 0;font-size:9px;line-height:1.42;color:#7f887f}.pdg-steps article.active{background:#101410;box-shadow:inset 0 2px 0 #a9b59b}.pdg-live{display:grid;grid-template-columns:.8fr 1.35fr 1.35fr;gap:18px;margin-top:14px}.pdg-live span{display:block;font:9px ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.06em;color:#7d867d}.pdg-live b{display:block;margin-top:5px;color:#e9ece5;font-size:11px}.pdg-live p{margin:5px 0 0;color:#8a938a;font-size:9px;line-height:1.45}@media(max-width:900px){.pdg-steps{grid-template-columns:repeat(2,1fr)}.pdg-live{grid-template-columns:1fr}}@media(max-width:560px){.pdg-head{display:block}.pdg-status{margin-top:10px;max-width:150px}.pdg-steps{grid-template-columns:1fr}}
   .exhibit-purpose{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;margin:0 0 12px;padding:10px 12px;border:1px solid rgba(169,181,155,.14);background:#0a0c0a}.exhibit-purpose b{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;color:#a9b59b;white-space:nowrap}.exhibit-purpose span{font-size:10px;line-height:1.45;color:#8b948b}
+  .expert-audit{margin:14px 0 20px;border:1px solid rgba(169,181,155,.16);background:#090b09}.expert-audit-head{padding:12px 14px;border-bottom:1px solid rgba(169,181,155,.12)}.expert-audit-head span{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em;color:#a9b59b}.expert-audit-head h3{font-size:17px;margin:5px 0 0}.expert-audit-grid{display:grid;grid-template-columns:repeat(3,1fr)}.expert-audit-grid article{padding:14px;border-right:1px solid rgba(169,181,155,.11)}.expert-audit-grid article:last-child{border-right:0}.expert-audit-grid b{display:block;color:#e7eae3;font-size:11px}.expert-audit-grid code{display:block;margin:8px 0;color:#cfd5cb;font:10px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:normal}.expert-audit-grid p{margin:0;color:#7f887f;font-size:9px;line-height:1.5}@media(max-width:760px){.expert-audit-grid{grid-template-columns:1fr}.expert-audit-grid article{border-right:0;border-bottom:1px solid rgba(169,181,155,.11)}}
   `;document.head.appendChild(style);
 
   const bases={
@@ -40,12 +39,24 @@ if(mission&&!q('.patent-demo-guide',mission)){
   ['sensorConfig','missionBearing','missionRange','targetType'].forEach(id=>{const el=$(id);el?.addEventListener('input',update);el?.addEventListener('change',update);});window.addEventListener('rhk-deployment-change',update);qa('.patent-demo-presets button',mission).forEach(b=>b.addEventListener('click',()=>queueMicrotask(update)));update();
 }
 
-// ---------------------------------------------------------------------------
 // Label each technical exhibit by the engineering question it answers.
-// ---------------------------------------------------------------------------
 function purpose(target,label,text){if(!target||target.previousElementSibling?.classList?.contains('exhibit-purpose'))return;const p=document.createElement('div');p.className='exhibit-purpose';p.innerHTML=`<b>${label}</b><span>${text}</span>`;target.insertAdjacentElement('beforebegin',p);}
 const cutaway=q('.sensor-engineering');purpose(cutaway,'ENGINEERING QUESTION 01','What is the physical transducer and readout mechanism? This cutaway shows the patent-described microfabricated mesh, normal deformation, center mirror and optical displacement readout. Geometry outside the labeled prototype dimensions is illustrative.');
 const directivity=q('.patent-directivity-panel');purpose(directivity,'ENGINEERING QUESTION 02','How does one planar mesh encode direction? The signed cosine curve shows the patent-described dipole relationship between mesh-normal orientation and normalized response, including the phase reversal across 90°.');
 const reconstruction=q('.vector-reconstruction-panel');purpose(reconstruction,'ENGINEERING QUESTION 03','How can local directional channels become a 3-D wave vector? Three orthogonal normalized responses are treated as direction cosines and recombined into a unit vector, matching the patent statement about three co-located orthogonal mesh transducers.');
 const architecture=q('#architecture .arch-grid');purpose(architecture,'ENGINEERING QUESTION 04','How can the sensing principle be deployed without implying an operational sonar package? These views show only patent-described mechanical architectures and signal-flow concepts, not performance.');
+
+// Explicit arithmetic and graph-evidence boundary for expert review.
+const readouts=q('.audited-reference-grid');
+if(readouts&&!q('.expert-audit')){
+  const audit=document.createElement('section');audit.className='expert-audit';
+  audit.innerHTML=`
+    <div class="expert-audit-head"><span>ARITHMETIC + EVIDENCE AUDIT</span><h3>What is calculated, and what is intentionally not graphed.</h3></div>
+    <div class="expert-audit-grid">
+      <article><b>Air MDP arithmetic check</b><code>(≈2 pm/√Hz) ÷ (20 nm/Pa) = 1×10⁻⁴ Pa/√Hz = 100 μPa/√Hz</code><p>This reproduces the order of the patent's ≈100 μPa air MDP estimate using the reported interferometer noise and demonstrated 20 nm/Pa level. The patent itself labels MDP_air ≈100 μPa.</p></article>
+      <article><b>Water MDP is not independently reconstructed</b><code>Patent projection: ≈76 dB re 1 μPa/√Hz</code><p>The water value is shown as the patent's equivalent-drag-force projection. Recomputing it from a simple plane-wave pressure/velocity equation would omit the patent's viscous drag and mesh-fluid interaction model.</p></article>
+      <article><b>No invented frequency-response curve</b><code>Measured reference: 90 Hz · Prototype fundamental: 530 Hz</code><p>The patent reports a 90 Hz in-air responsivity/directionality result and a 530 Hz prototype fundamental, but not a tabulated measured frequency sweep. The site therefore does not interpolate a response curve between them.</p></article>
+    </div>`;
+  readouts.insertAdjacentElement('afterend',audit);
+}
 })();
