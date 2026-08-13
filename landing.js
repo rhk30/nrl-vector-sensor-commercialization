@@ -69,7 +69,7 @@ sceneButtons.forEach((btn,i)=>{btn.type='button';btn.addEventListener('click',()
 document.addEventListener('visibilitychange',()=>{if(document.hidden)clearInterval(timer);else restart();});show(0);restart();
 
 const loadInvestorAudit=()=>import('./investor-audit.js?v=5').catch(err=>console.warn('RHKEARTH site audit fallback:',err));
-const loadHeroMedia=()=>import('./hero-media.js?v=8').catch(err=>console.warn('RHKEARTH cover media fallback:',err));
+const loadHeroMedia=()=>import('./hero-media.js?v=9').catch(err=>console.warn('RHKEARTH cover media fallback:',err));
 const loadHeroPolish=()=>import('./hero-polish.js?v=3').catch(err=>console.warn('RHKEARTH cover polish fallback:',err));
 const loadSensor=()=>import('./sensor-realism.js?v=5').catch(err=>console.warn('RHKEARTH sensor cutaway fallback:',err));
 const loadPatentAccuracy=()=>import('./patent-accuracy.js?v=2').catch(err=>console.warn('RHKEARTH patent-accuracy layer fallback:',err));
@@ -80,7 +80,6 @@ const loadFactDisclosure=()=>import('./patent-facts-disclosure.js?v=2').catch(er
 const loadTechnologyUnified=()=>import('./technology-unified.js?v=2').catch(err=>console.warn('RHKEARTH unified technology exhibit fallback:',err));
 const loadPatentGuide=()=>import('./demo-patent-guide.js?v=2').catch(err=>console.warn('RHKEARTH patent guide fallback:',err));
 const loadMarketBridge=()=>import('./market-bridge-v3.js?v=2').catch(err=>console.warn('RHKEARTH applications bridge fallback:',err));
-const load3D=()=>import('./mission3d-audited.js?v=1').catch(err=>console.warn('RHKEARTH audited 3D demonstrator fallback:',err));
-function loadEnhancements(){loadInvestorAudit();loadHeroMedia();loadHeroPolish();loadSensor().then(loadPatentAccuracy).then(loadPatentStrict).then(loadDemoMechanics).then(loadFinalAudit).then(loadFactDisclosure).then(loadTechnologyUnified).then(loadPatentGuide).then(loadMarketBridge).then(load3D);}
+function loadEnhancements(){loadInvestorAudit();loadHeroMedia();loadHeroPolish();loadSensor().then(loadPatentAccuracy).then(loadPatentStrict).then(loadDemoMechanics).then(loadFinalAudit).then(loadFactDisclosure).then(loadTechnologyUnified).then(loadPatentGuide).then(loadMarketBridge);}
 if(document.readyState==='complete')loadEnhancements();else window.addEventListener('load',loadEnhancements,{once:true});
 })();
