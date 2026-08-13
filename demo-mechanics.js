@@ -55,6 +55,7 @@ if(spacingControl){
 if(range){
   range.value=String(VISUAL_SPACING);
   range.tabIndex=-1;
+  range.dispatchEvent(new Event('input',{bubbles:true}));
 }
 
 // Replace static patent fact cards inside the mission demo with mechanics that
