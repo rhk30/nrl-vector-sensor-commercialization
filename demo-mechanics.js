@@ -114,8 +114,16 @@ function update(){
   setDeployment(mode);
 }
 
-// Preset buttons are inserted by patent-strict.js before this script loads.
-qa('.patent-demo-presets button',mission).forEach(btn=>btn.addEventListener('click',()=>queueMicrotask(update)));
+// Preset buttons are deployment presets, not target-class claims. Keep their
+// default source generic; users can separately select a surface or submerged
+// vessel as contextual media after choosing an architecture.
+qa('.patent-demo-presets button',mission).forEach(btn=>btn.addEventListener('click',()=>queueMicrotask(()=>{
+  if(target&&target.value!=='source'){
+    target.value='source';
+    target.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  update();
+})));
 [target,config,bearing,range,freq].forEach(el=>{if(!el)return;el.addEventListener('input',()=>queueMicrotask(update));el.addEventListener('change',()=>queueMicrotask(update));});
 
 // If a user manually selects an architecture that no longer matches the active
