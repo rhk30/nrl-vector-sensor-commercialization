@@ -144,7 +144,12 @@ jobs:
               wait.until(EC.presence_of_element_located((By.ID,'auditDirectivity')))
               time.sleep(.8)
               overflow=js('return {sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,bw:document.body.scrollWidth}')
-              if overflow['sw']>overflow['cw']+2 or overflow['bw']>overflow['cw']+2: fail(f'mobile horizontal overflow {overflow}')
+              if overflow['sw']>overflow['cw']+2 or overflow['bw']>overflow['cw']+2:
+                  offenders=js("""
+                    const vw=document.documentElement.clientWidth;
+                    return [...document.querySelectorAll('body *')].map(el=>{const r=el.getBoundingClientRect();return {tag:el.tagName,cls:el.className?.baseVal||el.className||'',id:el.id||'',left:Math.round(r.left),right:Math.round(r.right),width:Math.round(r.width)}}).filter(x=>x.right>vw+2||x.left<-2).sort((a,b)=>(b.right-vw)-(a.right-vw)).slice(0,15);
+                  """)
+                  fail(f'mobile horizontal overflow {overflow}; offenders={offenders}')
               nav=d.find_element(By.CSS_SELECTOR,'.scene-nav')
               assert nav.is_displayed()
               assert len(d.find_elements(By.CSS_SELECTOR,'.scene-nav .scene-btn'))==5
