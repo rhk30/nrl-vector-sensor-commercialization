@@ -40,5 +40,4 @@ new MutationObserver(sync).observe(panel,{subtree:true,attributes:true,attribute
 document.addEventListener('visibilitychange',keepVideosWarm);sync();
 
 import('./hero-overlay-rework.js?v=2').catch(err=>console.warn('RHKEARTH hero overlay fallback:',err));
-import('./investor-audit.js?v=1').catch(err=>console.warn('RHKEARTH investor audit fallback:',err));
 })();
