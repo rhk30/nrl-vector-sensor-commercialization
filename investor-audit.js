@@ -26,6 +26,21 @@ if(market){const h=q('.section-title h2',market),p=q('.section-title p',market);
     <div class="thesis"><div class="tag">EVALUATION PATHS</div><h3>Ports, offshore systems and environmental observation</h3><p>These are potential RHKEARTH applications, not patent deployment claims. They remain contingent on technical validation, customer need and appropriate rights.</p></div>`;
 }
 
+// Applications visualization is intentionally loaded independently from the rest of the enhancement chain.
+// This prevents an unrelated Technology/Demonstrator module from blocking Section 03.
+if(market&&!document.body.dataset.rhkApplicationsBootstrap){
+  document.body.dataset.rhkApplicationsBootstrap='1';
+  import('./market-bridge-v4.js?v=3').catch(err=>{
+    console.warn('RHKEARTH Applications visualization fallback:',err);
+    if(!q('.market-motion',market)){
+      const fallback=document.createElement('section');
+      fallback.className='market-motion market-motion-fallback';
+      fallback.innerHTML='<div style="margin:28px 0 42px;padding:32px;border:1px solid rgba(170,180,168,.18);color:#8e978e;font:11px/1.7 ui-monospace,monospace">MARITIME OPERATING PICTURE UNAVAILABLE IN THIS BROWSER SESSION</div>';
+      q('.section-head',market)?.insertAdjacentElement('afterend',fallback);
+    }
+  });
+}
+
 const cleanMarket=()=>{const mm=q('.market-motion');if(!mm)return false;qa('.mm-alert',mm).forEach(el=>el.remove());return true;};
 if(!cleanMarket()){const mo=new MutationObserver(()=>{if(cleanMarket())mo.disconnect();});mo.observe(market||document.body,{childList:true,subtree:true});}
 })();
