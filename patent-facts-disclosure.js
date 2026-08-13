@@ -5,17 +5,16 @@ grid.dataset.rhkDisclosure='1';
 const items=Array.from(grid.children);
 if(items.length<=6)return;
 
-// Keep the most decision-useful prototype facts in the first scan. All values
-// remain on the page and are unchanged; secondary fabrication/model details are
-// simply disclosed on demand.
-const keyIndexes=[0,1,2,5,6,8];
+// First scan: prototype scale, geometry, measured in-air evidence and the patent's
+// explicitly labeled water projection. Everything else remains available on demand.
+const keyIndexes=[0,1,2,5,6,9];
 const key=new Set(keyIndexes);
 items.forEach((item,i)=>item.classList.toggle('patent-fact-extended',!key.has(i)));
 
 const control=document.createElement('div');
 control.className='patent-fact-disclosure';
 control.innerHTML=`
-  <div><span>KEY PATENT-REPORTED VALUES</span><small>Six primary facts are shown by default. Extended fabrication, readout and projected-model details remain available below.</small></div>
+  <div><span>KEY PATENT-REPORTED VALUES</span><small>Six decision-useful facts are shown first. Fabrication details, optical-readout limits and additional estimates remain available on demand.</small></div>
   <button type="button" aria-expanded="false">View extended patent data</button>`;
 grid.insertAdjacentElement('afterend',control);
 
