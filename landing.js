@@ -7,7 +7,7 @@ const logoUrl='./rhkearth-logo.svg?v=2';
 const mark=document.querySelector('.brand .mark');
 if(mark){mark.classList.add('rhkearth-logo-mark');mark.setAttribute('aria-label','RHKEARTH logo');mark.innerHTML=`<img src="${logoUrl}" alt="" aria-hidden="true">`;}
 const brandStyle=document.createElement('style');
-brandStyle.textContent=`.brand{gap:10px!important}.brand .rhkearth-logo-mark{width:26px!important;height:26px!important;border:0!important;background:none!important;display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 26px!important}.brand .rhkearth-logo-mark img{display:block!important;width:26px!important;height:26px!important;object-fit:contain!important}.brand .rhkearth-logo-mark:before,.brand .rhkearth-logo-mark:after{display:none!important}`;
+brandStyle.textContent=`.brand{gap:10px!important}.brand .rhkearth-logo-mark{width:26px!important;height:26px!important;border:0!important;background:none!important;display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 26px!important}.brand .rhkearth-logo-mark img{display:block!important;width:26px!important;height:26px!important;object-fit:contain!important}.brand .rhkearth-logo-mark:before,.brand .rhkearth-logo-mark:after{display:none!important}.scene-nav .scene-btn{cursor:pointer}.scene-nav .scene-btn:focus-visible{outline:1px solid rgba(220,226,216,.72);outline-offset:-3px}`;
 document.head.appendChild(brandStyle);
 let favicon=document.querySelector('link[rel~="icon"]');if(!favicon){favicon=document.createElement('link');favicon.rel='icon';document.head.appendChild(favicon);}favicon.type='image/svg+xml';favicon.href=logoUrl;
 let apple=document.querySelector('link[rel="apple-touch-icon"]');if(!apple){apple=document.createElement('link');apple.rel='apple-touch-icon';document.head.appendChild(apple);}apple.href=logoUrl;
@@ -54,7 +54,7 @@ removeEmDashes();const punctuationGuard=new MutationObserver(records=>records.fo
   ['patent-strict.css','patent-strict.css?v=3']
 ].forEach(([key,href])=>{if(!document.querySelector(`link[data-rhk-style="${key}"]`)){const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.dataset.rhkStyle=key;document.head.appendChild(l);}});
 
-const sceneButtons=document.querySelectorAll('.scene-btn');['Subsea','Towed AVS','Littoral','Harbor','Sonobuoy'].forEach((label,i)=>{if(sceneButtons[i])sceneButtons[i].textContent=label;});
+const sceneButtons=[...document.querySelectorAll('.scene-btn')];['Subsea','Towed AVS','Littoral','Harbor','Sonobuoy'].forEach((label,i)=>{if(sceneButtons[i])sceneButtons[i].textContent=label;});
 const scenes=[
   {id:'subsea',kicker:'PATENT IN CONTEXT // UNDERSEA',title:'Platform context, sensor architecture, receiver path',copy:'The platform image is context. The overlay isolates patent-described vector sensing, source-bearing geometry and the external receiver/controller concept without representing a validated installation.'},
   {id:'fleet',kicker:'PATENT IN CONTEXT // TOWED AVS',title:'Directional sensing behind a surface platform',copy:'US11408961B2 describes neutrally buoyant AVS embodiments for towed-array use. The Navy footage is operating context, not a fielded sensor configuration.'},
@@ -62,12 +62,14 @@ const scenes=[
   {id:'harbor',kicker:'DUAL-USE EVALUATION // HARBOR',title:'A commercialization hypothesis using bearing geometry',copy:'Multiple moored directional nodes are shown only to explain a potential localization concept. No harbor deployment, accuracy, detection range or network performance is claimed.'},
   {id:'wind',kicker:'PATENT IN CONTEXT // SONOBUOY',title:'Positively buoyant AVS tower with mooring',copy:'US11408961B2 describes a positively buoyant AVS tower used as a sonobuoy component and moored above an anchor. Source and receiver geometry are illustrative.'}
 ];
-let idx=0,timer=null;const dur=8000,$=id=>document.getElementById(id);
-function show(i){idx=(i+scenes.length)%scenes.length;const s=scenes[idx];document.querySelectorAll('.scene-group').forEach(g=>g.classList.toggle('active',g.dataset.scene===s.id));document.querySelectorAll('.scene-btn').forEach((b,n)=>b.classList.toggle('active',n===idx));if($('sceneKicker'))$('sceneKicker').textContent=s.kicker;if($('sceneTitle'))$('sceneTitle').textContent=s.title;if($('sceneCopy'))$('sceneCopy').textContent=s.copy;if($('sceneIndex'))$('sceneIndex').textContent=String(idx+1).padStart(2,'0')+' / '+String(scenes.length).padStart(2,'0');const p=$('sceneProgress');if(p){p.classList.remove('running');void p.offsetWidth;p.classList.add('running');}}
-function restart(){clearInterval(timer);timer=setInterval(()=>show(idx+1),dur);}document.addEventListener('visibilitychange',()=>{if(document.hidden)clearInterval(timer);else restart();});show(0);restart();
+let idx=0,timer=null;const dur=13000,$=id=>document.getElementById(id);
+function show(i){idx=(i+scenes.length)%scenes.length;const s=scenes[idx];document.querySelectorAll('.scene-group').forEach(g=>g.classList.toggle('active',g.dataset.scene===s.id));sceneButtons.forEach((b,n)=>{b.classList.toggle('active',n===idx);b.setAttribute('aria-pressed',n===idx?'true':'false');});if($('sceneKicker'))$('sceneKicker').textContent=s.kicker;if($('sceneTitle'))$('sceneTitle').textContent=s.title;if($('sceneCopy'))$('sceneCopy').textContent=s.copy;if($('sceneIndex'))$('sceneIndex').textContent=String(idx+1).padStart(2,'0')+' / '+String(scenes.length).padStart(2,'0');const p=$('sceneProgress');if(p){p.style.setProperty('--scene-duration',dur+'ms');p.classList.remove('running');void p.offsetWidth;p.classList.add('running');}}
+function restart(){clearInterval(timer);timer=setInterval(()=>show(idx+1),dur);}
+sceneButtons.forEach((btn,i)=>{btn.type='button';btn.addEventListener('click',()=>{show(i);restart();});btn.addEventListener('keydown',e=>{if(e.key==='ArrowRight'){e.preventDefault();const n=(i+1)%sceneButtons.length;sceneButtons[n].focus();show(n);restart();}else if(e.key==='ArrowLeft'){e.preventDefault();const n=(i-1+sceneButtons.length)%sceneButtons.length;sceneButtons[n].focus();show(n);restart();}});});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)clearInterval(timer);else restart();});show(0);restart();
 
 const loadInvestorAudit=()=>import('./investor-audit.js?v=5').catch(err=>console.warn('RHKEARTH site audit fallback:',err));
-const loadHeroMedia=()=>import('./hero-media.js?v=7').catch(err=>console.warn('RHKEARTH cover media fallback:',err));
+const loadHeroMedia=()=>import('./hero-media.js?v=8').catch(err=>console.warn('RHKEARTH cover media fallback:',err));
 const loadHeroPolish=()=>import('./hero-polish.js?v=3').catch(err=>console.warn('RHKEARTH cover polish fallback:',err));
 const loadSensor=()=>import('./sensor-realism.js?v=5').catch(err=>console.warn('RHKEARTH sensor cutaway fallback:',err));
 const loadPatentAccuracy=()=>import('./patent-accuracy.js?v=2').catch(err=>console.warn('RHKEARTH patent-accuracy layer fallback:',err));
