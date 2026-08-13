@@ -1,7 +1,6 @@
 /* RHKEARTH patent-strict presentation layer.
    Patent facts come from US11287508B2 / US11408961B2.
    Interactive geometry is explicitly illustrative, never a performance claim. */
-.scene-nav{display:none!important}
 .rhk-media-credit{display:none!important}
 .scene-info{right:34px!important}
 .scene-progress{display:block}
