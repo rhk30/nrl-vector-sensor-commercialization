@@ -5,11 +5,15 @@ const brand=document.querySelector('.brand strong');if(brand)brand.textContent='
 const brandSub=document.querySelector('.brand small');if(brandSub){brandSub.textContent='';brandSub.style.display='none';}
 
 // RHKEARTH identity: use the project logo in the header, browser tab and share metadata.
-const logoUrl='./rhkearth-logo.svg?v=1';
+const logoUrl='./rhkearth-logo.svg?v=2';
 const mark=document.querySelector('.brand .mark');
-if(mark){mark.classList.add('rhkearth-logo-mark');mark.setAttribute('aria-label','RHKEARTH logo');}
+if(mark){
+  mark.classList.add('rhkearth-logo-mark');
+  mark.setAttribute('aria-label','RHKEARTH logo');
+  mark.innerHTML=`<img src="${logoUrl}" alt="" aria-hidden="true">`;
+}
 const brandStyle=document.createElement('style');
-brandStyle.textContent=`.brand .rhkearth-logo-mark{width:32px;height:32px;border:0!important;background:url("${logoUrl}") center/contain no-repeat;flex:0 0 32px}.brand .rhkearth-logo-mark:before,.brand .rhkearth-logo-mark:after{display:none!important}`;
+brandStyle.textContent=`.brand{gap:10px!important}.brand .rhkearth-logo-mark{width:26px!important;height:26px!important;border:0!important;background:none!important;display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 26px!important}.brand .rhkearth-logo-mark img{display:block!important;width:26px!important;height:26px!important;object-fit:contain!important}.brand .rhkearth-logo-mark:before,.brand .rhkearth-logo-mark:after{display:none!important}`;
 document.head.appendChild(brandStyle);
 let favicon=document.querySelector('link[rel~="icon"]');if(!favicon){favicon=document.createElement('link');favicon.rel='icon';document.head.appendChild(favicon);}favicon.type='image/svg+xml';favicon.href=logoUrl;
 let apple=document.querySelector('link[rel="apple-touch-icon"]');if(!apple){apple=document.createElement('link');apple.rel='apple-touch-icon';document.head.appendChild(apple);}apple.href=logoUrl;
