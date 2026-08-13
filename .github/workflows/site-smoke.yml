@@ -71,6 +71,19 @@ jobs:
                   assert active[0].text==hero[i].text
                   assert hero[i].get_attribute('aria-pressed')=='true'
 
+              # Hero remote-media failure must reveal the static fallback, then recover.
+              d.execute_script('arguments[0].click()',hero[1])
+              time.sleep(.15)
+              panel=d.find_element(By.CSS_SELECTOR,'.scene-panel')
+              fleet_video=d.find_element(By.CSS_SELECTOR,'.rhk-media-item[data-scene="fleet"] video')
+              js("arguments[0].classList.add('has-live-media')",panel)
+              js("arguments[0].dispatchEvent(new Event('error'))",fleet_video)
+              time.sleep(.08)
+              if 'has-live-media' in panel.get_attribute('class').split(): fail('hero video error did not reveal static fallback')
+              js("arguments[0].dispatchEvent(new Event('playing'))",fleet_video)
+              time.sleep(.08)
+              if 'has-live-media' not in panel.get_attribute('class').split(): fail('hero media did not recover after playback resumed')
+
               # Physical-model directivity endpoints.
               phys=d.find_element(By.CSS_SELECTOR,'.tab[data-view="physics"]')
               d.execute_script('arguments[0].click()',phys)
