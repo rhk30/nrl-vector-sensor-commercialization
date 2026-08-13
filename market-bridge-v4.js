@@ -1,87 +1,133 @@
+(async()=>{
+'use strict';
+if(window.__rhkApplicationsStarted)return;
+window.__rhkApplicationsStarted=true;
+
 const market=document.getElementById('market');
-if(!market)throw new Error('Applications section unavailable');
+if(!market)return;
 market.querySelector('.market-motion')?.remove();
 market.querySelector('.market-bridge')?.remove();
 const head=market.querySelector('.section-head');
 
 const section=document.createElement('section');
-section.className='market-motion market-motion-v4';
+section.className='market-motion market-motion-v5';
 section.innerHTML=`
   <div class="mm-stage">
-    <div class="mm-circle" aria-label="Conceptual maritime operating picture using patent-described sensing architecture">
-      <div class="mm-canvas-host"><div class="mm-loading">LOADING MARITIME OPERATING PICTURE</div></div>
-      <div class="mm-vignette"></div>
-      <div class="mm-hud" aria-hidden="true">
-        <span class="mm-hud-top">MARITIME SENSOR ARCHITECTURE // ILLUSTRATIVE CONTEXT</span>
-        <span class="mm-hud-left">PATENT FIG. 1<br>102 FLOATING BASE<br>104 FLOW METERS<br>106 RETAINING THREAD<br>108 ANCHOR</span>
-        <span class="mm-hud-right">DASHED<br>SOURCE TO SENSOR<br>BEARING GEOMETRY</span>
-        <span class="mm-hud-scale"><b>PATENT SCALE REFERENCE</b><br>6 mm MESH OD // ≈10 mm BASE RADIUS EST. @ 10 Hz<br>IN-SCENE SENSOR SYMBOLS ARE LOCATORS, NOT PHYSICAL-SIZE RENDERINGS</span>
-        <span class="mm-hud-bottom">VESSELS ARE OPERATING CONTEXT // NO DETECTION RANGE // NO SNR // NO CLASSIFICATION MODEL</span>
-      </div>
+    <div class="mm-circle" aria-label="Illustrative maritime operating picture using patent-described sensing architecture">
+      <svg class="mm-scene" viewBox="0 0 800 800" role="img" aria-label="Surface combatant, fast craft and submarine moving past enlarged locator symbols for patent-described moored vector sensors">
+        <defs>
+          <radialGradient id="mmBg" cx="50%" cy="42%" r="70%"><stop offset="0" stop-color="#0d201d"/><stop offset=".58" stop-color="#081411"/><stop offset="1" stop-color="#030706"/></radialGradient>
+          <linearGradient id="mmWater" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#315f5b" stop-opacity=".38"/><stop offset=".18" stop-color="#163835" stop-opacity=".34"/><stop offset="1" stop-color="#06110f" stop-opacity=".08"/></linearGradient>
+          <linearGradient id="mmShip" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b8c2bc"/><stop offset=".52" stop-color="#7f8b85"/><stop offset="1" stop-color="#4f5c56"/></linearGradient>
+          <linearGradient id="mmSub" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4c5751"/><stop offset=".55" stop-color="#242d29"/><stop offset="1" stop-color="#101613"/></linearGradient>
+          <filter id="mmGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="mmSoft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.2"/></filter>
+          <clipPath id="mmClip"><circle cx="400" cy="400" r="394"/></clipPath>
+        </defs>
+
+        <g clip-path="url(#mmClip)">
+          <circle cx="400" cy="400" r="394" fill="url(#mmBg)"/>
+
+          <!-- subtle bathymetric perspective -->
+          <g class="mm-bathy" fill="none" stroke="#88a095" stroke-opacity=".055" stroke-width="1">
+            <path d="M72 662 Q400 548 728 662"/><path d="M52 704 Q400 574 748 704"/><path d="M34 748 Q400 600 766 748"/>
+            <path d="M112 615 Q400 520 688 615"/><path d="M160 574 Q400 500 640 574"/>
+            <path d="M120 394 L680 394"/><path d="M150 455 L650 455"/><path d="M188 516 L612 516"/>
+            <path d="M160 800 L310 390"/><path d="M270 800 L350 390"/><path d="M400 800 L400 390"/><path d="M530 800 L450 390"/><path d="M640 800 L490 390"/>
+          </g>
+
+          <!-- visible air/water boundary -->
+          <rect x="0" y="286" width="800" height="514" fill="url(#mmWater)"/>
+          <path d="M0 292 C72 278 125 304 194 290 S320 279 389 293 S525 306 602 287 S727 280 800 295" fill="none" stroke="#c0d8d1" stroke-opacity=".42" stroke-width="2"/>
+          <path d="M0 304 C80 291 143 316 220 303 S353 292 430 306 S573 316 642 300 S748 292 800 305" fill="none" stroke="#6f9690" stroke-opacity=".22" stroke-width="1"/>
+          <text x="72" y="275" class="mm-svg-micro">SEA SURFACE // ILLUSTRATIVE</text>
+
+          <!-- sensor locator 1 -->
+          <g class="mm-node" transform="translate(255 500)">
+            <circle r="24"/><circle r="42" class="mm-node-ring"/>
+            <rect x="-8" y="-8" width="16" height="16" class="mm-base"/>
+            <rect x="-4" y="-31" width="8" height="14" class="mm-meter"/><rect x="-4" y="17" width="8" height="14" class="mm-meter"/><rect x="-31" y="-4" width="14" height="8" class="mm-meter"/><rect x="17" y="-4" width="14" height="8" class="mm-meter"/>
+            <line x1="0" y1="31" x2="0" y2="78" class="mm-tether"/><path d="M-13 84 L13 84 L20 96 L-20 96Z" class="mm-anchor"/>
+            <circle r="56" class="mm-pulse p1"/><circle r="78" class="mm-pulse p2"/>
+          </g>
+          <g class="mm-node" transform="translate(530 505)">
+            <circle r="24"/><circle r="42" class="mm-node-ring"/>
+            <rect x="-8" y="-8" width="16" height="16" class="mm-base"/>
+            <rect x="-4" y="-31" width="8" height="14" class="mm-meter"/><rect x="-4" y="17" width="8" height="14" class="mm-meter"/><rect x="-31" y="-4" width="14" height="8" class="mm-meter"/><rect x="17" y="-4" width="14" height="8" class="mm-meter"/>
+            <line x1="0" y1="31" x2="0" y2="78" class="mm-tether"/><path d="M-13 84 L13 84 L20 96 L-20 96Z" class="mm-anchor"/>
+            <circle r="56" class="mm-pulse p2"/><circle r="78" class="mm-pulse p3"/>
+          </g>
+          <g class="mm-node" transform="translate(390 650)">
+            <circle r="24"/><circle r="42" class="mm-node-ring"/>
+            <rect x="-8" y="-8" width="16" height="16" class="mm-base"/>
+            <rect x="-4" y="-31" width="8" height="14" class="mm-meter"/><rect x="-4" y="17" width="8" height="14" class="mm-meter"/><rect x="-31" y="-4" width="14" height="8" class="mm-meter"/><rect x="17" y="-4" width="14" height="8" class="mm-meter"/>
+            <line x1="0" y1="31" x2="0" y2="72" class="mm-tether"/><path d="M-13 78 L13 78 L20 90 L-20 90Z" class="mm-anchor"/>
+            <circle r="56" class="mm-pulse p3"/><circle r="78" class="mm-pulse p1"/>
+          </g>
+
+          <!-- moving bearing geometry; endpoints track vessel lanes -->
+          <line x1="255" y1="500" x2="170" y2="235" class="mm-bearing"><animate attributeName="x2" values="170;610;170" dur="24s" repeatCount="indefinite"/></line>
+          <line x1="530" y1="505" x2="635" y2="340" class="mm-bearing"><animate attributeName="x2" values="635;225;635" dur="18s" repeatCount="indefinite"/></line>
+          <line x1="390" y1="650" x2="170" y2="565" class="mm-bearing"><animate attributeName="x2" values="170;610;170" dur="28s" repeatCount="indefinite"/></line>
+
+          <!-- detailed surface combatant; straight transit, slight heave only -->
+          <g class="mm-vessel mm-warship">
+            <animateTransform attributeName="transform" type="translate" values="170 235;610 235;170 235" dur="24s" repeatCount="indefinite"/>
+            <g class="mm-heave-war">
+              <animateTransform attributeName="transform" type="translate" values="0 0;0 -2;0 1;0 0" dur="7s" repeatCount="indefinite"/>
+              <path d="M-74 8 L52 8 L79 1 L58 -9 L23 -12 L12 -29 L-9 -31 L-18 -17 L-45 -14 L-53 -4 L-78 0Z" fill="url(#mmShip)" stroke="#d9e0dc" stroke-opacity=".74"/>
+              <path d="M-26 -15 L22 -15 L30 -24 L10 -29 L-13 -28Z" fill="#87928d"/><rect x="-9" y="-43" width="17" height="14" rx="1" fill="#a4afa9"/><path d="M-2 -43 L-2 -65" class="mm-detail"/><path d="M-18 -52 L14 -52" class="mm-detail"/><rect x="-7" y="-71" width="11" height="5" fill="#b8c2bc"/>
+              <path d="M40 -7 L63 -7" class="mm-detail"/><circle cx="46" cy="-10" r="5" fill="#87928d"/>
+              <path d="M-67 12 Q-22 20 58 13" class="mm-wake"/>
+            </g>
+          </g>
+
+          <!-- detailed fast craft / SWCC-style context -->
+          <g class="mm-vessel mm-fastcraft">
+            <animateTransform attributeName="transform" type="translate" values="635 340;225 340;635 340" dur="18s" repeatCount="indefinite"/>
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0 0;0 2;0 -1;0 0" dur="4.8s" repeatCount="indefinite"/>
+              <path d="M-55 7 L38 7 L61 -1 L47 -8 L19 -10 L7 -23 L-18 -24 L-29 -14 L-48 -9 L-60 -2Z" fill="#343e39" stroke="#c7d0cb" stroke-opacity=".68"/>
+              <path d="M-18 -20 L10 -20 L22 -12 L-29 -12Z" fill="#5d6963"/><path d="M-7 -21 L-7 -40" class="mm-detail"/><path d="M-23 -32 L9 -32" class="mm-detail"/>
+              <rect x="-48" y="8" width="12" height="7" rx="2" fill="#202724"/><rect x="-30" y="8" width="12" height="7" rx="2" fill="#202724"/>
+              <path d="M-61 12 Q-25 22 44 13" class="mm-wake"/>
+            </g>
+          </g>
+
+          <!-- detailed submarine; fixed attitude, no roll or orbiting -->
+          <g class="mm-vessel mm-submarine">
+            <animateTransform attributeName="transform" type="translate" values="170 565;610 565;170 565" dur="28s" repeatCount="indefinite"/>
+            <g>
+              <path d="M-82 0 C-70 -22 -39 -30 10 -28 C48 -26 72 -14 86 0 C72 14 48 26 10 28 C-39 30 -70 22 -82 0Z" fill="url(#mmSub)" stroke="#aab7b0" stroke-opacity=".62"/>
+              <path d="M-4 -24 L5 -43 L21 -43 L28 -23Z" fill="#2b3530" stroke="#8e9b94" stroke-opacity=".5"/><rect x="9" y="-55" width="3" height="13" fill="#87938d"/>
+              <path d="M-60 -5 L-90 -20 L-63 2Z" fill="#242d29"/><path d="M-60 5 L-90 20 L-63 -2Z" fill="#242d29"/><path d="M72 -4 L96 -15 L82 3Z" fill="#242d29"/><path d="M72 4 L96 15 L82 -3Z" fill="#242d29"/>
+              <path d="M-5 -27 L-18 -42 L8 -29Z" fill="#343f39"/>
+              <path d="M-77 3 Q-18 11 77 4" stroke="#7f8b85" stroke-opacity=".25" fill="none"/>
+            </g>
+          </g>
+
+          <text x="98" y="114" class="mm-svg-label">MARITIME OPERATING PICTURE // CONCEPT</text>
+          <text x="98" y="136" class="mm-svg-micro">PATENT-GROUNDED NODE ARCHITECTURE + ILLUSTRATIVE VESSEL CONTEXT</text>
+          <text x="98" y="706" class="mm-svg-micro">PATENT LOCATORS ARE ENLARGED FOR LEGIBILITY // NOT PHYSICAL-SCALE RENDERINGS</text>
+          <text x="98" y="728" class="mm-svg-micro">DASHED = SOURCE-TO-NODE BEARING GEOMETRY // NO DETECTION RANGE OR CLASSIFICATION CLAIM</text>
+        </g>
+      </svg>
     </div>
   </div>
+
   <div class="mm-copy">
     <span class="mm-kicker">DEFENSE FIRST // PATENT IN CONTEXT</span>
-    <div class="mm-point"><h3>Patent-described architecture</h3><p>The locator symbols correspond to the disclosed floating-base architecture: base 102, flow meters 104, retaining thread 106 and anchor 108. The operating view does not pretend millimeter-scale sensor hardware is physically the same scale as a naval vessel.</p></div>
-    <div class="mm-point"><h3>Realistic operating motion</h3><p>The submarine, surface combatant and fast craft transit on separate lanes with restrained heave and pitch. No corkscrews, barrel rolls, orbiting or showcase spins.</p></div>
-    <div class="mm-point"><h3>Bearing geometry only</h3><p>Each moving source is connected to a sensing locator by a dashed bearing line. The scene does not model source level, propagation loss, probability of detection, classification, range or fielded Navy performance.</p></div>
-    <div class="mm-foot">REAL-TIME 3D VISUAL // PATENT-GROUNDED SENSOR ARCHITECTURE + ILLUSTRATIVE MARITIME CONTEXT</div>
+    <div class="mm-point"><h3>Distributed directional sensing</h3><p>The operating picture shows how a compact directional sensor could contribute bearing information in a maritime scene. The vessels are illustrative context, not validated targets or fielded Navy deployments.</p></div>
+    <div class="mm-point"><h3>Moored architecture</h3><p>Each enlarged locator preserves the disclosed FIG. 1 relationships: floating base <b>102</b>, flow meters <b>104</b>, retaining thread <b>106</b> and anchor <b>108</b>.</p></div>
+    <div class="mm-point"><h3>Bearing geometry, not performance</h3><p>Dashed lines connect each moving source context to a nearby node to explain direction-of-arrival geometry only. No range, source level, SNR, classification or probability-of-detection model is implied.</p></div>
+    <div class="mm-foot">ILLUSTRATIVE OPERATING CONTEXT // US11287508B2 ARCHITECTURE</div>
   </div>`;
+
 if(head)head.insertAdjacentElement('afterend',section);else market.prepend(section);
 
 const style=document.createElement('style');
 style.textContent=`
-.market-motion-v4{display:grid;grid-template-columns:minmax(500px,1.12fr) minmax(350px,.88fr);gap:46px;align-items:center;margin:30px 0 44px;padding:10px 0 26px}.market-motion-v4 .mm-stage{position:relative;min-height:650px;display:flex;align-items:center;justify-content:center}.market-motion-v4 .mm-circle{position:relative;width:min(650px,96%);aspect-ratio:1;border-radius:50%;overflow:hidden;border:1px solid rgba(210,220,207,.30);background:#07110f;box-shadow:0 24px 90px rgba(0,0,0,.46),inset 0 0 100px rgba(0,0,0,.28)}.market-motion-v4 .mm-canvas-host,.market-motion-v4 .mm-canvas-host canvas,.market-motion-v4 .mm-vignette,.market-motion-v4 .mm-hud{position:absolute;inset:0;width:100%;height:100%}.market-motion-v4 .mm-canvas-host canvas{display:block}.market-motion-v4 .mm-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#7f8a80;font:9px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em}.market-motion-v4 .mm-vignette{pointer-events:none;background:radial-gradient(circle at 50% 45%,transparent 56%,rgba(2,5,4,.08) 74%,rgba(1,3,2,.58) 100%);z-index:2}.market-motion-v4 .mm-hud{z-index:3;pointer-events:none;color:#cbd3c7;font:8px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.055em}.market-motion-v4 .mm-hud>span{position:absolute;text-shadow:0 1px 7px rgba(0,0,0,.95)}.market-motion-v4 .mm-hud-top{top:11%;left:20%;width:58%;color:#aeb9aa}.market-motion-v4 .mm-hud-left{left:16%;bottom:27%;color:#8e998c}.market-motion-v4 .mm-hud-right{right:16%;top:24%;text-align:right;color:#8e998c}.market-motion-v4 .mm-hud-scale{left:50%;bottom:14.8%;transform:translateX(-50%);width:70%;text-align:center;color:#9aa69a;font-size:6.4px}.market-motion-v4 .mm-hud-scale b{color:#c5cec2;font-weight:500}.market-motion-v4 .mm-hud-bottom{bottom:8.8%;left:50%;transform:translateX(-50%);width:70%;text-align:center;color:#7e897e;font-size:6.1px}.market-motion-v4 .mm-copy{padding-right:2%;display:flex;flex-direction:column;justify-content:center}.market-motion-v4 .mm-kicker{font:10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;color:#9eaa9a;margin-bottom:20px}.market-motion-v4 .mm-point{padding:0 0 24px;margin-bottom:22px;border-bottom:1px solid rgba(169,181,155,.13)}.market-motion-v4 .mm-point h3{margin:0 0 8px;font-size:28px;line-height:1.04;letter-spacing:-.035em}.market-motion-v4 .mm-point p{margin:0;max-width:650px;color:#929a91;font-size:12px;line-height:1.58}.market-motion-v4 .mm-foot{color:#697269;font:8.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.05em}.market-motion-v4 .mm-fallback{position:absolute;inset:16%;border:1px solid rgba(190,201,188,.16);display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#8f998f;font:9px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace}@media(max-width:1000px){.market-motion-v4{grid-template-columns:1fr;gap:24px}.market-motion-v4 .mm-stage{min-height:auto;padding:8px 0}.market-motion-v4 .mm-circle{width:min(610px,86vw)}.market-motion-v4 .mm-copy{padding:0 5%}.market-motion-v4 .mm-point h3{font-size:24px}}@media(max-width:600px){.market-motion-v4 .mm-circle{width:92vw}.market-motion-v4 .mm-hud-left,.market-motion-v4 .mm-hud-right{display:none}.market-motion-v4 .mm-hud-top{left:19%;top:10%;width:62%}.market-motion-v4 .mm-hud-scale{width:72%;bottom:15%;font-size:5.4px}.market-motion-v4 .mm-hud-bottom{width:72%;font-size:5.2px}.market-motion-v4 .mm-point h3{font-size:21px}.market-motion-v4 .mm-point p{font-size:11px}}
+.market-motion-v5{display:grid;grid-template-columns:minmax(520px,1.08fr) minmax(360px,.92fr);gap:54px;align-items:center;margin:30px 0 46px;padding:8px 0 26px}.market-motion-v5 .mm-stage{min-height:680px;display:flex;align-items:center;justify-content:center}.market-motion-v5 .mm-circle{position:relative;width:min(680px,96%);aspect-ratio:1;border-radius:50%;overflow:hidden;border:1px solid rgba(198,211,202,.28);background:#06100e;box-shadow:0 24px 90px rgba(0,0,0,.46),inset 0 0 110px rgba(0,0,0,.34)}.market-motion-v5 .mm-scene{display:block;width:100%;height:100%}.market-motion-v5 .mm-svg-label,.market-motion-v5 .mm-svg-micro{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;fill:#aab6ad}.market-motion-v5 .mm-svg-label{font-size:10px}.market-motion-v5 .mm-svg-micro{font-size:7.2px;fill:#77847b}.market-motion-v5 .mm-node>circle:first-child{fill:#0b1512;stroke:#c0cbc3;stroke-width:1.4}.market-motion-v5 .mm-node-ring{fill:none;stroke:#9caaa0;stroke-opacity:.28;stroke-width:1}.market-motion-v5 .mm-base{fill:#d5ddd7;fill-opacity:.74}.market-motion-v5 .mm-meter{fill:#8f9c94;fill-opacity:.82}.market-motion-v5 .mm-tether{stroke:#98a69d;stroke-opacity:.46;stroke-dasharray:5 7}.market-motion-v5 .mm-anchor{fill:#56635c;fill-opacity:.58;stroke:#8e9b94;stroke-opacity:.36}.market-motion-v5 .mm-bearing{stroke:#c5b47e;stroke-opacity:.55;stroke-width:1.2;stroke-dasharray:6 8}.market-motion-v5 .mm-detail{stroke:#d0d7d2;stroke-opacity:.62;stroke-width:1.5;fill:none}.market-motion-v5 .mm-wake{stroke:#c9ded8;stroke-opacity:.19;stroke-width:2;fill:none;filter:url(#mmSoft)}.market-motion-v5 .mm-pulse{fill:none;stroke:#b7c5bb;stroke-width:1;stroke-opacity:.12;transform-box:fill-box;transform-origin:center;animation:mmPulse 6s linear infinite}.market-motion-v5 .mm-pulse.p2{animation-delay:-2s}.market-motion-v5 .mm-pulse.p3{animation-delay:-4s}@keyframes mmPulse{0%{transform:scale(.72);opacity:.02}45%{opacity:.18}100%{transform:scale(1.28);opacity:0}}.market-motion-v5 .mm-copy{padding-right:3%;display:flex;flex-direction:column;justify-content:center}.market-motion-v5 .mm-kicker{font:10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;color:#9eaa9a;margin-bottom:22px}.market-motion-v5 .mm-point{padding:0 0 25px;margin-bottom:24px;border-bottom:1px solid rgba(169,181,155,.13)}.market-motion-v5 .mm-point h3{margin:0 0 9px;font-size:30px;line-height:1.04;letter-spacing:-.038em}.market-motion-v5 .mm-point p{margin:0;max-width:660px;color:#929a91;font-size:12.5px;line-height:1.62}.market-motion-v5 .mm-point b{color:#c4ccc5;font-weight:600}.market-motion-v5 .mm-foot{color:#697269;font:8.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.055em}@media(max-width:1050px){.market-motion-v5{grid-template-columns:1fr;gap:26px}.market-motion-v5 .mm-stage{min-height:auto}.market-motion-v5 .mm-circle{width:min(650px,86vw)}.market-motion-v5 .mm-copy{padding:0 5%}.market-motion-v5 .mm-point h3{font-size:25px}}@media(max-width:600px){.market-motion-v5 .mm-circle{width:92vw}.market-motion-v5 .mm-copy{padding:0 3%}.market-motion-v5 .mm-point h3{font-size:22px}.market-motion-v5 .mm-point p{font-size:11.5px}.market-motion-v5 .mm-svg-label{font-size:9px}.market-motion-v5 .mm-svg-micro{font-size:6.3px}}
 `;
 document.head.appendChild(style);
-
-const host=section.querySelector('.mm-canvas-host');
-let THREE;
-try{
-  THREE=await import('https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js');
-}catch(err){
-  host.innerHTML='<div class="mm-fallback">3D rendering could not start in this browser session.<br>The patent architecture remains described at right.</div>';
-  console.warn('RHKEARTH Applications 3D unavailable:',err);
-  throw err;
-}
-
-host.innerHTML='';
-let renderer;
-try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});}catch(err){host.innerHTML='<div class="mm-fallback">WebGL is unavailable in this browser session.</div>';throw err;}
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.45));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;host.appendChild(renderer.domElement);
-
-const scene=new THREE.Scene();scene.background=new THREE.Color(0x06100f);scene.fog=new THREE.FogExp2(0x071512,.035);
-const camera=new THREE.PerspectiveCamera(40,1,.05,100);camera.position.set(12.6,8.4,15.5);camera.lookAt(0,-.85,0);
-scene.add(new THREE.HemisphereLight(0xd8e1dc,0x06100e,1.48));const key=new THREE.DirectionalLight(0xf0f4ef,2.8);key.position.set(-7,11,5);scene.add(key);const rim=new THREE.DirectionalLight(0x88a497,1.25);rim.position.set(8,3,-7);scene.add(rim);
-
-function seabedHeight(x,z){return -4.05+.22*Math.sin(x*.48)*Math.cos(z*.40)+.06*Math.sin((x+z)*.86);}
-const terrainGeo=new THREE.PlaneGeometry(24,24,44,44);terrainGeo.rotateX(-Math.PI/2);const tp=terrainGeo.attributes.position;for(let i=0;i<tp.count;i++)tp.setY(i,seabedHeight(tp.getX(i),tp.getZ(i)));terrainGeo.computeVertexNormals();scene.add(new THREE.Mesh(terrainGeo,new THREE.MeshStandardMaterial({color:0x101b16,roughness:.97})));
-const terrainWire=new THREE.Mesh(terrainGeo.clone(),new THREE.MeshBasicMaterial({color:0x69796d,wireframe:true,transparent:true,opacity:.028,depthWrite:false}));terrainWire.position.y=.02;scene.add(terrainWire);
-
-const surfaceGeo=new THREE.PlaneGeometry(24,24,42,42);surfaceGeo.rotateX(-Math.PI/2);const surfaceBase=surfaceGeo.attributes.position.array.slice();const surfaceMat=new THREE.MeshPhysicalMaterial({color:0x2d6862,transparent:true,opacity:.56,roughness:.24,side:THREE.DoubleSide,depthWrite:false});const surface=new THREE.Mesh(surfaceGeo,surfaceMat);surface.position.y=.92;scene.add(surface);const surfaceLines=new THREE.Mesh(surfaceGeo.clone(),new THREE.MeshBasicMaterial({color:0xc1ddd6,wireframe:true,transparent:true,opacity:.09,depthWrite:false}));surfaceLines.position.y=.94;scene.add(surfaceLines);
-function waveHeight(x,z,t){return .040*Math.sin(x*.62+t*.44)+.024*Math.sin(z*.80-t*.34)+.010*Math.sin((x+z)*1.08+t*.24);}function updateSurface(t){for(const mesh of [surface,surfaceLines]){const a=mesh.geometry.attributes.position;for(let i=0;i<a.count;i++){const bi=i*3,x=surfaceBase[bi],z=surfaceBase[bi+2];a.setY(i,waveHeight(x,z,t));}a.needsUpdate=true;}surface.geometry.computeVertexNormals();}
-
-const pale=new THREE.MeshStandardMaterial({color:0xd4dbd2,roughness:.42,metalness:.20}),muted=new THREE.MeshStandardMaterial({color:0x657169,roughness:.58,metalness:.13}),subMat=new THREE.MeshStandardMaterial({color:0x121714,roughness:.44,metalness:.22}),shipMat=new THREE.MeshStandardMaterial({color:0x717c77,roughness:.44,metalness:.18}),fastMat=new THREE.MeshStandardMaterial({color:0x252c29,roughness:.50,metalness:.12}),glassMat=new THREE.MeshStandardMaterial({color:0x76918e,roughness:.18,transparent:true,opacity:.68});
-function line(a,b,opacity=.42,dashed=false){const mat=dashed?new THREE.LineDashedMaterial({color:0xc7d0c5,transparent:true,opacity,dashSize:.14,gapSize:.12}):new THREE.LineBasicMaterial({color:0xc7d0c5,transparent:true,opacity});const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),mat);if(dashed)l.computeLineDistances();return l;}
-function markerRing(r=.16){const g=new THREE.Group(),ring=new THREE.Mesh(new THREE.RingGeometry(r*.96,r,42),new THREE.MeshBasicMaterial({color:0xc9d3c7,transparent:true,opacity:.32,side:THREE.DoubleSide,depthWrite:false}));ring.rotation.x=-Math.PI/2;g.add(ring);const m=new THREE.LineBasicMaterial({color:0xc9d3c7,transparent:true,opacity:.42});g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-r*1.4,0,0),new THREE.Vector3(r*1.4,0,0)]),m));g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,-r*1.4),new THREE.Vector3(0,0,r*1.4)]),m));return g;}
-function makeLocator(x,z){const g=markerRing(.16);g.position.set(x,-2.18,z);const ay=seabedHeight(x,z)+.08;scene.add(line(new THREE.Vector3(x,-2.18,z),new THREE.Vector3(x,ay,z),.30,true));const a=new THREE.Mesh(new THREE.CylinderGeometry(.10,.13,.07,12),muted);a.position.set(x,ay-.035,z);scene.add(a);scene.add(g);return g;}
-const locators=[[-3.4,-2.2],[3.25,-2.2],[-2.2,2.45],[2.95,2.35],[0,.15]].map(p=>makeLocator(p[0],p[1]));
-
-function extrudedHull(points,height,material,bevel=.04){const s=new THREE.Shape();s.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)s.lineTo(points[i][0],points[i][1]);s.closePath();const g=new THREE.ExtrudeGeometry(s,{depth:height,bevelEnabled:true,bevelSegments:3,steps:1,bevelSize:bevel,bevelThickness:bevel});g.rotateX(Math.PI/2);g.translate(0,height*.5,0);return new THREE.Mesh(g,material);}
-function makeSubmarine(){const r=new THREE.Group();r.rotation.order='YXZ';const hull=new THREE.Mesh(new THREE.CapsuleGeometry(.34,2.45,16,32),subMat);hull.rotation.z=Math.PI/2;r.add(hull);const nose=new THREE.Mesh(new THREE.SphereGeometry(.35,24,16),subMat);nose.scale.set(1.35,1,.95);nose.position.x=1.38;r.add(nose);const sail=new THREE.Mesh(new THREE.BoxGeometry(.48,.54,.23),subMat);sail.position.set(.10,.42,0);r.add(sail);const cap=new THREE.Mesh(new THREE.BoxGeometry(.35,.08,.25),subMat);cap.position.set(.15,.71,0);r.add(cap);const mast=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.36,10),pale);mast.position.set(.13,.91,0);r.add(mast);const sternPlane=new THREE.Mesh(new THREE.BoxGeometry(.44,.04,1.05),muted);sternPlane.position.x=-1.35;r.add(sternPlane);const rudder=new THREE.Mesh(new THREE.BoxGeometry(.42,.74,.04),muted);rudder.position.x=-1.36;r.add(rudder);const jet=new THREE.Mesh(new THREE.TorusGeometry(.17,.028,10,26),pale);jet.rotation.y=Math.PI/2;jet.position.x=-1.58;r.add(jet);scene.add(r);return r;}
-function makeWarship(){const r=new THREE.Group();r.rotation.order='YXZ';r.add(extrudedHull([[-1.70,-.34],[-1.18,-.42],[.55,-.39],[1.44,-.22],[1.84,0],[1.44,.22],[.55,.39],[-1.18,.42]],.34,shipMat,.045));const fore=extrudedHull([[.52,-.28],[1.28,-.20],[1.54,0],[1.28,.20],[.52,.28]],.13,shipMat,.02);fore.position.y=.30;r.add(fore);const super1=extrudedHull([[-.58,-.27],[.43,-.25],[.66,-.14],[.66,.14],[.43,.25],[-.58,.27]],.34,shipMat,.02);super1.position.y=.40;r.add(super1);const super2=extrudedHull([[-.38,-.20],[.18,-.19],[.38,-.10],[.38,.10],[.18,.19],[-.38,.20]],.24,pale,.015);super2.position.y=.72;r.add(super2);const glass=new THREE.Mesh(new THREE.BoxGeometry(.34,.10,.40),glassMat);glass.position.set(.16,.90,0);r.add(glass);const mast=new THREE.Mesh(new THREE.CylinderGeometry(.018,.024,.82,10),pale);mast.position.set(-.02,1.25,0);r.add(mast);const yard=new THREE.Mesh(new THREE.BoxGeometry(.52,.022,.022),pale);yard.position.set(-.02,1.45,0);r.add(yard);const radar=new THREE.Mesh(new THREE.BoxGeometry(.22,.12,.03),pale);radar.position.set(-.02,1.55,0);r.add(radar);const funnel=new THREE.Mesh(new THREE.CylinderGeometry(.09,.12,.34,12),muted);funnel.position.set(-.45,1.00,0);r.add(funnel);const gun=new THREE.Mesh(new THREE.CylinderGeometry(.13,.16,.09,16),muted);gun.position.set(.95,.44,0);r.add(gun);const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.02,.02,.50,10),pale);barrel.rotation.z=Math.PI/2;barrel.position.set(1.18,.51,0);r.add(barrel);scene.add(r);return r;}
-function makeFastCraft(){const r=new THREE.Group();r.rotation.order='YXZ';r.scale.setScalar(.62);r.add(extrudedHull([[-1.18,-.34],[-.68,-.40],[.50,-.34],[1.16,-.12],[1.36,0],[1.16,.12],[.50,.34],[-.68,.40]],.27,fastMat,.05));for(const z of [-.35,.35]){const tube=new THREE.Mesh(new THREE.CylinderGeometry(.10,.13,2.12,14),fastMat);tube.rotation.z=Math.PI/2;tube.position.set(-.02,.29,z);r.add(tube);}const cabin=extrudedHull([[-.36,-.23],[.32,-.22],[.57,-.11],[.57,.11],[.32,.22],[-.36,.23]],.31,fastMat,.02);cabin.position.y=.40;r.add(cabin);const glass=new THREE.Mesh(new THREE.BoxGeometry(.11,.19,.39),glassMat);glass.position.set(.46,.66,0);glass.rotation.z=-.20;r.add(glass);const top=new THREE.Mesh(new THREE.BoxGeometry(.48,.03,.57),pale);top.position.set(-.10,1.18,0);r.add(top);const mast=new THREE.Mesh(new THREE.CylinderGeometry(.014,.014,.42,8),pale);mast.position.set(-.10,1.40,0);r.add(mast);scene.add(r);return r;}
-const submarine=makeSubmarine(),warship=makeWarship(),fastCraft=makeFastCraft();
-
-// Separated straight transit lanes. Objects never intersect one another and remain
-// comfortably inside the circular viewport before fading for the wrap transition.
-const lanes={sub:{a:new THREE.Vector3(-3.0,-2.20,-.45),b:new THREE.Vector3(3.0,-2.14,.55),speed:.040,phase:.17},war:{a:new THREE.Vector3(-2.20,.99,-1.48),b:new THREE.Vector3(2.20,.99,-1.48),speed:.022,phase:.04},fast:{a:new THREE.Vector3(2.95,1.00,2.00),b:new THREE.Vector3(-2.95,1.00,2.00),speed:.050,phase:.54}};
-function prog(t,l){return (t*l.speed+l.phase)%1;}function at(l,u){return l.a.clone().lerp(l.b,u);}function tangent(l){return l.b.clone().sub(l.a).normalize();}function edgeFade(u){return THREE.MathUtils.smoothstep(u,0,.11)*THREE.MathUtils.smoothstep(1-u,0,.11);}function orient(o,t){o.rotation.y=Math.atan2(-t.z,t.x);o.rotation.x=0;o.rotation.z=0;}function setOpacity(root,o){root.traverse(x=>{if(x.isMesh&&x.material){const mats=Array.isArray(x.material)?x.material:[x.material];mats.forEach(m=>{if(m.userData.baseOpacity===undefined)m.userData.baseOpacity=m.opacity;m.transparent=true;m.opacity=Math.min(m.userData.baseOpacity,o);m.depthWrite=o>.5;});}});}
-function nearestLocator(p){let best=locators[0],d0=Infinity;for(const n of locators){const d=(n.position.x-p.x)**2+(n.position.z-p.z)**2;if(d<d0){best=n;d0=d;}}return best;}function assoc(op){const l=line(new THREE.Vector3(),new THREE.Vector3(),op,true);scene.add(l);return l;}const subLine=assoc(.40),warLine=assoc(.28),fastLine=assoc(.24);function connect(l,n,o){l.geometry.setFromPoints([n.position,o.position]);l.computeLineDistances();}
-function wake(){return new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xd3e1dc,transparent:true,opacity:.15,depthWrite:false}));}const warWake=wake(),fastWake=wake();scene.add(warWake,fastWake);function updateWake(w,p,t,width,length,alpha){const back=t.clone().multiplyScalar(-length),side=new THREE.Vector3(-t.z,0,t.x).normalize().multiplyScalar(width),q=p.clone();q.y=.97;w.geometry.setFromPoints([q.clone().add(side),q.clone().add(back).add(side.clone().multiplyScalar(2)),q.clone().sub(side),q.clone().add(back).sub(side.clone().multiplyScalar(2))]);w.material.opacity=alpha;}
-
-const acousticRoot=new THREE.Group();scene.add(acousticRoot);const rings=[];for(let i=0;i<3;i++){const r=new THREE.Mesh(new THREE.RingGeometry(.98,1.01,64),new THREE.MeshBasicMaterial({color:0xb6c3b6,transparent:true,opacity:.09,side:THREE.DoubleSide,depthWrite:false}));r.rotation.x=-Math.PI/2;r.userData.offset=i/3;acousticRoot.add(r);rings.push(r);}
-const clock=new THREE.Clock();
-function animate(){requestAnimationFrame(animate);const t=clock.getElapsedTime();updateSurface(t);const su=prog(t,lanes.sub),wu=prog(t,lanes.war),fu=prog(t,lanes.fast);const sp=at(lanes.sub,su),wp=at(lanes.war,wu),fp=at(lanes.fast,fu),st=tangent(lanes.sub),wt=tangent(lanes.war),ft=tangent(lanes.fast);sp.y+=.018*Math.sin(t*.20);wp.y=.99+waveHeight(wp.x,wp.z,t)+.006*Math.sin(t*.42);fp.y=1.00+waveHeight(fp.x,fp.z,t)+.014*Math.sin(t*.76);submarine.position.copy(sp);warship.position.copy(wp);fastCraft.position.copy(fp);orient(submarine,st);orient(warship,wt);orient(fastCraft,ft);submarine.rotation.z=.002*Math.sin(t*.18);warship.rotation.z=.004*Math.sin(t*.38);fastCraft.rotation.z=.007*Math.sin(t*.68);const so=edgeFade(su),wo=edgeFade(wu),fo=edgeFade(fu);setOpacity(submarine,so);setOpacity(warship,wo);setOpacity(fastCraft,fo);updateWake(warWake,wp,wt,.13,.82,.14*wo);updateWake(fastWake,fp,ft,.07,.46,.14*fo);acousticRoot.position.copy(sp);rings.forEach(r=>{const q=(t*.09+r.userData.offset)%1;r.scale.setScalar(.28+q*1.35);r.material.opacity=(1-q)*.08*so;});connect(subLine,nearestLocator(sp),submarine);connect(warLine,nearestLocator(wp),warship);connect(fastLine,nearestLocator(fp),fastCraft);subLine.material.opacity=.40*so;warLine.material.opacity=.28*wo;fastLine.material.opacity=.24*fo;renderer.render(scene,camera);}
-function resize(){const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
-new ResizeObserver(resize).observe(host);resize();animate();
+})();
