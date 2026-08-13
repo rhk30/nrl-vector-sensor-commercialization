@@ -119,13 +119,13 @@ jobs:
               if abs(north-(-math.cos(math.radians(42))))>.002: fail(f'north component {north}')
               if abs(norm-1.0)>.001: fail(f'vector norm {norm}')
 
-              # Manual source and architecture controls update audited readouts.
-              target=d.find_element(By.ID,'targetType');Select(target).select_by_value('submarine');target.dispatch_event if False else None
+              # Manual source and architecture controls update final audited readouts.
+              target=d.find_element(By.ID,'targetType');Select(target).select_by_value('submarine')
               js("arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",target);time.sleep(.12)
-              assert 'Submerged' in d.find_element(By.ID,'demoSource').text
+              assert 'Submerged' in d.find_element(By.ID,'auditSource').text
               config=d.find_element(By.ID,'sensorConfig');Select(config).select_by_value('platform')
               js("arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",config);time.sleep(.12)
-              assert 'Hull' in d.find_element(By.ID,'demoDeployment').text or 'AUV' in d.find_element(By.ID,'demoDeployment').text
+              assert 'Hull' in d.find_element(By.ID,'auditDeployment').text or 'AUV' in d.find_element(By.ID,'auditDeployment').text
 
               # Deployment presets preserve current source geometry.
               rng=d.find_element(By.ID,'missionRange');set_range(bearing,77);set_range(rng,4.1)
