@@ -2,8 +2,6 @@
 const panel=document.querySelector('.scene-panel');if(!panel)return;
 const svg=panel.querySelector('svg');if(!svg)return;
 
-// Real platform/environment media is context only. The patent-specific information
-// is supplied by hero-overlay-rework.js. Videos remain muted at all times.
 const media={
   subsea:{type:'image',src:'https://upload.wikimedia.org/wikipedia/commons/9/99/Flickr_-_Official_U.S._Navy_Imagery_-_USS_Virginia_makes_way_up_the_Thames_River..jpg',position:'50% 48%'},
   fleet:{type:'video',src:'https://upload.wikimedia.org/wikipedia/commons/2/24/USN_Destroyers_hauling_it.webm',position:'50% 46%'},
@@ -70,8 +68,6 @@ function sync(){
   layer.querySelectorAll('.rhk-media-item').forEach(item=>item.classList.toggle('active',item.dataset.scene===active));
   panel.classList.toggle('has-live-media',!!media[active]);
 
-  // Only the active video decodes continuously. The next video is loaded ahead
-  // of time so switching scenes does not require a cold network start.
   videoByScene.forEach((v,id)=>{
     const wrap=v.closest('.rhk-media-item');
     if(id===active){v.preload='auto';safePlay(v);}
@@ -92,5 +88,7 @@ document.addEventListener('visibilitychange',()=>{
 window.addEventListener('pageshow',()=>{const v=videoByScene.get(currentScene);if(v)safePlay(v);});
 sync();
 
-import('./hero-overlay-rework.js?v=3').catch(err=>console.warn('RHKEARTH hero overlay fallback:',err));
+import('./hero-overlay-rework.js?v=4')
+  .then(()=>import('./hero-overlay-safe.js?v=1'))
+  .catch(err=>console.warn('RHKEARTH hero overlay fallback:',err));
 })();
