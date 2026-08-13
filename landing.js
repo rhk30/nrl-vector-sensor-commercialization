@@ -23,6 +23,18 @@ const earlyMetrics=document.querySelectorAll('.metrics .metric');if(earlyMetrics
 const earlyMission=document.querySelector('#mission .section-head .section-title p');if(earlyMission)earlyMission.textContent='Choose a patent-described deployment context and inspect source-bearing geometry. The demonstrator does not calculate detection performance.';
 document.querySelectorAll('.mission-stage svg text').forEach(t=>{if(/KM/i.test(t.textContent||''))t.style.display='none';});
 
+// Technology order: System architecture first and selected by default. The
+// integrated physical model remains available as the second tab.
+const system=document.getElementById('system');
+if(system){
+  const tabs=system.querySelector('.tabs');
+  const architectureTab=tabs?.querySelector('[data-view="architecture"]');
+  const physicsTab=tabs?.querySelector('[data-view="physics"]');
+  if(architectureTab&&physicsTab){architectureTab.textContent='System architecture';physicsTab.textContent='Physical model';tabs.insertBefore(architectureTab,physicsTab);architectureTab.classList.add('active');physicsTab.classList.remove('active');}
+  const architectureView=document.getElementById('architecture'),physicsView=document.getElementById('physics');
+  if(architectureView&&physicsView){architectureView.classList.add('active');physicsView.classList.remove('active');}
+}
+
 function removeEmDashes(root=document.body){if(!root)return;const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);nodes.forEach(node=>{if(node.nodeValue&&node.nodeValue.includes('—'))node.nodeValue=node.nodeValue.replaceAll('—',' / ');});}
 removeEmDashes();const punctuationGuard=new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(node=>{if(node.nodeType===Node.TEXT_NODE){if(node.nodeValue?.includes('—'))node.nodeValue=node.nodeValue.replaceAll('—',' / ');}else if(node.nodeType===Node.ELEMENT_NODE)removeEmDashes(node);})));punctuationGuard.observe(document.body,{childList:true,subtree:true});
 
@@ -55,9 +67,9 @@ const loadPatentAccuracy=()=>import('./patent-accuracy.js?v=2').catch(err=>conso
 const loadPatentStrict=()=>import('./patent-strict.js?v=3').catch(err=>console.warn('RHKEARTH patent-strict layer fallback:',err));
 const loadDemoMechanics=()=>import('./demo-mechanics.js?v=2').catch(err=>console.warn('RHKEARTH demonstrator mechanics fallback:',err));
 const loadFinalAudit=()=>import('./patent-final-audit.js?v=1').catch(err=>console.warn('RHKEARTH final patent audit fallback:',err));
-const loadTechnologyUnified=()=>import('./technology-unified.js?v=1').catch(err=>console.warn('RHKEARTH unified technology exhibit fallback:',err));
+const loadTechnologyUnified=()=>import('./technology-unified.js?v=2').catch(err=>console.warn('RHKEARTH unified technology exhibit fallback:',err));
 const loadPatentGuide=()=>import('./demo-patent-guide.js?v=2').catch(err=>console.warn('RHKEARTH patent guide fallback:',err));
-const loadMarketBridge=()=>import('./market-bridge.js?v=2').catch(err=>console.warn('RHKEARTH applications bridge fallback:',err));
+const loadMarketBridge=()=>import('./market-bridge.js?v=3').catch(err=>console.warn('RHKEARTH applications bridge fallback:',err));
 const load3D=()=>import('./mission3d-audited.js?v=1').catch(err=>console.warn('RHKEARTH audited 3D demonstrator fallback:',err));
 function loadEnhancements(){loadHeroMedia();loadHeroPolish();loadSensor().then(loadPatentAccuracy).then(loadPatentStrict).then(loadDemoMechanics).then(loadFinalAudit).then(loadTechnologyUnified).then(loadPatentGuide).then(loadMarketBridge).then(load3D);}
 if(document.readyState==='complete')loadEnhancements();else window.addEventListener('load',loadEnhancements,{once:true});
