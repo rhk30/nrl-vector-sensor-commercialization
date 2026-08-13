@@ -6,8 +6,8 @@
   overflow:hidden;
 }
 
-/* Center the whole SVG inside a generous visual safe-area. Using a centered
-   percentage box is more reliable than pinning all four edges on wide screens. */
+/* Center the whole SVG inside a generous visual safe-area. Horizontal placement
+   is preserved; only the vertical translate is nudged upward slightly. */
 .scene-panel svg{
   position:absolute;
   top:50%;
@@ -18,7 +18,7 @@
   height:84%;
   max-width:none;
   overflow:visible;
-  transform:translate(-47%,-47%);
+  transform:translate(-47%,-48.5%);
   transform-origin:center;
 }
 
@@ -91,7 +91,7 @@
   .scene-panel svg{
     width:88%;
     height:88%;
-    transform:translate(-50%,-48%);
+    transform:translate(-50%,-49%);
   }
   .scene-group[data-scene="fleet"] .craft-drift{translate:12px 38px;}
 }
@@ -100,7 +100,7 @@
   .scene-panel svg{
     width:90%;
     height:86%;
-    transform:translate(-50%,-48%);
+    transform:translate(-50%,-49%);
   }
   .craft-drift,.sub-drift{animation:none !important;}
   .scene-group[data-scene="fleet"] .craft-drift{translate:8px 42px;}
