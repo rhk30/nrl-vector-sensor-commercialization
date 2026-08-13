@@ -23,17 +23,14 @@ const earlyMetrics=document.querySelectorAll('.metrics .metric');if(earlyMetrics
 const earlyMission=document.querySelector('#mission .section-head .section-title p');if(earlyMission)earlyMission.textContent='Choose a patent-described deployment context and inspect source-bearing geometry. The demonstrator does not calculate detection performance.';
 document.querySelectorAll('.mission-stage svg text').forEach(t=>{if(/KM/i.test(t.textContent||''))t.style.display='none';});
 
-// Investor-first order before enhancement modules load.
 const system=document.getElementById('system'),mission=document.getElementById('mission'),market=document.getElementById('market'),main=document.querySelector('main#top');
 if(main&&system&&mission)main.insertBefore(system,mission);
 const indexes=[[system,'01 // Technology'],[mission,'02 // Demonstrator'],[market,'03 // Applications']];indexes.forEach(([section,text])=>{const el=section?.querySelector('.section-index');if(el)el.textContent=text;});
-const earlyNav=document.querySelector('.toplinks');if(earlyNav)earlyNav.innerHTML='<a href="#system">Technology</a><a href="#mission">Demonstrator</a><a href="#market">Applications</a><a href="#evidence">Evidence</a>';
+const earlyNav=document.querySelector('.toplinks');if(earlyNav)earlyNav.innerHTML='<a href="#system">Technology</a><a href="#mission">Demonstrator</a><a href="#market">Applications</a>';
 const earlyEye=document.querySelector('.cinematic-copy .eyebrow');if(earlyEye)earlyEye.textContent='NRL PATENT FAMILY // INDEPENDENT COMMERCIALIZATION EVALUATION';
 const earlyLede=document.querySelector('.cinematic-copy .lede');if(earlyLede)earlyLede.textContent='The Navy patents describe compact particle-motion vector sensing for low-frequency direction of arrival. A microfabricated mesh prototype showed dipole-type directional response in air; RHKEARTH is evaluating whether the disclosed underwater architectures can become a practical maritime sensing product.';
 const earlyActions=document.querySelector('.hero-actions');if(earlyActions)earlyActions.innerHTML='<a class="hero-link primary" href="#system">Review the technology →</a><a class="hero-link" href="#mission">Run the demonstrator →</a>';
 
-// Technology order: System architecture first and selected by default. The
-// integrated physical model remains available as the second tab.
 if(system){
   const tabs=system.querySelector('.tabs');
   const architectureTab=tabs?.querySelector('[data-view="architecture"]');
@@ -50,7 +47,7 @@ removeEmDashes();const punctuationGuard=new MutationObserver(records=>records.fo
   ['editorial.css','editorial.css?v=2'],
   ['hero-fix.css','hero-fix.css?v=5'],
   ['hero-polish.css','hero-polish.css?v=3'],
-  ['hero-media.css','hero-media.css?v=6'],
+  ['hero-media.css','hero-media.css?v=7'],
   ['sensor-realism.css','sensor-realism.css?v=5'],
   ['formula-layout.css','formula-layout.css?v=1'],
   ['patent-accuracy.css','patent-accuracy.css?v=2'],
@@ -69,8 +66,8 @@ let idx=0,timer=null;const dur=8000,$=id=>document.getElementById(id);
 function show(i){idx=(i+scenes.length)%scenes.length;const s=scenes[idx];document.querySelectorAll('.scene-group').forEach(g=>g.classList.toggle('active',g.dataset.scene===s.id));document.querySelectorAll('.scene-btn').forEach((b,n)=>b.classList.toggle('active',n===idx));if($('sceneKicker'))$('sceneKicker').textContent=s.kicker;if($('sceneTitle'))$('sceneTitle').textContent=s.title;if($('sceneCopy'))$('sceneCopy').textContent=s.copy;if($('sceneIndex'))$('sceneIndex').textContent=String(idx+1).padStart(2,'0')+' / '+String(scenes.length).padStart(2,'0');const p=$('sceneProgress');if(p){p.classList.remove('running');void p.offsetWidth;p.classList.add('running');}}
 function restart(){clearInterval(timer);timer=setInterval(()=>show(idx+1),dur);}document.addEventListener('visibilitychange',()=>{if(document.hidden)clearInterval(timer);else restart();});show(0);restart();
 
-const loadInvestorAudit=()=>import('./investor-audit.js?v=2').catch(err=>console.warn('RHKEARTH site audit fallback:',err));
-const loadHeroMedia=()=>import('./hero-media.js?v=6').catch(err=>console.warn('RHKEARTH cover media fallback:',err));
+const loadInvestorAudit=()=>import('./investor-audit.js?v=3').catch(err=>console.warn('RHKEARTH site audit fallback:',err));
+const loadHeroMedia=()=>import('./hero-media.js?v=7').catch(err=>console.warn('RHKEARTH cover media fallback:',err));
 const loadHeroPolish=()=>import('./hero-polish.js?v=3').catch(err=>console.warn('RHKEARTH cover polish fallback:',err));
 const loadSensor=()=>import('./sensor-realism.js?v=5').catch(err=>console.warn('RHKEARTH sensor cutaway fallback:',err));
 const loadPatentAccuracy=()=>import('./patent-accuracy.js?v=2').catch(err=>console.warn('RHKEARTH patent-accuracy layer fallback:',err));
@@ -80,7 +77,7 @@ const loadFinalAudit=()=>import('./patent-final-audit.js?v=1').catch(err=>consol
 const loadFactDisclosure=()=>import('./patent-facts-disclosure.js?v=2').catch(err=>console.warn('RHKEARTH patent disclosure fallback:',err));
 const loadTechnologyUnified=()=>import('./technology-unified.js?v=2').catch(err=>console.warn('RHKEARTH unified technology exhibit fallback:',err));
 const loadPatentGuide=()=>import('./demo-patent-guide.js?v=2').catch(err=>console.warn('RHKEARTH patent guide fallback:',err));
-const loadMarketBridge=()=>import('./market-bridge.js?v=4').catch(err=>console.warn('RHKEARTH applications bridge fallback:',err));
+const loadMarketBridge=()=>import('./market-bridge-v2.js?v=1').catch(err=>console.warn('RHKEARTH applications bridge fallback:',err));
 const load3D=()=>import('./mission3d-audited.js?v=1').catch(err=>console.warn('RHKEARTH audited 3D demonstrator fallback:',err));
 function loadEnhancements(){loadInvestorAudit();loadHeroMedia();loadHeroPolish();loadSensor().then(loadPatentAccuracy).then(loadPatentStrict).then(loadDemoMechanics).then(loadFinalAudit).then(loadFactDisclosure).then(loadTechnologyUnified).then(loadPatentGuide).then(loadMarketBridge).then(load3D);}
 if(document.readyState==='complete')loadEnhancements();else window.addEventListener('load',loadEnhancements,{once:true});
