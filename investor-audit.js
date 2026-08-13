@@ -1,10 +1,7 @@
 (()=>{'use strict';
 const q=(s,r=document)=>r.querySelector(s),qa=(s,r=document)=>Array.from(r.querySelectorAll(s));
-const main=document.querySelector('main#top');if(!main||document.body.dataset.rhkInvestorAudit==='3')return;document.body.dataset.rhkInvestorAudit='3';
+const main=document.querySelector('main#top');if(!main||document.body.dataset.rhkInvestorAudit==='4')return;document.body.dataset.rhkInvestorAudit='4';
 
-// Keep the investor logic in the organization, not in visible "investor" copy.
-// Technology comes before the demonstrator so the visitor understands what is
-// being shown before interacting with it.
 const system=document.getElementById('system'),mission=document.getElementById('mission'),market=document.getElementById('market');
 if(system&&mission)main.insertBefore(system,mission);
 if(market)main.appendChild(market);
@@ -13,13 +10,10 @@ setIndex(system,'01 // Technology');setIndex(mission,'02 // Demonstrator');setIn
 
 const nav=q('.toplinks');if(nav)nav.innerHTML='<a href="#system">Technology</a><a href="#mission">Demonstrator</a><a href="#market">Applications</a>';
 
-// Hero remains concise and technical.
-const eyebrow=q('.cinematic-copy .eyebrow');if(eyebrow)eyebrow.textContent='NRL PATENT FAMILY // INDEPENDENT COMMERCIALIZATION EVALUATION';
+const eyebrow=q('.cinematic-copy .eyebrow');if(eyebrow)eyebrow.textContent='NRL PATENTS // INDEPENDENT COMMERCIALIZATION EVALUATION';
 const lede=q('.cinematic-copy .lede');if(lede)lede.textContent='The Navy patents describe compact particle-motion vector sensing for low-frequency direction of arrival. A microfabricated mesh prototype showed dipole-type directional response in air; RHKEARTH is evaluating whether the disclosed underwater architectures can become a practical maritime sensing product.';
 const actions=q('.hero-actions');if(actions)actions.innerHTML='<a class="hero-link primary" href="#system">Review the technology →</a><a class="hero-link" href="#mission">Run the demonstrator →</a>';
 
-// Remove summary sections from earlier iterations. Patent boundaries already
-// appear where they matter in the Technology, Demonstrator and Applications flow.
 q('.investor-lens')?.remove();
 q('#evidence')?.remove();
 const oldSources=document.getElementById('sources');if(oldSources){oldSources.hidden=true;oldSources.setAttribute('aria-hidden','true');}
@@ -32,11 +26,6 @@ if(market){const h=q('.section-title h2',market),p=q('.section-title p',market);
     <div class="thesis"><div class="tag">EVALUATION PATHS</div><h3>Ports, offshore systems and environmental observation</h3><p>These are potential RHKEARTH applications, not patent deployment claims. They remain contingent on technical validation, customer need and appropriate rights.</p></div>`;
 }
 
-// Keep the applications operating picture clean and non-performative.
-const polishMarket=()=>{const mm=q('.market-motion');if(!mm)return false;qa('.mm-alert',mm).forEach(el=>el.remove());const top=q('.mm-hud-top',mm);if(top)top.textContent='MARITIME SENSOR ARCHITECTURE // ILLUSTRATIVE CONTEXT';const right=q('.mm-hud-right',mm);if(right)right.innerHTML='SOURCE TO SENSOR<br>BEARING GEOMETRY';const left=q('.mm-hud-left',mm);if(left)left.innerHTML='PATENT CORE<br>102 BASE<br>104 FLOW METERS<br>106 TETHER<br>108 ANCHOR';return true;};
-if(!polishMarket()){const mo=new MutationObserver(()=>{if(polishMarket())mo.disconnect();});mo.observe(market||document.body,{childList:true,subtree:true});}
-
-const style=document.createElement('style');style.textContent=`
-.market-motion .mm-hud-top{top:11%!important;left:19%!important;max-width:60%!important}.market-motion .mm-hud-left{left:16%!important;bottom:22%!important}.market-motion .mm-hud-right{right:16%!important;top:23%!important}.market-motion .mm-hud-bottom{bottom:9.5%!important;width:60%!important}.market-motion .mm-hud-legend{bottom:14%!important;width:62%!important}
-`;document.head.appendChild(style);
+const cleanMarket=()=>{const mm=q('.market-motion');if(!mm)return false;qa('.mm-alert',mm).forEach(el=>el.remove());return true;};
+if(!cleanMarket()){const mo=new MutationObserver(()=>{if(cleanMarket())mo.disconnect();});mo.observe(market||document.body,{childList:true,subtree:true});}
 })();
