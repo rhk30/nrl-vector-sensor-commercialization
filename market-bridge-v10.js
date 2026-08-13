@@ -142,7 +142,10 @@ const bw=svg.querySelector('#m10BearingWar'),bf=svg.querySelector('#m10BearingFa
 const tw=svg.querySelector('#m10TrailWar'),tf=svg.querySelector('#m10TrailFast'),ts=svg.querySelector('#m10TrailSub');
 
 let last=performance.now();
-let pwPhase=.6,pfPhase=2.2,psPhase=4.0;
+// Slow, one-way-looking transit during any normal review session. The underlying
+// paths remain bounded, but the first mathematical turnarounds are pushed well
+// beyond a typical presentation so platforms never appear to ping-pong or flip.
+let pwPhase=.20,pfPhase=3.30,psPhase=.30;
 const trails={war:[],fast:[],sub:[]};
 let dirWar=1,dirFast=-1,dirSub=1;
 function warPos(a){return{x:305+120*Math.sin(a),y:274+2.1*Math.sin(a*.63)+1.2*Math.sin(a*1.41)}}
@@ -155,7 +158,7 @@ function drawTrail(el,arr){el.setAttribute('points',arr.map(p=>`${p.x.toFixed(1)
 function setWaves(key,p,now,period,maxR){waves[key].forEach((c,i)=>{const ph=((now/1000+i*period/4)%period)/period;const r=14+ph*maxR;c.setAttribute('cx',p.x.toFixed(1));c.setAttribute('cy',p.y.toFixed(1));c.setAttribute('r',r.toFixed(1));c.style.opacity=String((1-ph)*.45)})}
 function frame(now){
   const dt=Math.min((now-last)/1000,.05);last=now;
-  pwPhase+=dt*.018;pfPhase+=dt*.024;psPhase+=dt*.013;
+  pwPhase+=dt*.00070;pfPhase+=dt*.00080;psPhase+=dt*.00065;
   const pW=warPos(pwPhase),pF=fastPos(pfPhase),pS=subPos(psPhase);
   setUpright(war,pW,derivative(warPos,pwPhase),.76);
   setUpright(fast,pF,derivative(fastPos,pfPhase),.70);
