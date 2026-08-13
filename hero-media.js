@@ -13,12 +13,34 @@ const sceneOrder=['subsea','fleet','swcc','harbor','wind'];
 const hardMute=v=>{v.muted=true;v.defaultMuted=true;v.volume=0;v.setAttribute('muted','');v.setAttribute('playsinline','');v.removeAttribute('controls');};
 const videoByScene=new Map();
 const layer=document.createElement('div');layer.className='rhk-media-layer';
+let currentScene='subsea';
 
+function activeWrap(){return layer.querySelector(`.rhk-media-item[data-scene="${currentScene}"]`);}
+function showStaticFallback(wrap){
+  if(!wrap||!wrap.classList.contains('active'))return;
+  wrap.classList.add('media-failed');
+  panel.classList.remove('has-live-media');
+}
+function showLiveMedia(wrap){
+  if(!wrap||!wrap.classList.contains('active'))return;
+  wrap.classList.remove('media-failed','is-buffering');
+  panel.classList.add('has-live-media');
+}
+function clearFallbackTimer(v){if(v?._rhkFallbackTimer){clearTimeout(v._rhkFallbackTimer);v._rhkFallbackTimer=null;}}
+function scheduleFallback(v,delay=2400){
+  if(!v)return;
+  clearFallbackTimer(v);
+  v._rhkFallbackTimer=setTimeout(()=>{
+    const wrap=v.closest('.rhk-media-item');
+    if(wrap?.classList.contains('active')&&!v.paused&&v.readyState>=3)return;
+    showStaticFallback(wrap);
+  },delay);
+}
 function safePlay(v){
   if(!v||document.hidden)return;
   hardMute(v);
   if(v.readyState<2){try{v.load();}catch{}}
-  const p=v.play();if(p&&typeof p.catch==='function')p.catch(()=>{});
+  const p=v.play();if(p&&typeof p.catch==='function')p.catch(()=>{scheduleFallback(v,900);});
 }
 function scheduleRetry(v,delay=650){
   clearTimeout(v._rhkRetryTimer);
@@ -37,23 +59,25 @@ Object.entries(media).forEach(([id,m])=>{
     const v=document.createElement('video');
     v.src=m.src;v.loop=true;v.playsInline=true;v.autoplay=false;v.preload='metadata';v.disablePictureInPicture=true;v.setAttribute('aria-hidden','true');v.style.objectPosition=m.position||'50% 50%';hardMute(v);
     v.addEventListener('volumechange',()=>{if(!v.muted||v.volume!==0)hardMute(v);});
-    v.addEventListener('loadeddata',()=>{if(wrap.classList.contains('active'))safePlay(v);});
+    v.addEventListener('loadeddata',()=>{wrap.classList.add('is-ready');if(wrap.classList.contains('active'))safePlay(v);});
     v.addEventListener('canplay',()=>{wrap.classList.add('is-ready');if(wrap.classList.contains('active'))safePlay(v);});
-    v.addEventListener('playing',()=>{wrap.classList.add('is-playing');wrap.classList.remove('is-buffering','media-failed');});
-    v.addEventListener('waiting',()=>{wrap.classList.add('is-buffering');scheduleRetry(v,500);});
-    v.addEventListener('stalled',()=>{wrap.classList.add('is-buffering');scheduleRetry(v,850);});
-    v.addEventListener('suspend',()=>{if(wrap.classList.contains('active')&&v.readyState<3)scheduleRetry(v,900);});
-    v.addEventListener('error',()=>{wrap.classList.add('media-failed');scheduleRetry(v,1400);});
+    v.addEventListener('playing',()=>{clearFallbackTimer(v);wrap.classList.add('is-playing','is-ready');showLiveMedia(wrap);});
+    v.addEventListener('waiting',()=>{wrap.classList.add('is-buffering');scheduleRetry(v,500);scheduleFallback(v,2200);});
+    v.addEventListener('stalled',()=>{wrap.classList.add('is-buffering');scheduleRetry(v,850);scheduleFallback(v,1800);});
+    v.addEventListener('suspend',()=>{if(wrap.classList.contains('active')&&v.readyState<3){scheduleRetry(v,900);scheduleFallback(v,2200);}});
+    v.addEventListener('error',()=>{showStaticFallback(wrap);scheduleRetry(v,1800);});
     videoByScene.set(id,v);wrap.appendChild(v);
   }else{
-    const img=document.createElement('img');img.src=m.src;img.alt='';img.loading='eager';img.decoding='async';img.style.objectPosition=m.position||'50% 50%';wrap.appendChild(img);
+    const img=document.createElement('img');img.src=m.src;img.alt='';img.loading='eager';img.decoding='async';img.style.objectPosition=m.position||'50% 50%';
+    img.addEventListener('load',()=>{wrap.classList.add('is-ready');showLiveMedia(wrap);});
+    img.addEventListener('error',()=>showStaticFallback(wrap));
+    wrap.appendChild(img);
   }
   layer.appendChild(wrap);
 });
 panel.insertBefore(layer,svg);
 const shade=document.createElement('div');shade.className='rhk-media-shade';panel.insertBefore(shade,svg);
 
-let currentScene='subsea';
 function nextVideoAfter(scene){
   const start=Math.max(0,sceneOrder.indexOf(scene));
   for(let n=1;n<=sceneOrder.length;n++){
@@ -66,12 +90,22 @@ function sync(){
   if(active===currentScene&&layer.querySelector('.rhk-media-item.active'))return;
   currentScene=active;
   layer.querySelectorAll('.rhk-media-item').forEach(item=>item.classList.toggle('active',item.dataset.scene===active));
-  panel.classList.toggle('has-live-media',!!media[active]);
+
+  const wrap=activeWrap();
+  const m=media[active];
+  if(!m){panel.classList.remove('has-live-media');}
+  else if(m.type==='image'){
+    const img=wrap?.querySelector('img');
+    if(img?.complete&&img.naturalWidth>0)showLiveMedia(wrap);else panel.classList.remove('has-live-media');
+  }else{
+    const v=videoByScene.get(active);
+    panel.classList.remove('has-live-media');
+    if(v){v.preload='auto';safePlay(v);scheduleFallback(v,2600);}
+  }
 
   videoByScene.forEach((v,id)=>{
-    const wrap=v.closest('.rhk-media-item');
-    if(id===active){v.preload='auto';safePlay(v);}
-    else{clearTimeout(v._rhkRetryTimer);if(!v.paused)v.pause();wrap?.classList.remove('is-buffering');}
+    const item=v.closest('.rhk-media-item');
+    if(id!==active){clearTimeout(v._rhkRetryTimer);clearFallbackTimer(v);if(!v.paused)v.pause();item?.classList.remove('is-buffering');}
   });
   prime(nextVideoAfter(active));
 }
@@ -82,10 +116,10 @@ const observer=new MutationObserver(()=>{
 });
 observer.observe(panel,{subtree:true,attributes:true,attributeFilter:['class']});
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){videoByScene.forEach(v=>v.pause());return;}
-  const activeVideo=videoByScene.get(currentScene);if(activeVideo)safePlay(activeVideo);prime(nextVideoAfter(currentScene));
+  if(document.hidden){videoByScene.forEach(v=>{clearFallbackTimer(v);v.pause();});return;}
+  const activeVideo=videoByScene.get(currentScene);if(activeVideo){safePlay(activeVideo);scheduleFallback(activeVideo,2600);}prime(nextVideoAfter(currentScene));
 });
-window.addEventListener('pageshow',()=>{const v=videoByScene.get(currentScene);if(v)safePlay(v);});
+window.addEventListener('pageshow',()=>{const v=videoByScene.get(currentScene);if(v){safePlay(v);scheduleFallback(v,2600);}});
 sync();
 
 import('./hero-overlay-rework.js?v=5')
