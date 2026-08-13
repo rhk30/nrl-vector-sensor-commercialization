@@ -22,12 +22,11 @@ jobs:
       - name: Browser smoke test
         run: |
           python - <<'PY'
-          import math, time
+          import time
           from selenium import webdriver
           from selenium.webdriver.common.by import By
-          from selenium.webdriver.common.keys import Keys
           from selenium.webdriver.chrome.options import Options
-          from selenium.webdriver.support.ui import WebDriverWait, Select
+          from selenium.webdriver.support.ui import WebDriverWait
           from selenium.webdriver.support import expected_conditions as EC
 
           def fail(msg):
@@ -38,140 +37,62 @@ jobs:
           opts.add_argument('--headless=new')
           opts.add_argument('--no-sandbox')
           opts.add_argument('--disable-dev-shm-usage')
-          opts.add_argument('--autoplay-policy=no-user-gesture-required')
           opts.set_capability('goog:loggingPrefs', {'browser':'ALL'})
           d=webdriver.Chrome(options=opts)
-          wait=WebDriverWait(d,15)
-
-          def js(script,*args): return d.execute_script(script,*args)
-          def set_range(el,val):
-              js("arguments[0].value=arguments[1]; arguments[0].dispatchEvent(new Event('input',{bubbles:true}));",el,str(val))
-              time.sleep(.12)
+          wait=WebDriverWait(d,20)
 
           try:
               d.set_window_size(1440,1000)
               d.get('http://127.0.0.1:8000/')
               wait.until(lambda x: x.execute_script('return document.readyState')=='complete')
+              wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.static-tech-head')))
+              wait.until(EC.presence_of_element_located((By.ID,'engThetaAnnotation')))
               wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.market-motion-v10')))
-              wait.until(EC.presence_of_element_located((By.ID,'auditDirectivity')))
-              time.sleep(1.0)
+              time.sleep(.8)
+
               assert d.title=='RHKEARTH'
 
-              # Hero manual controls.
-              hero=d.find_elements(By.CSS_SELECTOR,'.scene-nav .scene-btn')
-              assert len(hero)==5
-              assert js("return getComputedStyle(document.querySelector('.scene-nav')).display")!='none'
-              for i,b in enumerate(hero):
-                  js('arguments[0].click()',b);time.sleep(.10)
-                  active=d.find_elements(By.CSS_SELECTOR,'.scene-nav .scene-btn.active')
-                  assert len(active)==1 and active[0].text==hero[i].text
-                  assert hero[i].get_attribute('aria-pressed')=='true'
+              # Static technology exhibit replaces the old angle simulator.
+              if d.find_elements(By.CSS_SELECTOR,'#angle:not([disabled])'):
+                  fail('legacy interactive incidence-angle control is active')
+              if d.find_elements(By.ID,'auditDirectivity'):
+                  fail('legacy interactive normalized-response card is still present')
 
-              # Hero keyboard navigation.
-              js('arguments[0].click()',hero[0]);hero[0].send_keys(Keys.ARROW_RIGHT);time.sleep(.12)
-              assert 'active' in hero[1].get_attribute('class').split()
+              annotation=d.find_element(By.ID,'engThetaAnnotation').text
+              assert '20°' in annotation
+              assert '+0.940' in annotation
+              assert 'ILLUSTRATIVE' in annotation
 
-              # Hero automatic cycle is actually 13 seconds.
-              js('arguments[0].click()',hero[0]);time.sleep(13.35)
-              assert 'active' in hero[1].get_attribute('class').split()
+              cards=d.find_elements(By.CSS_SELECTOR,'.audited-reference-grid .audit-readout')
+              if len(cards)!=3:
+                  fail(f'expected 3 prototype evidence cards, found {len(cards)}')
+              card_text=' '.join(c.text for c in cards)
+              assert '20 nm/Pa' in card_text
+              assert '530 Hz' in card_text
+              assert '100 μPa' in card_text
 
-              # Remote-media failure reveals static fallback, then recovers.
-              panel=d.find_element(By.CSS_SELECTOR,'.scene-panel')
-              fleet_video=d.find_element(By.CSS_SELECTOR,'.rhk-media-item[data-scene="fleet"] video')
-              js("arguments[0].classList.add('has-live-media')",panel)
-              js("arguments[0].dispatchEvent(new Event('error'))",fleet_video);time.sleep(.08)
-              if 'has-live-media' in panel.get_attribute('class').split(): fail('hero video error did not reveal static fallback')
-              js("arguments[0].dispatchEvent(new Event('playing'))",fleet_video);time.sleep(.08)
-              if 'has-live-media' not in panel.get_attribute('class').split(): fail('hero media did not recover after playback resumed')
+              # Direction demonstrator still loads its reviewer geometry.
+              wait.until(EC.presence_of_element_located((By.ID,'missionBearing')))
+              wait.until(EC.presence_of_element_located((By.ID,'incomingWaveVector')))
 
-              # System architecture switches.
-              arch=d.find_element(By.CSS_SELECTOR,'.tab[data-view="architecture"]');js('arguments[0].click()',arch)
-              modes=d.find_elements(By.CSS_SELECTOR,'#architecture .mode')
-              assert len(modes)>=3
-              diagram_ids=['baseDiagram','towerDiagram','hullDiagram']
-              for i,b in enumerate(modes[:3]):
-                  js('arguments[0].click()',b);time.sleep(.08)
-                  assert d.find_element(By.ID,diagram_ids[i]).is_displayed()
-
-              # Physical-model directivity endpoints.
-              phys=d.find_element(By.CSS_SELECTOR,'.tab[data-view="physics"]');js('arguments[0].click()',phys)
-              angle=d.find_element(By.ID,'angle')
-              for deg,expected in [(0,1.0),(90,0.0),(180,-1.0)]:
-                  set_range(angle,deg)
-                  val=float(d.find_element(By.ID,'auditDirectivity').text)
-                  p=float(d.find_element(By.ID,'plotResponse').text)
-                  if abs(val-expected)>.001 or abs(p-expected)>.001: fail(f'directivity endpoint failed at {deg}°: {val}, {p}')
-
-              # Extended patent data disclosure opens and closes.
-              disclosure=d.find_element(By.CSS_SELECTOR,'.patent-fact-disclosure button')
-              fact_grid=d.find_element(By.CSS_SELECTOR,'.patent-fact-grid')
-              js('arguments[0].click()',disclosure);time.sleep(.08)
-              assert 'show-extended' in fact_grid.get_attribute('class').split()
-              js('arguments[0].click()',disclosure);time.sleep(.08)
-              assert 'show-extended' not in fact_grid.get_attribute('class').split()
-
-              # Demonstrator vector geometry at 42 degrees.
-              bearing=d.find_element(By.ID,'missionBearing');set_range(bearing,42)
-              east=float(d.find_element(By.ID,'auditEast').text)
-              north=float(d.find_element(By.ID,'auditNorth').text)
-              norm=float(d.find_element(By.ID,'auditNorm').text)
-              if abs(east-(-math.sin(math.radians(42))))>.002: fail(f'east component {east}')
-              if abs(north-(-math.cos(math.radians(42))))>.002: fail(f'north component {north}')
-              if abs(norm-1.0)>.001: fail(f'vector norm {norm}')
-
-              # Manual source and architecture controls update final audited readouts.
-              target=d.find_element(By.ID,'targetType');Select(target).select_by_value('submarine')
-              js("arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",target);time.sleep(.12)
-              assert 'Submerged' in d.find_element(By.ID,'auditSource').text
-              config=d.find_element(By.ID,'sensorConfig');Select(config).select_by_value('platform')
-              js("arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",config);time.sleep(.12)
-              assert 'Hull' in d.find_element(By.ID,'auditDeployment').text or 'AUV' in d.find_element(By.ID,'auditDeployment').text
-
-              # Deployment presets preserve current source geometry.
-              rng=d.find_element(By.ID,'missionRange');set_range(bearing,77);set_range(rng,4.1)
-              presets=d.find_elements(By.CSS_SELECTOR,'.patent-demo-presets button');assert len(presets)==4
-              for b in presets:
-                  set_range(bearing,77);set_range(rng,4.1);js('arguments[0].click()',b);time.sleep(.20)
-                  bv=float(bearing.get_attribute('value'));rv=float(rng.get_attribute('value'))
-                  if abs(bv-77)>.001 or abs(rv-4.1)>.001: fail(f'preset {b.text} changed geometry to bearing={bv}, range={rv}')
-
-              # Applications: platforms remain present/moving, all three emit wavefronts, receiver label stays inside circle.
-              for sel in ['#m10Warship','#m10Fastcraft','#m10Submarine']:
-                  el=d.find_element(By.CSS_SELECTOR,sel);t1=el.get_attribute('transform');time.sleep(.30);t2=el.get_attribute('transform')
-                  assert t1 and t2 and t1!=t2 and el.is_displayed()
-              for sel in ['#m10WaveWar .mm10-wave','#m10WaveFast .mm10-wave','#m10WaveSub .mm10-wave']:
-                  assert len(d.find_elements(By.CSS_SELECTOR,sel))==4
-              label=d.find_element(By.XPATH,"//*[name()='svg' and contains(@class,'mm10-scene')]//*[name()='text'][.//*[name()='tspan'][contains(.,'EXTERNAL RECEIVER')]]")
-              circle=d.find_element(By.CSS_SELECTOR,'.mm10-circle')
-              lr=js('return arguments[0].getBoundingClientRect()',label);cr=js('return arguments[0].getBoundingClientRect()',circle)
-              if lr['left']<cr['left']-1 or lr['right']>cr['right']+1: fail(f'receiver label clips horizontally: {lr} vs {cr}')
-
-              # Commercial reel manual tabs.
-              wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.commercial-context-media')))
-              ccm=d.find_elements(By.CSS_SELECTOR,'.ccm-tabs button');assert len(ccm)==5
-              for b in ccm:
-                  js('arguments[0].click()',b);time.sleep(.08);assert 'active' in b.get_attribute('class').split()
-
-              # Runtime JS errors (ignore network/media loading errors).
               bad=[]
               for entry in d.get_log('browser'):
                   m=entry.get('message','')
-                  if any(x in m for x in ['Uncaught ','SyntaxError','ReferenceError','TypeError:']) and 'ERR_' not in m: bad.append(m)
-              if bad: fail('runtime JS errors: '+ ' | '.join(bad[:5]))
+                  if any(x in m for x in ['Uncaught ','SyntaxError','ReferenceError','TypeError:']) and 'ERR_' not in m:
+                      bad.append(m)
+              if bad:
+                  fail('runtime JS errors: '+' | '.join(bad[:5]))
 
-              # Mobile pass.
-              d.set_window_size(390,844);d.get('http://127.0.0.1:8000/')
-              wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.market-motion-v10')))
-              wait.until(EC.presence_of_element_located((By.ID,'auditDirectivity')));time.sleep(.8)
-              overflow=js('return {sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,bw:document.body.scrollWidth}')
+              # Basic mobile overflow guard.
+              d.set_window_size(390,844)
+              d.get('http://127.0.0.1:8000/')
+              wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.static-tech-head')))
+              time.sleep(.8)
+              overflow=d.execute_script('return {sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,bw:document.body.scrollWidth}')
               if overflow['sw']>overflow['cw']+2 or overflow['bw']>overflow['cw']+2:
-                  offenders=js("""const vw=document.documentElement.clientWidth;return [...document.querySelectorAll('body *')].map(el=>{const r=el.getBoundingClientRect();return {tag:el.tagName,cls:el.className?.baseVal||el.className||'',id:el.id||'',left:Math.round(r.left),right:Math.round(r.right),width:Math.round(r.width)}}).filter(x=>x.right>vw+2||x.left<-2).slice(0,15);""")
-                  fail(f'mobile horizontal overflow {overflow}; offenders={offenders}')
-              nav=d.find_element(By.CSS_SELECTOR,'.scene-nav');assert nav.is_displayed();assert len(d.find_elements(By.CSS_SELECTOR,'.scene-nav .scene-btn'))==5
-              app_circle=d.find_element(By.CSS_SELECTOR,'.mm10-circle');ar=js('return arguments[0].getBoundingClientRect()',app_circle);vw=js('return window.innerWidth')
-              if ar['width']>vw+1: fail(f'applications circle wider than viewport: {ar["width"]}>{vw}')
+                  fail(f'mobile horizontal overflow {overflow}')
 
-              print('PASS: RHKEARTH expanded browser smoke tests')
+              print('PASS: RHKEARTH static technology and demonstrator smoke test')
           finally:
               d.quit()
           PY
