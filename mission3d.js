@@ -209,7 +209,6 @@ function animate(){
   requestAnimationFrame(animate);
   const t=clock.getElapsedTime();
   waveMeshes.forEach(w=>{const q=(t*.32+w.userData.offset)%1,scale=.35+q*3.25;w.scale.setScalar(scale);w.material.opacity=(1-q)*.13;});
-  targetRoot.position.y+=Math.sin(t*.75)*.00065;
   water.material.opacity=.39+Math.sin(t*.35)*.018;
   controls.update();renderer.render(scene,camera);
 }
