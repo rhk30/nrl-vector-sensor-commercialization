@@ -23,6 +23,19 @@ const earlyMetrics=document.querySelectorAll('.metrics .metric');if(earlyMetrics
 const earlyMission=document.querySelector('#mission .section-head .section-title p');if(earlyMission)earlyMission.textContent='Choose a patent-described deployment context and inspect source-bearing geometry. The demonstrator does not calculate detection performance.';
 document.querySelectorAll('.mission-stage svg text').forEach(t=>{if(/KM/i.test(t.textContent||''))t.style.display='none';});
 
+// Presentation-safe fallback: before the later audit modules load, suppress the
+// abandoned arbitrary calculator controls and em-dash readouts. If an enhancement
+// ever fails, the page falls back to one normalized directivity control rather
+// than exposing an unfinished physics calculator.
+const earlyPhysics=document.getElementById('physics');
+if(earlyPhysics){
+  const angleControl=document.getElementById('angle')?.closest('.control');
+  earlyPhysics.querySelectorAll('.controls .control').forEach(c=>{if(c!==angleControl)c.style.display='none';});
+  const legacyReadouts=earlyPhysics.querySelector('.readouts');if(legacyReadouts){legacyReadouts.style.display='none';legacyReadouts.setAttribute('aria-hidden','true');}
+  const legacyInterpretation=document.getElementById('modelInterpretation');if(legacyInterpretation){legacyInterpretation.style.display='none';legacyInterpretation.setAttribute('aria-hidden','true');}
+  const legacyFormulas=earlyPhysics.querySelector('.formulas');if(legacyFormulas){legacyFormulas.style.display='none';legacyFormulas.setAttribute('aria-hidden','true');}
+}
+
 const system=document.getElementById('system'),mission=document.getElementById('mission'),market=document.getElementById('market'),main=document.querySelector('main#top');
 if(main&&system&&mission)main.insertBefore(system,mission);
 const indexes=[[system,'01 // Technology'],[mission,'02 // Demonstrator'],[market,'03 // Applications']];indexes.forEach(([section,text])=>{const el=section?.querySelector('.section-index');if(el)el.textContent=text;});
