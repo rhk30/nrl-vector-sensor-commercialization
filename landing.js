@@ -7,6 +7,7 @@ const brandSub=document.querySelector('.brand small');if(brandSub){brandSub.text
 // Remove internal-planning blocks from the public diligence section.
 document.querySelector('#diligence .roadmap')?.remove();
 document.querySelector('#diligence .split')?.remove();
+document.querySelector('#diligence .questions')?.remove();
 
 // Site-wide punctuation rule: no em dashes in rendered copy, including content
 // inserted later by enhancement scripts.
