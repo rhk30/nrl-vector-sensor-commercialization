@@ -93,7 +93,7 @@ const loadHeroPolish=()=>import('./hero-polish.js?v=3').catch(err=>console.warn(
 const loadSensor=()=>import('./sensor-realism.js?v=4').catch(err=>console.warn('RHKEARTH sensor cutaway fallback:',err));
 const loadPatentAccuracy=()=>import('./patent-accuracy.js?v=2').catch(err=>console.warn('RHKEARTH patent-accuracy layer fallback:',err));
 const loadPatentStrict=()=>import('./patent-strict.js?v=3').catch(err=>console.warn('RHKEARTH patent-strict layer fallback:',err));
-const loadDemoMechanics=()=>import('./demo-mechanics.js?v=1').catch(err=>console.warn('RHKEARTH demonstrator mechanics fallback:',err));
+const loadDemoMechanics=()=>import('./demo-mechanics.js?v=2').catch(err=>console.warn('RHKEARTH demonstrator mechanics fallback:',err));
 const load3D=()=>import('./mission3d.js?v=5').catch(err=>console.warn('RHKEARTH 3D demonstrator fallback:',err));
 function loadEnhancements(){
   loadHeroMedia();
