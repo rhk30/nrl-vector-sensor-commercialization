@@ -26,7 +26,7 @@ function updatePatentDirectivity(){
   const pct=Math.abs(Math.cos(a*Math.PI/180))*100;
   if($('angleText'))$('angleText').textContent=Math.round(a);
   if($('deflectionOut'))$('deflectionOut').textContent=pct.toFixed(0)+'%';
-  if($('directionSvg'))$('directionSvg').textContent='NORMALIZED cos θ ≈ '+pct.toFixed(0)+'%';
+  if($('directionSvg'))$('directionSvg').textContent='NORMALIZED |cos θ| ≈ '+pct.toFixed(0)+'%';
 }
 angle?.addEventListener('input',updatePatentDirectivity);
 updatePatentDirectivity();
@@ -85,9 +85,9 @@ if(opportunityList){
 
 // ---------------------------------------------------------------------------
 // Mission concept demonstrator.
-// The controls change only illustrative source geometry and patent-described
-// architecture. No sonar equation, SNR, range prediction, confidence score,
-// bearing-error model, acoustic signature, or sensitivity estimate is computed.
+// Controls change source geometry and patent-described architecture only.
+// There is no sonar equation, SNR, detection range, bearing-error model,
+// platform signature, source-level model or sensitivity prediction.
 // ---------------------------------------------------------------------------
 const M={
   target:$('targetType'),
@@ -97,6 +97,24 @@ const M={
   freq:$('missionFreq')
 };
 let running=true,phase=0,last=performance.now();
+
+// Old prototype source-level and noise controls are intentionally disabled even
+// if the higher-level patent presentation scripts fail to load.
+const fallbackStyle=document.createElement('style');
+fallbackStyle.textContent='.rhke-perf-control-hidden{display:none!important}';
+document.head.appendChild(fallbackStyle);
+['missionSource','missionNoise'].forEach(id=>$(id)?.closest('.control-group')?.classList.add('rhke-perf-control-hidden'));
+
+const missionReadout=document.querySelector('.mission-readout');
+if(missionReadout){
+  missionReadout.innerHTML=`
+    <div class="readout-block"><span>Concept boundary</span><b>Geometry only</b><small>No range, SNR or platform-signature model.</small></div>
+    <div class="readout-block"><span>Source bearing</span><b id="fallbackBearing">000°</b><small>Sensor to source, clockwise from north.</small></div>
+    <div class="readout-block"><span>Incoming X projection</span><b id="fallbackX">0.000</b><small>Signed normalized east-axis component.</small></div>
+    <div class="readout-block"><span>Incoming Y projection</span><b id="fallbackY">-1.000</b><small>Signed normalized north-axis component.</small></div>
+    <div class="readout-block"><span>2-D vector norm</span><b id="fallbackNorm">1.000</b><small>Geometry check only.</small></div>
+    <div class="readout-block"><span>Direction convention</span><b>Propagation is opposite source bearing</b><small>Incoming wave / particle-motion vector points source to sensor.</small></div>`;
+}
 
 function targetLabel(v){return v==='surface'?'Surface vessel context':v==='submarine'?'Submerged vessel context':'Generic acoustic source';}
 function updateTargetGraphic(type){
@@ -123,11 +141,16 @@ function drawMission(){
   if($('stageTargetLabel')){$('stageTargetLabel').setAttribute('x',tx+16);$('stageTargetLabel').setAttribute('y',ty+3);$('stageTargetLabel').textContent=targetLabel(M.target?.value||'source').toUpperCase();}
   document.querySelectorAll('.wave-ring').forEach(r=>{r.setAttribute('cx',tx);r.setAttribute('cy',ty);});
 
-  // X/Y bars represent normalized bearing components only.
+  // Bearing is sensor -> source. Incoming propagation / particle motion is the
+  // opposite direction, source -> sensor. Bars show the incoming vector.
+  const xComp=-Math.sin(ang),yComp=-Math.cos(ang);
   const sx=$('sensorXbar'),sy=$('sensorYbar');
-  const xComp=Math.sin(ang),yComp=Math.cos(ang);
   if(sx){const w=75*Math.abs(xComp);sx.setAttribute('width',String(w));sx.setAttribute('x',xComp>=0?'400':String(400-w));}
   if(sy){const h=75*Math.abs(yComp);sy.setAttribute('height',String(h));sy.setAttribute('y',yComp>=0?String(300-h):'300');}
+  if($('fallbackBearing'))$('fallbackBearing').textContent=String(Math.round(bearing)).padStart(3,'0')+'°';
+  if($('fallbackX'))$('fallbackX').textContent=(xComp>=0?'+':'')+xComp.toFixed(3);
+  if($('fallbackY'))$('fallbackY').textContent=(yComp>=0?'+':'')+yComp.toFixed(3);
+  if($('fallbackNorm'))$('fallbackNorm').textContent=Math.hypot(xComp,yComp).toFixed(3);
 }
 function updateMission(){
   const f=+(M.freq?.value||90),b=+(M.bearing?.value||0),r=+(M.range?.value||3.2);
@@ -141,6 +164,23 @@ function updateMission(){
 }
 Object.values(M).forEach(el=>{if(!el)return;el.addEventListener('input',updateMission);el.addEventListener('change',updateMission);});
 
+// Make the original scenario buttons functional as a safe fallback. The patent
+// presentation layer replaces these with disclosed deployment presets.
+const scenarioMap={
+  surface:{target:'surface',config:'floating',bearing:62,range:3.2},
+  submerged:{target:'submarine',config:'floating',bearing:218,range:4.6},
+  monitor:{target:'source',config:'floating',bearing:42,range:3.0}
+};
+document.querySelectorAll('.scenario-btn').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.scenario-btn').forEach(b=>b.classList.toggle('active',b===btn));
+  const key=btn.dataset.scenario||(/surface/i.test(btn.textContent)?'surface':/submerged/i.test(btn.textContent)?'submerged':'monitor');
+  const p=scenarioMap[key];if(!p)return;
+  if(M.target){M.target.value=p.target;M.target.dispatchEvent(new Event('change',{bubbles:true}));}
+  if(M.config){M.config.value=p.config;M.config.dispatchEvent(new Event('change',{bubbles:true}));}
+  if(M.bearing){M.bearing.value=String(p.bearing);M.bearing.dispatchEvent(new Event('input',{bubbles:true}));}
+  if(M.range){M.range.value=String(p.range);M.range.dispatchEvent(new Event('input',{bubbles:true}));}
+}));
+
 function animate(now){
   const dt=(now-last)/1000;last=now;
   if(running)phase=(phase+dt*.28)%1;
@@ -153,5 +193,7 @@ const resetBtn=$('resetMission');if(resetBtn)resetBtn.addEventListener('click',(
 // Remove performance-looking elements in the base layer as a fail-safe.
 if($('bearingCone'))$('bearingCone').style.display='none';
 if($('scanLine'))$('scanLine').style.display='none';
+document.querySelectorAll('.mission-stage svg text').forEach(t=>{if(/KM/i.test(t.textContent||''))t.style.display='none';});
+const legend=document.querySelector('.mission-shell .legend');if(legend)legend.innerHTML='<div><i></i> ILLUSTRATIVE ACOUSTIC WAVEFRONT</div><div><i class="dashed"></i> SOURCE-BEARING GEOMETRY</div>';
 updateMission();requestAnimationFrame(animate);
 })();
