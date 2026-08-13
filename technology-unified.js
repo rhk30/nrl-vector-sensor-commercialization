@@ -1,21 +1,32 @@
 (()=>{'use strict';
 const physics=document.getElementById('physics');if(!physics)return;
 const q=(s,r=physics)=>r.querySelector(s),qa=(s,r=physics)=>Array.from(r.querySelectorAll(s));
-const angle=document.getElementById('angle'),cutaway=q('.sensor-engineering'),plot=q('.patent-directivity-panel'),readouts=q('.audited-reference-grid'),controls=q('.controls'),results=q('.results');
+const angle=document.getElementById('angle'),cutaway=q('.sensor-engineering'),plot=q('.patent-directivity-panel'),readouts=q('.audited-reference-grid'),results=q('.results'),modelGrid=q('.model-grid');
 if(!angle||!cutaway||!plot)return;
 const THETA=20,R=Math.cos(THETA*Math.PI/180),signed=v=>(v>=0?'+':'')+v.toFixed(3);
 angle.value=String(THETA);angle.disabled=true;angle.dispatchEvent(new Event('input',{bubbles:true}));
-angle.closest('.control')?.remove();
 q('#auditDirectivity')?.closest('.audit-readout')?.remove();
 if(readouts)readouts.style.gridTemplateColumns='repeat(3,minmax(0,1fr))';
 
-// The legacy physics layout was a control rail + results column. For the static
-// technical exhibit, collapse that structure completely: the cutaway, a compact
-// patent-geometry bridge, and the cosine plot should read as one continuous plate.
-const layout=results?.parentElement;
-if(controls)controls.remove();
-if(layout&&layout!==physics)layout.classList.add('physics-static-layout');
-if(results){results.style.width='100%';results.style.maxWidth='none';}
+// Remove every remnant of the old interactive technology rail. Earlier patent
+// layers may add classes/content to the original .controls element, so do not
+// rely on one selector or one node. The static exhibit owns the full width.
+qa('.controls,.patent-strict-controls',physics).forEach(el=>{
+  el.style.setProperty('display','none','important');
+  el.setAttribute('aria-hidden','true');
+  el.remove();
+});
+if(modelGrid){
+  modelGrid.classList.add('physics-static-layout');
+  modelGrid.style.setProperty('display','block','important');
+  modelGrid.style.setProperty('grid-template-columns','1fr','important');
+  modelGrid.style.setProperty('width','100%','important');
+}
+if(results){
+  results.style.setProperty('width','100%','important');
+  results.style.setProperty('max-width','none','important');
+  results.style.setProperty('margin','0','important');
+}
 
 let head=q('.static-tech-head');
 if(!head){head=document.createElement('div');head.className='static-tech-head';const host=results||physics;host.insertBefore(head,host.firstChild);}
@@ -38,7 +49,6 @@ if(svg){
   };
   qa('text',svg).forEach(t=>{const s=(t.textContent||'').trim();if(s==='PATENT REFERENCE'){t.closest('g')?.remove();return;}if(Object.prototype.hasOwnProperty.call(replacements,s))t.textContent=replacements[s];});
 
-  // Put the analytical example on the geometry that produces it.
   const field=document.getElementById('engField');
   if(field&&!document.getElementById('engThetaAnnotation')){
     const ns='http://www.w3.org/2000/svg';
@@ -58,9 +68,6 @@ const title=q('.cutaway-title',cutaway);if(title)title.textContent='Microfabrica
 const note=q('.cutaway-note',cutaway);if(note)note.textContent='The mesh mechanism and labeled prototype dimensions follow US11287508B2. Package geometry, motion amplitude and animation rate are schematic.';
 const status=document.getElementById('engVisualScale');if(status)status.textContent='SCHEMATIC MOTION · NOT TO SCALE · ANIMATION RATE IS ILLUSTRATIVE';
 
-// Replace the old full-height left rail with a narrow transition between the two
-// technical graphics. These are patent-reported prototype geometry values, not
-// controls and not performance outputs.
 let bridge=q('.tech-evidence-bridge');
 if(!bridge){bridge=document.createElement('section');bridge.className='tech-evidence-bridge';plot.insertAdjacentElement('beforebegin',bridge);}
 bridge.innerHTML=`
@@ -84,7 +91,7 @@ if(reduced){draw(0);}else{const start=performance.now();const animate=now=>{draw
 
 const style=document.createElement('style');
 style.textContent=`
-.physics-static-layout{display:block!important;grid-template-columns:1fr!important}.physics-static-layout>.results{width:100%!important;max-width:none!important;margin:0!important}.static-tech-head{padding:20px 22px;border:1px solid rgba(169,181,155,.18);border-bottom:0;background:#080a08}.static-tech-head>div>span{display:block;color:#899487;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.07em}.static-tech-head h3{margin:6px 0 6px;font-size:23px;max-width:850px}.static-tech-head p{margin:0;color:#909990;font-size:11px;max-width:820px}.audited-reference-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+#physics>.model-grid.physics-static-layout,#physics .model-grid.physics-static-layout{display:block!important;grid-template-columns:1fr!important;width:100%!important}#physics .controls,#physics .patent-strict-controls{display:none!important}.physics-static-layout>.results{width:100%!important;max-width:none!important;margin:0!important}.static-tech-head{padding:20px 22px;border:1px solid rgba(169,181,155,.18);border-bottom:0;background:#080a08}.static-tech-head>div>span{display:block;color:#899487;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.07em}.static-tech-head h3{margin:6px 0 6px;font-size:23px;max-width:850px}.static-tech-head p{margin:0;color:#909990;font-size:11px;max-width:820px}.audited-reference-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 .tech-evidence-bridge{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(420px,.75fr);align-items:stretch;border:1px solid rgba(169,181,155,.17);border-top:0;background:#080a08;margin:0 0 14px}.teb-copy{padding:15px 18px}.teb-copy span{display:block;color:#9daa97;font:8px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em}.teb-copy p{margin:6px 0 0;max-width:720px;color:#7f887f;font-size:9px;line-height:1.5}.teb-stats{display:grid;grid-template-columns:repeat(3,1fr);border-left:1px solid rgba(169,181,155,.13)}.teb-stats>div{display:flex;flex-direction:column;justify-content:center;min-height:68px;padding:10px 14px;border-right:1px solid rgba(169,181,155,.11);text-align:center}.teb-stats>div:last-child{border-right:0}.teb-stats span{color:#6f786e;font-size:8px;line-height:1.25}.teb-stats b{margin-top:5px;color:#e5e9e1;font-size:14px;font-weight:500}
 #engThetaAnnotation .theta-arc{fill:none;stroke:#cfd6ca;stroke-width:1.15;opacity:.88}#engThetaAnnotation .theta-ray{stroke:#a9b59b;stroke-width:.8;stroke-dasharray:2.5 3.5;opacity:.55}#engThetaAnnotation .theta-value{fill:#e5e9e1;font:600 11px ui-monospace,SFMono-Regular,Menlo,monospace}#engThetaAnnotation .theta-derived{fill:#b8c2b3;font:9px ui-monospace,SFMono-Regular,Menlo,monospace}#engThetaAnnotation .theta-note{fill:#697268;font:7px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em}
 @media(max-width:900px){.tech-evidence-bridge{grid-template-columns:1fr}.teb-stats{border-left:0;border-top:1px solid rgba(169,181,155,.13)}}@media(max-width:760px){.static-tech-head{padding:16px}.static-tech-head h3{font-size:20px}.teb-stats{grid-template-columns:1fr}.teb-stats>div{min-height:54px;border-right:0;border-bottom:1px solid rgba(169,181,155,.11)}.teb-stats>div:last-child{border-bottom:0}}
