@@ -36,6 +36,14 @@ document.querySelector('#diligence')?.remove();
 document.querySelectorAll('a[href="#diligence"]').forEach(a=>a.remove());
 document.querySelector('#market .path')?.remove();
 
+// Immediately suppress legacy prototype-performance controls before the audited
+// modules load. These controls are not patent measurements and should never flash.
+['missionSource','missionNoise'].forEach(id=>document.getElementById(id)?.closest('.control-group')?.remove());
+const earlyMetrics=document.querySelectorAll('.metrics .metric');
+if(earlyMetrics[3]){const l=earlyMetrics[3].querySelector('.label'),v=earlyMetrics[3].querySelector('.value'),s=earlyMetrics[3].querySelector('.sub');if(l)l.textContent='Prototype fundamental';if(v)v.textContent='530 Hz';if(s)s.textContent='reported for the first mesh prototype';}
+const earlyMission=document.querySelector('#mission .section-head .section-title p');if(earlyMission)earlyMission.textContent='Choose a patent-described deployment context and inspect source-bearing geometry. The demonstrator does not calculate detection performance.';
+document.querySelectorAll('.mission-stage svg text').forEach(t=>{if(/KM/i.test(t.textContent||''))t.style.display='none';});
+
 // Site-wide punctuation rule: no em dashes in rendered copy, including content
 // inserted later by enhancement scripts.
 function removeEmDashes(root=document.body){
@@ -94,11 +102,12 @@ const loadSensor=()=>import('./sensor-realism.js?v=4').catch(err=>console.warn('
 const loadPatentAccuracy=()=>import('./patent-accuracy.js?v=2').catch(err=>console.warn('RHKEARTH patent-accuracy layer fallback:',err));
 const loadPatentStrict=()=>import('./patent-strict.js?v=3').catch(err=>console.warn('RHKEARTH patent-strict layer fallback:',err));
 const loadDemoMechanics=()=>import('./demo-mechanics.js?v=2').catch(err=>console.warn('RHKEARTH demonstrator mechanics fallback:',err));
-const load3D=()=>import('./mission3d.js?v=5').catch(err=>console.warn('RHKEARTH 3D demonstrator fallback:',err));
+const loadFinalAudit=()=>import('./patent-final-audit.js?v=1').catch(err=>console.warn('RHKEARTH final patent audit fallback:',err));
+const load3D=()=>import('./mission3d-audited.js?v=1').catch(err=>console.warn('RHKEARTH audited 3D demonstrator fallback:',err));
 function loadEnhancements(){
   loadHeroMedia();
   loadHeroPolish();
-  loadSensor().then(loadPatentAccuracy).then(loadPatentStrict).then(loadDemoMechanics).then(load3D);
+  loadSensor().then(loadPatentAccuracy).then(loadPatentStrict).then(loadDemoMechanics).then(loadFinalAudit).then(load3D);
 }
 if(document.readyState==='complete')loadEnhancements();else window.addEventListener('load',loadEnhancements,{once:true});
 })();
