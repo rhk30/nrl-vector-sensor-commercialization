@@ -26,9 +26,10 @@ setMeta('meta[name="twitter:card"]','content','summary');
 setMeta('meta[name="twitter:title"]','content','RHKEARTH');
 setMeta('meta[name="twitter:image"]','content',absoluteLogo);
 
-// Remove the public diligence section and any navigation or CTA links to it.
+// Remove public-facing internal planning / diligence sections.
 document.querySelector('#diligence')?.remove();
 document.querySelectorAll('a[href="#diligence"]').forEach(a=>a.remove());
+document.querySelector('#market .path')?.remove();
 
 // Site-wide punctuation rule: no em dashes in rendered copy, including content
 // inserted later by enhancement scripts.
