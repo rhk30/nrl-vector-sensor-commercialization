@@ -24,10 +24,9 @@ if(market){const h=q('.section-title h2',market),p=q('.section-title p',market);
   const thesis=q('.thesis-grid',market);if(thesis)thesis.innerHTML=`
     <div class="thesis"><div class="tag">PATENT-DESCRIBED DEFENSE CONTEXTS</div><h3>Moored, hull-mounted, towed and sonobuoy architectures</h3><p>The specifications discuss shallow-water mooring, submarine/AUV hull mounting, neutrally buoyant towed arrays, positively buoyant sonobuoy use and external receiver/controller links.</p></div>
     <div class="thesis"><div class="tag">EVALUATION PATHS</div><h3>Ports, offshore systems and environmental observation</h3><p>These are potential RHKEARTH applications, not patent deployment claims. They remain contingent on technical validation, customer need and appropriate rights.</p></div>`;
-  import('./commercial-context-media.js?v=1').catch(err=>console.warn('RHKEARTH commercial context media fallback:',err));
+  import('./commercial-context-media.js?v=2').catch(err=>console.warn('RHKEARTH commercial context media fallback:',err));
 }
 
-// Applications visualization is intentionally loaded independently from the rest of the enhancement chain.
 if(market&&!document.body.dataset.rhkApplicationsBootstrap){
   document.body.dataset.rhkApplicationsBootstrap='1';
   import('./market-bridge-v4.js?v=9').catch(err=>{
