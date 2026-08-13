@@ -1,1 +1,1 @@
-import './market-bridge-v7.js?v=1';
+import './market-bridge-v8.js?v=1';
