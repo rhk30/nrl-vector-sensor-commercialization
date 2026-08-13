@@ -1,89 +1,127 @@
 # RHKEARTH: NRL Low-Frequency Vector Sensor Assessment
 
-Interactive technical and commercialization assessment of a Naval Research Laboratory low-frequency acoustic vector-sensor patent family.
+Independent technical and commercialization evaluation of a Naval Research Laboratory low-frequency acoustic vector-sensor patent family.
 
-## Project status
+## Status
 
-This repository is an **independent evaluation project**. The patents and underlying government intellectual property are not owned by this repository's author.
+This repository is an **independent evaluation project**.
 
 - The relevant patents are assigned to the **United States of America, as represented by the Secretary of the Navy**.
-- This project does **not** claim a patent license, exclusive rights, Navy sponsorship, NRL sponsorship, or an operational Navy deployment.
-- Any future commercialization rights would require the appropriate license or other agreement with the responsible government technology-transfer office.
+- RHKEARTH does **not** claim patent ownership, a patent license, exclusivity, Navy / NRL / DoD sponsorship, or an operational Navy deployment.
+- Any future commercialization using protected patent rights would require the appropriate rights and agreements.
 
 ## Patents under evaluation
 
-- US11287508B2: https://patents.google.com/patent/US11287508
-- US11408961B2: https://patents.google.com/patent/US11408961
+- US11287508B2: https://patents.google.com/patent/US11287508B2/en
+- US11408961B2: https://patents.google.com/patent/US11408961B2/en
 
-## Patent-strict quantitative policy
+See [`PATENT_AUDIT.md`](PATENT_AUDIT.md) for the public-site evidence and wording boundary.
 
-The public website separates **patent-reported facts** from **conceptual visualization**.
+## What the patents publicly support
 
-Visible quantitative technology readouts are limited to values and relationships stated in the patent family, including:
+### Reported prototype evidence
 
-- 6 mm outer-diameter spider-web prototype
+- 6 mm OD spider-web prototype
 - 1 μm-thick LPCVD ultra-low-stress silicon nitride film
-- approximately 20 μm released-web beam separation
+- 20 μm released-web filament / beam separation
 - approximately 2.7 m total fiber length in the 6 mm prototype geometry
 - 3.6 μm × 1 μm prototype filaments
-- 30 nm-thick aluminum center mirror
-- optical interferometric detection of center-mirror displacement
-- peak responsivity in excess of 20 nm/Pa at 90 Hz in the disclosed in-air evaluation
+- 30 nm aluminum center mirror
 - 530 Hz fundamental frequency for the first mesh prototype
-- interferometer noise floor of approximately 2 pm/√Hz
-- estimated minimum detectable pressure in air of approximately 100 μPa
-- projected equivalent minimum detectable pressure in water of approximately 76 dB re 1 μPa/√Hz; this is a patent projection, not an in-water validation result
-- mesh fiber-length relation 2L²/d for a square L × L mesh of unit size d
-- fiber-length increase factor 2L/d versus a single cantilever of length L
-- natural cos θ directivity relative to the mesh normal
-- three co-located orthogonal mesh transducers described as sufficient to reconstruct a sound-wave vector in 3-D space
+- in-air dipole-type directionality
+- peak responsivity in excess of 20 nm/Pa at 90 Hz in the in-air prototype evaluation
 
-The public mission demonstrator does not present site-generated SNR, detection range, confidence, propagation loss, bearing error, or modeled sensor sensitivity as performance outputs. Source distance is represented only as normalized scene spacing. Bearing is illustrative geometry, not an NRL accuracy claim.
+### Patent estimates / projections
 
-## Patent-described architectures represented
+- interferometer noise floor of approximately 2 pm/√Hz used in the MDP estimate
+- estimated air MDP of approximately 100 μPa
+- projected equivalent water pressure spectral density of approximately 76 dB re 1 μPa/√Hz
+- approximately 10 mm floating-base radius estimate for 10 Hz operation
 
-- floating base with one or more flow meters, retaining thread, and anchor
+The water MDP value is a **patent projection, not an in-water validation result**.
+
+### Patent-described mechanisms and embodiments
+
+- two-dimensional micro/nano mesh particle-motion / flow sensing
 - optical readout of mesh deformation
-- optional anchor electronics including controller, transmitter, battery, processor, and memory
-- external receivers including ships, floating buoys, land-based receivers, and central controllers capable of aggregating multiple sensor outputs
-- hull mounting on a vessel such as a submarine or AUV, and shallow-water mooring near an air/water boundary
-- tower with multiple viscous-liquid flow channels and sensors in channel cavities
-- channels having different orientations
-- positively buoyant AVS used as a sonobuoy component
-- neutrally buoyant embodiments including hull-mounted sensors and/or towed arrays
-- tower embodiments with transmitter, memory, battery, and detachable surface recovery followed by transmission of stored information
+- natural signed cosine-type directivity relative to the mesh normal
+- three co-located orthogonal mesh transducers described as sufficient to reconstruct a 3-D sound-wave vector
+- floating base with one or more flow meters, retaining thread, and anchor
+- optional anchor electronics and communication to an external device
+- external receivers including ships, floating buoys, land receivers, and a central controller capable of aggregating multiple sensor outputs
+- submarine / AUV hull-mounting implementations
+- shallow-water mooring close to an air/water boundary
+- viscous-liquid channel tower embodiments
+- neutrally buoyant hull-mounted and/or towed-array applications
+- positively buoyant AVS / sonobuoy embodiment
+- optional tower power, memory, transmitter, and surface recovery / telemetry
 
-## Live experience
+## What the public patents do not establish
 
-The GitHub Pages site includes:
+The website does not present the following as known product specifications:
 
-- a passive cinematic military / commercial use-case sequence
-- a conceptual 3-D patent-architecture and source-direction demonstrator
-- a patent-grounded prototype cutaway
-- patent-reported quantitative facts and relationships
-- patent architecture visualizations
-- qualitative commercialization discussion clearly separated from patent claims
-- technical and IP diligence questions
+- demonstrated in-water sensitivity or bandwidth
+- measured underwater bearing error
+- platform / tether / flow self-noise
+- operational detection range or probability of detection
+- vessel classification performance
+- long-duration corrosion / biofouling performance
+- qualified packaging, manufacturing yield, or calibration drift
+- fielded Navy deployment
 
-## Cover media
+## Public-site organization
 
-The landing page uses public maritime media as atmospheric context only. Sensor overlays are conceptual and do not imply that any photographed or filmed platform uses the NRL technology.
+The site is intentionally ordered for technical and investor review:
 
-- submarine-force media: U.S. Navy public-domain footage
-- surface-fleet media: U.S. Navy public-domain destroyer footage
-- littoral media: U.S. Navy public-domain Special Warfare image
-- harbor media: CCGS McIntyre Bay harbor-transit footage, CC0, intentionally retained
-- offshore-wind scene: original RHKEARTH engineering animation retained
+1. thesis and key evidence
+2. technology / system architecture
+3. patent-grounded demonstrator
+4. defense and dual-use application evaluation
+5. evidence, technical gaps, and IP / rights status
 
-All hero video elements are programmatically hard-muted (`muted`, `defaultMuted`, and `volume = 0`) and display no audio controls.
+System architecture is the default Technology view; the physical mesh / directivity model is the second view.
 
-Media credits are retained here in repository documentation rather than overlaid on the landing-page visual.
+## Demonstrators
 
-## Important technical limitation
+The public site contains:
 
-The interactive visuals are not validated NRL engineering simulations and are not operational sonar-performance models. Vessel positions, bearings, wavefront animation, 3-D geometry, and exaggerated mesh deformation are used to explain disclosed concepts only.
+- cinematic maritime context media with patent-specific overlays
+- a conceptual 3-D deployment / source-bearing demonstrator
+- patent-grounded floating-base, tower, hull/AUV, towed, and sonobuoy context views
+- a micro-mesh cutaway and signed cosine directivity visualization
+- progressive disclosure of patent-reported quantitative values
+- a real-time conceptual maritime operating picture for application context
+
+The visualizations are **not validated NRL engineering simulations** and are not operational sonar-performance models. Source positions, bearings, wavefront animation, vehicle motion, and 3-D geometry explain disclosed concepts only.
 
 No real submarine, ship, special-operations, or other platform acoustic-signature data is included.
+
+## Landing-page media
+
+Real maritime photos / video are used only as operating context. The overlay supplies the patent-relevant sensor architecture and information flow. The site does not imply that a photographed or filmed platform uses the NRL technology.
+
+Current context media includes:
+
+- U.S. Navy submarine imagery
+- U.S. Navy surface-fleet footage
+- U.S. Navy Special Warfare craft imagery
+- harbor-transit footage
+
+The fifth hero state is a patent-focused sonobuoy / AVS-tower schematic rather than a claim of a real deployment.
+
+Hero video elements are muted and preloaded to make scene transitions smoother.
+
+## Quantitative display policy
+
+The site may show relationships expressly stated in the patents, including:
+
+- `R / Rmax = cos θ`
+- ideal square-mesh fiber length `2L² / d`
+- ideal square-mesh length gain `2L / d`
+
+The square-mesh relation is not used to back-calculate the reported ≈2.7 m fiber length of the separate truncated spider-web prototype.
+
+The mission demonstrator does not present site-generated sonar SNR, detection range, confidence, propagation-loss-derived performance, bearing error, target classification, or modeled sensor sensitivity as NRL performance outputs.
 
 ## Run locally
 
@@ -98,11 +136,6 @@ Then visit `http://localhost:8000`.
 ## GitHub Pages
 
 The repository can be published from the `main` branch at `/ (root)` using **Settings → Pages → Deploy from a branch**.
-
-## Technical sources
-
-- US11287508B2
-- US11408961B2
 
 ## Disclaimer
 
