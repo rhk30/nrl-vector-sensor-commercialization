@@ -84,3 +84,11 @@
   .opportunities.patent-strict-applications .op{grid-template-columns:1fr}
   .patent-strict-readouts{grid-template-columns:1fr!important}
 }
+
+/* Final demonstrator compatibility: the review module owns the three-column
+   layout. Prevent older responsive rules from turning the solution panel into
+   a full-width grid on normal laptop viewports. */
+@media(max-width:1180px) and (min-width:821px){
+  .mission-shell.patent-concept-mode .mission-readout{grid-column:auto!important;display:block!important;grid-template-columns:none!important;gap:0!important;border-left:1px solid #202020!important;border-top:0!important}
+}
+#cleanSensorTag{display:none!important}
