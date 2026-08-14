@@ -1,5 +1,7 @@
 (()=>{'use strict';
 const rewrites=new Map([
+  ['RHKEARTH is an independent commercialization evaluation of U.S. Navy / Naval Research Laboratory low-frequency acoustic vector-sensor technology, with patent-grounded technical exhibits and maritime application screening.','RHKEARTH is an independent commercialization evaluation of U.S. Navy / Naval Research Laboratory low-frequency acoustic vector-sensor technology, with patent-based technical exhibits and maritime application screening.'],
+  ['Independent commercialization evaluation of U.S. Navy / NRL low-frequency acoustic vector-sensor technology, with patent-grounded technical exhibits and maritime application screening.','Independent commercialization evaluation of U.S. Navy / NRL low-frequency acoustic vector-sensor technology, with patent-based technical exhibits and maritime application screening.'],
   ['Operating imagery is context only. Patent overlays distinguish source-bearing geometry and disclosed architecture from any claim of a validated installation.','Photos and video provide context only. The overlays show source-bearing geometry and patent-described architecture.'],
   ['Start with the disclosed architecture, then inspect the mesh physics. Reported prototype measurements are separated from analytical relationships, estimates and illustrative geometry.','The architecture and mesh views keep reported measurements separate from calculations, estimates and schematic geometry.'],
   ['Configure a patent-described deployment context and place a generic source around it. The demonstrator explains architecture and direction-of-arrival geometry only; it does not calculate sonar performance.','Choose a patent-described deployment and move a generic source around the sensor. The display shows direction geometry only and does not calculate sonar performance.'],
@@ -35,9 +37,10 @@ function normalize(value){
     const start=out.indexOf(trimmed);
     out=out.slice(0,start)+replacement+out.slice(start+trimmed.length);
   }
+  out=out.replace(/PATENT-GROUNDED/g,'PATENT-BASED').replace(/Patent-grounded/g,'Patent-based').replace(/patent-grounded/g,'patent-based');
   return out;
 }
-function clean(root=document.body){
+function clean(root=document.documentElement){
   if(!root||busy)return;
   busy=true;
   try{
@@ -63,5 +66,5 @@ const observer=new MutationObserver(records=>{
     else record.addedNodes.forEach(node=>clean(node));
   });
 });
-observer.observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:attrs});
+observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:attrs});
 })();
