@@ -52,7 +52,7 @@ jobs:
               evidence=' '.join((x.get_attribute('textContent') or '') for x in cards)
               if not all(x in evidence for x in ['20 nm/Pa','530 Hz','100 μPa/√Hz']): fail('evidence values')
               disclosure=d.find_element(By.CSS_SELECTOR,'.patent-fact-disclosure').text
-              if 'KEY SOURCE-GROUNDED VALUES' not in disclosure: fail('mixed-source evidence label')
+              if 'KEY TECHNICAL VALUES' not in disclosure: fail('technical evidence label')
 
               audit=js('return window.RHKEARTH_INTEGRITY')
               if abs(audit['cos20']-math.cos(math.radians(20)))>1e-12: fail('cos20 math')
@@ -75,6 +75,18 @@ jobs:
                   if badtext in body: fail('unsafe visible wording: '+badtext)
               if 'PATENT-DESCRIBED DESIGN LEVERS' not in body or 'View extended patent design levers' not in body: fail('patent design lever disclosure')
 
+              if '—' in body or '–' in body: fail('typographic dash found in rendered text')
+              lower=body.lower()
+              for phrase in ['source-grounded','patent-grounded','remain contingent on','worth evaluating only after technical validation','without representing a validated installation']:
+                  if phrase in lower: fail('stock copy phrase found: '+phrase)
+              bad_attrs=js("""
+                const names=['aria-label','title','alt','placeholder','content'];
+                const out=[];
+                for(const el of document.querySelectorAll('*'))for(const name of names){const v=el.getAttribute(name);if(v&&/[—–]/.test(v))out.push(name+': '+v)}
+                return out;
+              """)
+              if bad_attrs: fail('typographic dash found in attributes: '+' | '.join(bad_attrs[:5]))
+
               physics_tab=d.find_element(By.CSS_SELECTOR,'button[data-view="physics"]');js('arguments[0].click()',physics_tab);time.sleep(.25)
               for sel in ['.sensor-engineering','.mission-shell','.market-motion-v10']:
                   r=js('const r=document.querySelector(arguments[0]).getBoundingClientRect();return [r.width,r.height]',sel)
@@ -83,8 +95,10 @@ jobs:
               if errors: fail('runtime errors: '+' | '.join(errors[:5]))
 
               d.set_window_size(390,844);d.get('http://127.0.0.1:8000/');wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'.static-tech-head')));time.sleep(1.2)
+              mobile_body=d.find_element(By.TAG_NAME,'body').text
+              if '—' in mobile_body or '–' in mobile_body: fail('typographic dash found on mobile render')
               o=js('return [document.documentElement.scrollWidth,document.documentElement.clientWidth,document.body.scrollWidth]')
               if o[0]>o[1]+2 or o[2]>o[1]+2: fail('mobile horizontal overflow '+str(o))
-              print('PASS: rendered RHKEARTH technical integrity')
+              print('PASS: rendered RHKEARTH technical and copy integrity')
           finally:d.quit()
           PY
