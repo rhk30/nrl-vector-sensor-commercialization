@@ -34,6 +34,19 @@ jobs:
           missing=[x for x in required if x not in html]
           if missing:
               raise SystemExit('Missing safety boundary: '+', '.join(missing))
+
+          disclosure=Path('patent-facts-disclosure.js').read_text(encoding='utf-8')
+          if 'IP / LICENSING REFERENCE' in disclosure:
+              raise SystemExit('Diligence-only licensing block must not be public')
+          for token in ['KEY SOURCE-GROUNDED VALUES','PATENT-DESCRIBED DESIGN LEVERS','View extended patent design levers']:
+              if token not in disclosure:
+                  raise SystemExit('Patent disclosure missing: '+token)
+
+          finalizer=Path('public-site-finalize.js').read_text(encoding='utf-8')
+          for token in ['KEY SOURCE-GROUNDED VALUES','NEGATIVE COSINE LOBE','mm10-node .ring']:
+              if token not in finalizer:
+                  raise SystemExit('Public finalizer missing: '+token)
+
           readme=Path('README.md').read_text(encoding='utf-8')
           if '100 μPa/√Hz' not in readme:
               raise SystemExit('README must retain air MDP spectral-density units')
