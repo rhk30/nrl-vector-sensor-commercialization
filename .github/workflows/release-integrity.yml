@@ -29,7 +29,8 @@ jobs:
               raise SystemExit('Legacy performance UI found: '+', '.join(found))
           required=[
             'No physical range','id="missionBearing"','id="angle"',
-            'No patent ownership, license, Navy sponsorship or operational deployment'
+            'No patent ownership, license, Navy sponsorship or operational deployment',
+            '<script src="copy-cleanup.js?v=1"></script>'
           ]
           missing=[x for x in required if x not in html]
           if missing:
@@ -38,14 +39,19 @@ jobs:
           disclosure=Path('patent-facts-disclosure.js').read_text(encoding='utf-8')
           if 'IP / LICENSING REFERENCE' in disclosure:
               raise SystemExit('Diligence-only licensing block must not be public')
-          for token in ['KEY SOURCE-GROUNDED VALUES','PATENT-DESCRIBED DESIGN LEVERS','View extended patent design levers']:
+          for token in ['KEY TECHNICAL VALUES','PATENT-DESCRIBED DESIGN LEVERS','View extended patent design levers']:
               if token not in disclosure:
                   raise SystemExit('Patent disclosure missing: '+token)
 
           finalizer=Path('public-site-finalize.js').read_text(encoding='utf-8')
-          for token in ['KEY SOURCE-GROUNDED VALUES','NEGATIVE COSINE LOBE','mm10-node .ring']:
+          for token in ['KEY TECHNICAL VALUES','SOURCES // PATENTS + PUBLISHED NRL PROTOTYPE WORK','NEGATIVE COSINE LOBE','mm10-node .ring']:
               if token not in finalizer:
                   raise SystemExit('Public finalizer missing: '+token)
+
+          cleanup=Path('copy-cleanup.js').read_text(encoding='utf-8')
+          for token in ['KEY TECHNICAL VALUES','PATENT-BASED','\\u2014','\\u2013','MutationObserver']:
+              if token not in cleanup:
+                  raise SystemExit('Copy cleanup guard missing: '+token)
 
           readme=Path('README.md').read_text(encoding='utf-8')
           if '100 μPa/√Hz' not in readme:
@@ -56,5 +62,5 @@ jobs:
           for token in ['R/Rmax = cos θ','k̂ = (−sin β, −cos β)','Projected equivalent water pressure spectral density']:
               if token not in audit:
                   raise SystemExit('PATENT_AUDIT missing: '+token)
-          print('PASS: release source boundary')
+          print('PASS: release source and copy boundary')
           PY
