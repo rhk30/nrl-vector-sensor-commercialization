@@ -51,6 +51,8 @@ jobs:
               if len(cards)!=3: fail('evidence card count')
               evidence=' '.join((x.get_attribute('textContent') or '') for x in cards)
               if not all(x in evidence for x in ['20 nm/Pa','530 Hz','100 μPa/√Hz']): fail('evidence values')
+              disclosure=d.find_element(By.CSS_SELECTOR,'.patent-fact-disclosure').text
+              if 'KEY SOURCE-GROUNDED VALUES' not in disclosure: fail('mixed-source evidence label')
 
               audit=js('return window.RHKEARTH_INTEGRITY')
               if abs(audit['cos20']-math.cos(math.radians(20)))>1e-12: fail('cos20 math')
@@ -69,8 +71,9 @@ jobs:
               if art.find_elements(By.CSS_SELECTOR,'.deploy-buoy'): fail('extra sonobuoy float')
 
               body=d.find_element(By.TAG_NAME,'body').text
-              for badtext in ['Received level','Signal / noise','Propagation loss','Confidence']:
-                  if badtext in body: fail('legacy visible wording: '+badtext)
+              for badtext in ['Received level','Signal / noise','Propagation loss','Confidence','IP / LICENSING REFERENCE','PHASE-REVERSED LOBE']:
+                  if badtext in body: fail('unsafe visible wording: '+badtext)
+              if 'PATENT-DESCRIBED DESIGN LEVERS' not in body or 'View extended patent design levers' not in body: fail('patent design lever disclosure')
 
               physics_tab=d.find_element(By.CSS_SELECTOR,'button[data-view="physics"]');js('arguments[0].click()',physics_tab);time.sleep(.25)
               for sel in ['.sensor-engineering','.mission-shell','.market-motion-v10']:
