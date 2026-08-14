@@ -11,30 +11,30 @@ if(items.length>6){
 
 const control=document.createElement('div');
 control.className='patent-fact-disclosure';
-control.innerHTML=`<div><span>KEY SOURCE-GROUNDED VALUES</span><small>Reported prototype facts and the air MDP estimate are shown first. Projected water values and additional fabrication details remain available on demand.</small></div><button type="button" aria-expanded="false">View extended patent data</button>`;
+control.innerHTML=`<div><span>KEY TECHNICAL VALUES</span><small>Prototype results and the air MDP estimate appear first. Expand for water projections and fabrication details.</small></div><button type="button" aria-expanded="false">View extended patent data</button>`;
 grid.insertAdjacentElement('afterend',control);
 
 const design=document.createElement('section');
 design.className='patent-design-levers';
 design.innerHTML=`
   <div class="patent-design-head">
-    <div><span>PATENT-DESCRIBED DESIGN LEVERS</span><small>Additional mechanisms and implementation options disclosed in US11287508B2 and US11408961B2. These are not measured RHKEARTH product specifications.</small></div>
+    <div><span>PATENT-DESCRIBED DESIGN LEVERS</span><small>Options described in US11287508B2 and US11408961B2. These are patent disclosures, not measured RHKEARTH product specifications.</small></div>
     <button type="button" aria-expanded="false">View extended patent design levers</button>
   </div>
   <div class="patent-design-grid" hidden>
     <div><b>Viscous-scale fiber condition</b><span>US11287508B2 claim 11 specifies fiber cross-section dimensions smaller than the viscous penetration depth of the surrounding medium at the frequency of interest.</span></div>
     <div><b>Tension-tuned response</b><span>The specification describes using built-in tensile stress to tune mesh resonance, frequency response and bandwidth.</span></div>
     <div><b>2-D / nanoscale scaling rationale</b><span>The specification's scaling argument attributes large sensitivity gains over cantilever designs to the 2-D mesh and increased total fiber length. This is a patent-described scaling rationale, not a measured underwater product gain.</span></div>
-    <div><b>Base recoil + far-field sampling</b><span>The floating-base concept combines acoustic-scattering recoil of the base with viscous sensing; attached flow sensors can extend into surrounding medium intended to be less affected by base recoil.</span></div>
-    <div><b>Controlled buoyancy / depth</b><span>Alternative embodiments include controlled-buoyancy support and positive or negative buoyancy for adjustable-depth operation; the continuation also describes adjustable anchor buoyancy for a predefined AVS depth.</span></div>
-    <div><b>Directional base geometry</b><span>A non-spherical floating base may provide added directional selectivity; multiple differently oriented flow sensors can form a higher-order vector sensor.</span></div>
+    <div><b>Base recoil + far-field sampling</b><span>The floating-base concept combines acoustic-scattering recoil of the base with viscous sensing. Attached flow sensors can extend into surrounding medium intended to be less affected by base recoil.</span></div>
+    <div><b>Controlled buoyancy / depth</b><span>Alternative embodiments include controlled-buoyancy support and positive or negative buoyancy for adjustable-depth operation. The continuation also describes adjustable anchor buoyancy for a predefined AVS depth.</span></div>
+    <div><b>Directional base geometry</b><span>A non-spherical floating base may provide added directional selectivity. Multiple differently oriented flow sensors can form a higher-order vector sensor.</span></div>
     <div><b>Alternative transduction</b><span>Patent alternatives include mesh, cantilever, plate or porous-plate flow sensors with optical, interferometric, grating, piezoelectric, piezoresistive or capacitive readout concepts.</span></div>
-    <div><b>Protected coupling / materials</b><span>The specification describes a sound-permeable enclosure filled with high-viscosity fluid acoustically matched to water, and separately notes that mesh and optical readout can be implemented using corrosion-resistant materials.</span></div>
-    <div><b>Acoustic-horn channels</b><span>US11408961B2 describes channel cavities shaped as acoustic horns with a flow sensor at the throat to enhance response and channel orientation used to tune directionality / dynamic range.</span></div>
-    <div><b>Alternate channel fluids</b><span>Flexible membranes can separate the channel from seawater so liquids such as oil or ester may be used; density and viscosity are described as response-design variables.</span></div>
+    <div><b>Protected coupling / materials</b><span>The specification describes a sound-permeable enclosure filled with high-viscosity fluid acoustically matched to water. It also notes that mesh and optical readout can be implemented using corrosion-resistant materials.</span></div>
+    <div><b>Acoustic-horn channels</b><span>US11408961B2 describes channel cavities shaped as acoustic horns with a flow sensor at the throat to enhance response. Channel orientation is used to tune directionality and dynamic range.</span></div>
+    <div><b>Alternate channel fluids</b><span>Flexible membranes can separate the channel from seawater so liquids such as oil or ester may be used. Density and viscosity are described as response-design variables.</span></div>
     <div><b>Steady-flow rejection</b><span>Channels containing liquids of different densities may be paired so differential signals help mitigate steady, non-acoustic flow such as currents.</span></div>
-    <div><b>Networked / secure telemetry</b><span>Optional anchor electronics include controller, battery, processor, memory and transmitter; the specification also describes aggregation across multiple sensors, encrypted output, verification of received information, and commands that can reconfigure components or parameters.</span></div>
-    <div><b>Conditional surfacing + telemetry</b><span>The tower may detach after a time, detected event, or observation count, float to the surface, and transmit stored information.</span></div>
+    <div><b>Networked / secure telemetry</b><span>Optional anchor electronics include controller, battery, processor, memory and transmitter. The specification also describes aggregation across multiple sensors, encrypted output, verification of received information and commands that can reconfigure components or parameters.</span></div>
+    <div><b>Conditional surfacing + telemetry</b><span>The tower may detach after a time, detected event or observation count, float to the surface and transmit stored information.</span></div>
     <div><b>Slow-flow use</b><span>The mesh velocimeter is also described for slowly varying viscous-flow monitoring down to the DC limit, separate from acoustic sensing.</span></div>
     <div><b>Pressure-release boundaries</b><span>The specification identifies low-frequency sensing near pressure-release boundaries, including the air/water interface and submerged-vessel hull contexts.</span></div>
   </div>`;
