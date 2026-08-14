@@ -32,7 +32,7 @@ Required wording rule: never describe the in-air responsivity result as underwat
 
 ### B. Patent / paper estimates and projections
 
-These may be shown only when explicitly labeled estimate, projected, equivalent, or analytical.
+These may be shown only when explicitly labeled estimate, projected, equivalent, analytical, or patent-described scaling rationale.
 
 - Interferometer displacement-noise spectral density of approximately 2 pm/√Hz used in the MDP estimate.
 - Estimated minimum detectable sound-pressure spectral density in air of approximately 100 μPa/√Hz. This follows dimensionally from approximately 2 pm/√Hz divided by approximately 20 nm/Pa; the 2017 NRL paper states the spectral-density unit explicitly.
@@ -40,13 +40,15 @@ These may be shown only when explicitly labeled estimate, projected, equivalent,
 - Projected water responsivity of approximately 0.3 nm/Pa in the 2017 paper. This is not a measured in-water sensitivity result.
 - Floating-base size estimate of approximately 10 mm radius for operation in the 10 Hz range.
 - FIG. 4 condition of 100 μPa air pressure corresponding to approximately 0.24 μm/s flow velocity.
+- Patent scaling arguments attribute sensitivity gains over cantilever designs to the two-dimensional fine-mesh geometry and increased total fiber length; this should not be presented as a measured underwater product gain.
 
 Required wording rules:
 
 - Never show the air MDP as a broadband 100 μPa threshold; retain `/√Hz` when the value is displayed.
 - Never present the 76 dB water value or approximately 0.3 nm/Pa water responsivity as demonstrated underwater performance.
+- Never present patent scaling language about sensitivity gain as a measured prototype comparison unless the source context is explicitly retained.
 
-### C. Patent-described mechanisms and embodiments
+### C. Patent-described mechanisms, embodiments, and design levers
 
 These may be described as disclosed / described / contemplated by the specification. Do not imply that each embodiment was built or field-tested.
 
@@ -56,30 +58,56 @@ US11287508B2 includes or describes:
 - optical detection of mesh deformation;
 - natural signed cosine-type directivity relative to the mesh normal;
 - three co-located orthogonal mesh transducers described as sufficient to reconstruct the sound-wave vector in 3-D;
+- a fiber cross-section condition smaller than the viscous penetration depth of the surrounding medium at the frequency of interest (claim 11);
+- tensile-stress / membrane-force control of mesh stiffness, resonance, frequency response, and bandwidth;
 - floating base 102 with one or more flow meters 104, retaining thread 106, and anchor 108;
 - four flow meters shown in FIG. 1;
+- acoustic-scattering recoil of the floating base combined with viscous sensing of relative motion;
+- flow-sensor placement sufficiently away from the base to sample surrounding-medium motion intended to be less affected by base recoil;
 - optional controller / transmitter / battery / processor / memory associated with the anchor;
 - communication of measurement information to an external device 214;
 - external devices including a ship, floating buoy, land receiver, or central controller capable of aggregating multiple sensor outputs;
+- encrypted outgoing data, receiver-side decryption / verification, and communication back to the sensor to reconfigure components or parameters;
 - submarine or AUV hull-mounting implementations;
 - shallow-water mooring close to an air/water boundary;
-- DC / slowly varying viscous-flow monitoring.
+- pressure-release-boundary sensing, including the water-air boundary and low-frequency submerged-vessel hull contexts;
+- DC / slowly varying viscous-flow monitoring;
+- corrosion-resistant material implementation for the mesh / optical-readout concept;
+- controlled-buoyancy support in place of a fixed anchor, with positive or negative buoyancy for adjustable-depth operation;
+- complicated floating-base geometry intended to enhance local water flow at flow-sensor locations (described as an acoustic-horn concept);
+- non-spherical / low-symmetry floating-base geometry for additional directional selectivity;
+- high-density / low-density base regions for differential measurements intended to subtract slowly changing non-acoustic flow;
+- alternative micromechanical flow-sensor geometries including cantilever, plate, porous plate, and mesh;
+- alternative readout mechanisms including optical intensity, interferometric, grating-based, piezoelectric, piezoresistive, and capacitive approaches;
+- multiple differently oriented flow sensors for a higher-order vector-sensor concept;
+- a sound-permeable enclosure filled with high-viscosity fluid acoustically matched to water to enhance coupling between flow sensor and surrounding fluid.
 
 US11408961B2 additionally describes:
 
 - a tower with viscous-liquid channels and flow sensors positioned in channel cavities;
 - channels having different orientations;
+- channel / tower geometry configured to optimize directionality and dynamic range;
+- acoustic-horn channel cavities with a flow sensor positioned at the throat, including the double-horn example of FIG. 6A;
+- flexible membranes separating channel liquid from surrounding seawater;
+- alternate channel liquids such as oil or ester;
+- channel-fluid density and viscosity as design variables for response optimization;
+- negative-, neutral-, or positive-buoyancy tower configurations;
+- a neutrally buoyant tower that can retain differential motion between tower and internal channel liquid in response to acoustic excitation;
+- multiple channels containing liquids of different densities, with differential flow-meter signals described as a way to mitigate steady non-acoustic flow;
 - neutrally buoyant AVS embodiments including hull-mounted sensors and/or towed arrays;
 - a positively buoyant AVS tower used as a sonobuoy component;
 - a positively buoyant tower moored above an anchor;
-- optional tower power, memory, transmitter, detachment from the retaining thread, surfacing, and transmission of stored information.
+- adjustable anchor buoyancy to maintain a predefined AVS depth;
+- optional tower power, memory, transmitter, processor / controller, detachment from the retaining thread, surfacing, and transmission of stored information;
+- detachment conditions including elapsed time, detection of a predetermined event, and/or a predetermined number of recorded observations.
 
 Required wording rules:
 
-- Use “patent-described,” “the specification describes,” or “an embodiment contemplates” unless a specific prototype measurement is being discussed.
+- Use “patent-described,” “the specification describes,” “the patent states,” or “an embodiment contemplates” unless a specific prototype measurement is being discussed.
 - Do not turn “towed arrays” into a claim about a specific tow-body or multi-element geometry unless the drawing is explicitly labeled schematic context.
 - Do not imply that the sonobuoy embodiment requires a separate surface float; the patent describes the AVS tower itself as positively buoyant and tethered to the anchor.
 - Prefer “surfacing + telemetry” over “surface recovery” unless physical recovery is separately evidenced.
+- Do not present acoustic-horn, controlled-buoyancy, alternate-fluid, differential-flow, enclosure, encryption, or reconfiguration concepts as implemented RHKEARTH product features unless separately developed and validated.
 
 ### D. RHKEARTH illustrative / commercialization hypotheses
 
@@ -181,6 +209,8 @@ Rules:
 ## IP / status wording
 
 The patents are assigned to the United States of America, as represented by the Secretary of the Navy.
+
+US11408961B2 states that licensing inquiries may be directed to the U.S. Naval Research Laboratory Office of Technology Transfer, Code 1004, referencing Navy Case Number 102466-US4. This is a source reference for diligence and does not imply that RHKEARTH holds a license or has initiated a licensing transaction.
 
 The RHKEARTH public site should continue to state that it is an independent evaluation and does not claim:
 
