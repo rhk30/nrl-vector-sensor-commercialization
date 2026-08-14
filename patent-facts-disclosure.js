@@ -40,28 +40,16 @@ design.innerHTML=`
   </div>`;
 control.insertAdjacentElement('afterend',design);
 
-const ip=document.createElement('details');
-ip.className='patent-design-levers patent-ip-reference';
-ip.innerHTML=`
-  <summary><span>IP / LICENSING REFERENCE</span><small>Patent-family diligence context only. Database status is not a legal opinion and should be verified with NRL / USPTO before a transaction.</small></summary>
-  <div class="patent-design-grid">
-    <div><b>US11287508B2</b><span>Google Patents currently lists the patent as active and assigned to the U.S. Department of the Navy, with an adjusted expiration date of 2040-07-21.</span></div>
-    <div><b>US11408961B2</b><span>Continuation-in-part family member; Google Patents currently lists it as active with an adjusted expiration date of 2038-05-29.</span></div>
-    <div><b>NRL licensing reference</b><span>US11408961B2 directs licensing inquiries to the U.S. Naval Research Laboratory Office of Technology Transfer, Code 1004, referencing Navy Case Number 102466-US4.</span></div>
-    <div><b>RHKEARTH status</b><span>Independent evaluation only. No patent ownership, license, exclusivity, Navy sponsorship or operational deployment is claimed.</span></div>
-  </div>`;
-design.insertAdjacentElement('afterend',ip);
-
 const style=document.createElement('style');
 style.textContent=`
 .patent-fact-grid .patent-fact-extended{display:none!important}.patent-fact-grid.show-extended .patent-fact-extended{display:block!important}
 .patent-fact-disclosure,.patent-design-head{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:13px 0 2px}
 .patent-fact-disclosure span,.patent-fact-disclosure small,.patent-design-head span,.patent-design-head small{display:block}
-.patent-fact-disclosure span,.patent-design-head span,.patent-design-levers summary span{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em;color:#a9b59b}
-.patent-fact-disclosure small,.patent-design-head small,.patent-design-levers summary small{margin-top:4px;max-width:900px;color:#777f77;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}
+.patent-fact-disclosure span,.patent-design-head span{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em;color:#a9b59b}
+.patent-fact-disclosure small,.patent-design-head small{margin-top:4px;max-width:900px;color:#777f77;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}
 .patent-fact-disclosure button,.patent-design-head button{appearance:none;border:1px solid rgba(169,181,155,.24);background:#0b0d0b;color:#d7dcd4;padding:9px 12px;white-space:nowrap;font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.05em;cursor:pointer}
 .patent-fact-disclosure button:hover,.patent-design-head button:hover{border-color:rgba(205,216,201,.46);background:#101310}
-.patent-design-levers{margin-top:12px;border:1px solid rgba(169,181,155,.18);background:#090b09}.patent-design-head{padding:13px 14px}.patent-design-levers summary{cursor:pointer;list-style:none;padding:13px 14px}.patent-design-levers summary::-webkit-details-marker{display:none}.patent-design-levers summary span,.patent-design-levers summary small{display:block}.patent-design-levers[open] summary{border-bottom:1px solid rgba(169,181,155,.14)}
+.patent-design-levers{margin-top:12px;border:1px solid rgba(169,181,155,.18);background:#090b09}.patent-design-head{padding:13px 14px}
 .patent-design-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:rgba(169,181,155,.12);border-top:1px solid rgba(169,181,155,.14)}.patent-design-grid[hidden]{display:none!important}.patent-design-grid>div{background:#0b0d0b;padding:13px 14px}.patent-design-grid b,.patent-design-grid span{display:block}.patent-design-grid b{color:#e7eae3;font:600 11px/1.35 system-ui,sans-serif}.patent-design-grid span{margin-top:5px;color:#858d85;font:9px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
 @media(max-width:680px){.patent-fact-disclosure,.patent-design-head{display:block}.patent-fact-disclosure button,.patent-design-head button{margin-top:10px}.patent-design-grid{grid-template-columns:1fr}}
 `;
