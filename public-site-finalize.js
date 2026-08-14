@@ -10,13 +10,13 @@ function finalize(){
     qa('.patent-ip-reference').forEach(el=>el.remove());
 
     // This evidence block combines patent text with the published NRL prototype work.
-    // Do not label every displayed unit or interpretation as literally patent-stated.
+    // Keep the label plain and specific without implying every displayed value is literal patent text.
     const boundary=q('#system .patent-boundary-kicker');
-    if(boundary&&/PATENT-STATED|PATENT-REPORTED/i.test(boundary.textContent||'')){
-      boundary.textContent='SOURCE-GROUNDED // PATENT + PUBLISHED NRL PROTOTYPE WORK';
+    if(boundary&&boundary.textContent!=='SOURCES // PATENTS + PUBLISHED NRL PROTOTYPE WORK'){
+      boundary.textContent='SOURCES // PATENTS + PUBLISHED NRL PROTOTYPE WORK';
     }
     const disclosure=q('#system .patent-fact-disclosure span');
-    if(disclosure&&disclosure.textContent!=='KEY SOURCE-GROUNDED VALUES')disclosure.textContent='KEY SOURCE-GROUNDED VALUES';
+    if(disclosure&&disclosure.textContent!=='KEY TECHNICAL VALUES')disclosure.textContent='KEY TECHNICAL VALUES';
 
     // Keep the analytical cosine plot strictly mathematical. Avoid adding a phase
     // interpretation beyond what is necessary to explain the signed cosine relation.
