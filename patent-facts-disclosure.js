@@ -8,15 +8,20 @@ if(items.length>6){
   const key=new Set(keyIndexes);
   items.forEach((item,i)=>item.classList.toggle('patent-fact-extended',!key.has(i)));
 }
-const control=document.createElement('div');control.className='patent-fact-disclosure';
+
+const control=document.createElement('div');
+control.className='patent-fact-disclosure';
 control.innerHTML=`<div><span>KEY SOURCE-GROUNDED VALUES</span><small>Reported prototype facts and the air MDP estimate are shown first. Projected water values and additional fabrication details remain available on demand.</small></div><button type="button" aria-expanded="false">View extended patent data</button>`;
 grid.insertAdjacentElement('afterend',control);
 
-const design=document.createElement('details');
+const design=document.createElement('section');
 design.className='patent-design-levers';
 design.innerHTML=`
-  <summary><span>PATENT-DESCRIBED DESIGN LEVERS</span><small>Additional mechanisms and implementation options disclosed in US11287508B2 and US11408961B2. These are not measured RHKEARTH product specifications.</small></summary>
-  <div class="patent-design-grid">
+  <div class="patent-design-head">
+    <div><span>PATENT-DESCRIBED DESIGN LEVERS</span><small>Additional mechanisms and implementation options disclosed in US11287508B2 and US11408961B2. These are not measured RHKEARTH product specifications.</small></div>
+    <button type="button" aria-expanded="false">View extended patent design levers</button>
+  </div>
+  <div class="patent-design-grid" hidden>
     <div><b>Viscous-scale fiber condition</b><span>US11287508B2 claim 11 specifies fiber cross-section dimensions smaller than the viscous penetration depth of the surrounding medium at the frequency of interest.</span></div>
     <div><b>Tension-tuned response</b><span>The specification describes using built-in tensile stress to tune mesh resonance, frequency response and bandwidth.</span></div>
     <div><b>2-D / nanoscale scaling rationale</b><span>The specification's scaling argument attributes large sensitivity gains over cantilever designs to the 2-D mesh and increased total fiber length. This is a patent-described scaling rationale, not a measured underwater product gain.</span></div>
@@ -47,11 +52,35 @@ ip.innerHTML=`
   </div>`;
 design.insertAdjacentElement('afterend',ip);
 
-const style=document.createElement('style');style.textContent=`
+const style=document.createElement('style');
+style.textContent=`
 .patent-fact-grid .patent-fact-extended{display:none!important}.patent-fact-grid.show-extended .patent-fact-extended{display:block!important}
-.patent-fact-disclosure{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:13px 0 2px}.patent-fact-disclosure span,.patent-fact-disclosure small{display:block}.patent-fact-disclosure span{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em;color:#a9b59b}.patent-fact-disclosure small{margin-top:4px;max-width:720px;color:#777f77;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}.patent-fact-disclosure button{appearance:none;border:1px solid rgba(169,181,155,.24);background:#0b0d0b;color:#d7dcd4;padding:9px 12px;white-space:nowrap;font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.05em;cursor:pointer}.patent-fact-disclosure button:hover{border-color:rgba(205,216,201,.46);background:#101310}
-.patent-design-levers{margin-top:12px;border:1px solid rgba(169,181,155,.18);background:#090b09}.patent-design-levers summary{cursor:pointer;list-style:none;padding:13px 14px}.patent-design-levers summary::-webkit-details-marker{display:none}.patent-design-levers summary span,.patent-design-levers summary small{display:block}.patent-design-levers summary span{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em;color:#a9b59b}.patent-design-levers summary small{margin-top:4px;max-width:900px;color:#777f77;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}.patent-design-levers[open] summary{border-bottom:1px solid rgba(169,181,155,.14)}.patent-design-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:rgba(169,181,155,.12)}.patent-design-grid>div{background:#0b0d0b;padding:13px 14px}.patent-design-grid b,.patent-design-grid span{display:block}.patent-design-grid b{color:#e7eae3;font:600 11px/1.35 system-ui,sans-serif}.patent-design-grid span{margin-top:5px;color:#858d85;font:9px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
-@media(max-width:680px){.patent-fact-disclosure{display:block}.patent-fact-disclosure button{margin-top:10px}.patent-design-grid{grid-template-columns:1fr}}
-`;document.head.appendChild(style);
-const button=control.querySelector('button');button.addEventListener('click',()=>{const open=!grid.classList.contains('show-extended');grid.classList.toggle('show-extended',open);button.setAttribute('aria-expanded',String(open));button.textContent=open?'Hide extended patent data':'View extended patent data';});
+.patent-fact-disclosure,.patent-design-head{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:13px 0 2px}
+.patent-fact-disclosure span,.patent-fact-disclosure small,.patent-design-head span,.patent-design-head small{display:block}
+.patent-fact-disclosure span,.patent-design-head span,.patent-design-levers summary span{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em;color:#a9b59b}
+.patent-fact-disclosure small,.patent-design-head small,.patent-design-levers summary small{margin-top:4px;max-width:900px;color:#777f77;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}
+.patent-fact-disclosure button,.patent-design-head button{appearance:none;border:1px solid rgba(169,181,155,.24);background:#0b0d0b;color:#d7dcd4;padding:9px 12px;white-space:nowrap;font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.05em;cursor:pointer}
+.patent-fact-disclosure button:hover,.patent-design-head button:hover{border-color:rgba(205,216,201,.46);background:#101310}
+.patent-design-levers{margin-top:12px;border:1px solid rgba(169,181,155,.18);background:#090b09}.patent-design-head{padding:13px 14px}.patent-design-levers summary{cursor:pointer;list-style:none;padding:13px 14px}.patent-design-levers summary::-webkit-details-marker{display:none}.patent-design-levers summary span,.patent-design-levers summary small{display:block}.patent-design-levers[open] summary{border-bottom:1px solid rgba(169,181,155,.14)}
+.patent-design-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:rgba(169,181,155,.12);border-top:1px solid rgba(169,181,155,.14)}.patent-design-grid[hidden]{display:none!important}.patent-design-grid>div{background:#0b0d0b;padding:13px 14px}.patent-design-grid b,.patent-design-grid span{display:block}.patent-design-grid b{color:#e7eae3;font:600 11px/1.35 system-ui,sans-serif}.patent-design-grid span{margin-top:5px;color:#858d85;font:9px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+@media(max-width:680px){.patent-fact-disclosure,.patent-design-head{display:block}.patent-fact-disclosure button,.patent-design-head button{margin-top:10px}.patent-design-grid{grid-template-columns:1fr}}
+`;
+document.head.appendChild(style);
+
+const button=control.querySelector('button');
+button.addEventListener('click',()=>{
+  const open=!grid.classList.contains('show-extended');
+  grid.classList.toggle('show-extended',open);
+  button.setAttribute('aria-expanded',String(open));
+  button.textContent=open?'Hide extended patent data':'View extended patent data';
+});
+
+const designButton=design.querySelector('button');
+const designGrid=design.querySelector('.patent-design-grid');
+designButton.addEventListener('click',()=>{
+  const open=designGrid.hidden;
+  designGrid.hidden=!open;
+  designButton.setAttribute('aria-expanded',String(open));
+  designButton.textContent=open?'Hide extended patent design levers':'View extended patent design levers';
+});
 })();
