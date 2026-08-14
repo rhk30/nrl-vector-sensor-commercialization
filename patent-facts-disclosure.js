@@ -3,16 +3,43 @@ const grid=document.querySelector('.patent-fact-grid');
 if(!grid||grid.dataset.rhkDisclosure==='1')return;
 grid.dataset.rhkDisclosure='1';
 const items=Array.from(grid.children);
-if(items.length<=6)return;
-// Default view: prototype geometry, measured in-air responsivity, prototype
-// fundamental, and the explicitly labeled air MDP spectral-density estimate.
-// The projected water equivalent remains in extended data.
-const keyIndexes=[0,1,2,5,6,8];
-const key=new Set(keyIndexes);
-items.forEach((item,i)=>item.classList.toggle('patent-fact-extended',!key.has(i)));
+if(items.length>6){
+  // Default view: prototype geometry, measured in-air responsivity, prototype
+  // fundamental, and the explicitly labeled air MDP spectral-density estimate.
+  // Projected water values and additional fabrication details remain available.
+  const keyIndexes=[0,1,2,5,6,8];
+  const key=new Set(keyIndexes);
+  items.forEach((item,i)=>item.classList.toggle('patent-fact-extended',!key.has(i)));
+}
 const control=document.createElement('div');control.className='patent-fact-disclosure';
-control.innerHTML=`<div><span>KEY PATENT-STATED VALUES</span><small>Reported prototype facts and the air MDP estimate are shown first. Projected water values and additional fabrication details remain available on demand.</small></div><button type="button" aria-expanded="false">View extended patent data</button>`;
+control.innerHTML=`<div><span>KEY SOURCE-GROUNDED VALUES</span><small>Reported prototype facts and the air MDP estimate are shown first. Projected water values and additional fabrication details remain available on demand.</small></div><button type="button" aria-expanded="false">View extended patent data</button>`;
 grid.insertAdjacentElement('afterend',control);
-const style=document.createElement('style');style.textContent=`.patent-fact-grid .patent-fact-extended{display:none!important}.patent-fact-grid.show-extended .patent-fact-extended{display:block!important}.patent-fact-disclosure{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:13px 0 2px}.patent-fact-disclosure span,.patent-fact-disclosure small{display:block}.patent-fact-disclosure span{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em;color:#a9b59b}.patent-fact-disclosure small{margin-top:4px;max-width:720px;color:#777f77;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}.patent-fact-disclosure button{appearance:none;border:1px solid rgba(169,181,155,.24);background:#0b0d0b;color:#d7dcd4;padding:9px 12px;white-space:nowrap;font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.05em;cursor:pointer}.patent-fact-disclosure button:hover{border-color:rgba(205,216,201,.46);background:#101310}@media(max-width:680px){.patent-fact-disclosure{display:block}.patent-fact-disclosure button{margin-top:10px}}`;document.head.appendChild(style);
+
+const design=document.createElement('details');
+design.className='patent-design-levers';
+design.innerHTML=`
+  <summary><span>PATENT-DESCRIBED DESIGN LEVERS</span><small>Additional mechanisms and implementation options disclosed in US11287508B2 and US11408961B2. These are not measured RHKEARTH product specifications.</small></summary>
+  <div class="patent-design-grid">
+    <div><b>Viscous-scale fiber condition</b><span>US11287508B2 claim 11 specifies fiber cross-section dimensions smaller than the viscous penetration depth of the surrounding medium at the frequency of interest.</span></div>
+    <div><b>Tension-tuned response</b><span>The specification describes using built-in tensile stress to tune mesh resonance, frequency response and bandwidth.</span></div>
+    <div><b>Controlled buoyancy / depth</b><span>Alternative embodiments include fixed or floating anchors, controlled-buoyancy support, and positive or negative buoyancy for adjustable-depth operation.</span></div>
+    <div><b>Directional base geometry</b><span>A non-spherical floating base may provide added directional selectivity; multiple differently oriented flow sensors can form a higher-order vector sensor.</span></div>
+    <div><b>Alternative transduction</b><span>Patent alternatives include mesh, cantilever, plate or porous-plate flow sensors with optical, interferometric, grating, piezoelectric, piezoresistive or capacitive readout concepts.</span></div>
+    <div><b>Acoustic-horn channels</b><span>US11408961B2 describes channel cavities shaped as acoustic horns with a flow sensor at the throat to enhance response and channel orientation used to tune directionality / dynamic range.</span></div>
+    <div><b>Alternate channel fluids</b><span>Flexible membranes can separate the channel from seawater so liquids such as oil or ester may be used; density and viscosity are described as response-design variables.</span></div>
+    <div><b>Steady-flow rejection</b><span>Channels containing liquids of different densities may be paired so differential signals help mitigate steady, non-acoustic flow such as currents.</span></div>
+    <div><b>Networked / secure telemetry</b><span>Optional anchor electronics include controller, battery, processor, memory and transmitter; the specification also describes aggregation across multiple sensors, encryption / verification, and receiving commands or reconfiguration information.</span></div>
+    <div><b>Conditional surfacing + telemetry</b><span>The tower may detach after a time, detected event, or observation count, float to the surface, and transmit stored information.</span></div>
+    <div><b>Slow-flow use</b><span>The mesh velocimeter is also described for slowly varying viscous-flow monitoring down to the DC limit, separate from acoustic sensing.</span></div>
+    <div><b>Pressure-release boundaries</b><span>The specification identifies low-frequency sensing near pressure-release boundaries, including the air/water interface and submerged-vessel hull contexts.</span></div>
+  </div>`;
+control.insertAdjacentElement('afterend',design);
+
+const style=document.createElement('style');style.textContent=`
+.patent-fact-grid .patent-fact-extended{display:none!important}.patent-fact-grid.show-extended .patent-fact-extended{display:block!important}
+.patent-fact-disclosure{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:13px 0 2px}.patent-fact-disclosure span,.patent-fact-disclosure small{display:block}.patent-fact-disclosure span{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em;color:#a9b59b}.patent-fact-disclosure small{margin-top:4px;max-width:720px;color:#777f77;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}.patent-fact-disclosure button{appearance:none;border:1px solid rgba(169,181,155,.24);background:#0b0d0b;color:#d7dcd4;padding:9px 12px;white-space:nowrap;font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.05em;cursor:pointer}.patent-fact-disclosure button:hover{border-color:rgba(205,216,201,.46);background:#101310}
+.patent-design-levers{margin-top:12px;border:1px solid rgba(169,181,155,.18);background:#090b09}.patent-design-levers summary{cursor:pointer;list-style:none;padding:13px 14px}.patent-design-levers summary::-webkit-details-marker{display:none}.patent-design-levers summary span,.patent-design-levers summary small{display:block}.patent-design-levers summary span{font:9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.09em;color:#a9b59b}.patent-design-levers summary small{margin-top:4px;max-width:900px;color:#777f77;font:9px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}.patent-design-levers[open] summary{border-bottom:1px solid rgba(169,181,155,.14)}.patent-design-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:rgba(169,181,155,.12)}.patent-design-grid>div{background:#0b0d0b;padding:13px 14px}.patent-design-grid b,.patent-design-grid span{display:block}.patent-design-grid b{color:#e7eae3;font:600 11px/1.35 system-ui,sans-serif}.patent-design-grid span{margin-top:5px;color:#858d85;font:9px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+@media(max-width:680px){.patent-fact-disclosure{display:block}.patent-fact-disclosure button{margin-top:10px}.patent-design-grid{grid-template-columns:1fr}}
+`;document.head.appendChild(style);
 const button=control.querySelector('button');button.addEventListener('click',()=>{const open=!grid.classList.contains('show-extended');grid.classList.toggle('show-extended',open);button.setAttribute('aria-expanded',String(open));button.textContent=open?'Hide extended patent data':'View extended patent data';});
 })();
