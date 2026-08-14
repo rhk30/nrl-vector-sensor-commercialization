@@ -4,9 +4,6 @@ if(!grid||grid.dataset.rhkDisclosure==='1')return;
 grid.dataset.rhkDisclosure='1';
 const items=Array.from(grid.children);
 if(items.length>6){
-  // Default view: prototype geometry, measured in-air responsivity, prototype
-  // fundamental, and the explicitly labeled air MDP spectral-density estimate.
-  // Projected water values and additional fabrication details remain available.
   const keyIndexes=[0,1,2,5,6,8];
   const key=new Set(keyIndexes);
   items.forEach((item,i)=>item.classList.toggle('patent-fact-extended',!key.has(i)));
@@ -37,6 +34,18 @@ design.innerHTML=`
     <div><b>Pressure-release boundaries</b><span>The specification identifies low-frequency sensing near pressure-release boundaries, including the air/water interface and submerged-vessel hull contexts.</span></div>
   </div>`;
 control.insertAdjacentElement('afterend',design);
+
+const ip=document.createElement('details');
+ip.className='patent-design-levers patent-ip-reference';
+ip.innerHTML=`
+  <summary><span>IP / LICENSING REFERENCE</span><small>Patent-family diligence context only. Database status is not a legal opinion and should be verified with NRL / USPTO before a transaction.</small></summary>
+  <div class="patent-design-grid">
+    <div><b>US11287508B2</b><span>Google Patents currently lists the patent as active and assigned to the U.S. Department of the Navy, with an adjusted expiration date of 2040-07-21.</span></div>
+    <div><b>US11408961B2</b><span>Continuation-in-part family member; Google Patents currently lists it as active with an adjusted expiration date of 2038-05-29.</span></div>
+    <div><b>NRL licensing reference</b><span>US11408961B2 directs licensing inquiries to the U.S. Naval Research Laboratory Office of Technology Transfer, Code 1004, referencing Navy Case Number 102466-US4.</span></div>
+    <div><b>RHKEARTH status</b><span>Independent evaluation only. No patent ownership, license, exclusivity, Navy sponsorship or operational deployment is claimed.</span></div>
+  </div>`;
+design.insertAdjacentElement('afterend',ip);
 
 const style=document.createElement('style');style.textContent=`
 .patent-fact-grid .patent-fact-extended{display:none!important}.patent-fact-grid.show-extended .patent-fact-extended{display:block!important}
