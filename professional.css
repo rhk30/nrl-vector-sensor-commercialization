@@ -1,0 +1,203 @@
+/* RHKEARTH professional presentation pass.
+   Keeps the technical/defense visual language while removing common template and
+   "vibe-coded" tells: page-wide grids, glass blur, pill-like segmented controls,
+   over-boxed cards, excessive monospace, and promotional microcopy styling. */
+
+body::before{display:none!important}
+
+.topbar{
+  background:#090b0a!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+.brand strong{font-size:.88rem!important;letter-spacing:.1em!important}
+.toplinks{
+  font-family:var(--sans)!important;
+  font-size:.76rem!important;
+  text-transform:none!important;
+  letter-spacing:.01em!important;
+  gap:28px!important;
+}
+.toplinks a{color:#a7ada6!important}
+.toplinks a:hover,.toplinks a:focus-visible{color:var(--ink)!important}
+
+.eyebrow,
+.section-index,
+.scene-kicker,
+.metric .label,
+.thesis .tag{
+  letter-spacing:.08em!important;
+}
+
+.cinematic-copy{padding-right:64px!important}
+.cinematic-copy h1{
+  font-weight:520!important;
+  letter-spacing:-.045em!important;
+}
+.cinematic-copy h1 span{color:#aeb4ad!important;font-weight:390!important}
+.cinematic-copy .lede{font-size:1rem!important;line-height:1.62!important;color:#b7bcb6!important}
+
+.hero-actions{gap:18px!important;margin-top:30px!important}
+.hero-link{
+  border:0!important;
+  border-bottom:1px solid #565e55!important;
+  padding:8px 0!important;
+  background:transparent!important;
+  color:#c7cbc5!important;
+  font-family:var(--sans)!important;
+  font-size:.78rem!important;
+  text-transform:none!important;
+  letter-spacing:0!important;
+}
+.hero-link.primary{color:var(--ink)!important;border-bottom-color:var(--accent)!important}
+.hero-link:hover,.hero-link:focus-visible{color:#fff!important;border-bottom-color:#d5dbd0!important}
+
+.scene-panel::before{
+  background:linear-gradient(90deg,rgba(9,11,10,.58),transparent 24%)!important;
+}
+.scene-nav{
+  background:#0b0e0c!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  border:0!important;
+  border-bottom:1px solid var(--line)!important;
+}
+.scene-btn{
+  font-family:var(--sans)!important;
+  font-size:.72rem!important;
+  text-transform:none!important;
+  letter-spacing:0!important;
+  border-right:0!important;
+  border-bottom:2px solid transparent!important;
+  padding:10px 14px!important;
+}
+.scene-btn.active{
+  background:transparent!important;
+  color:var(--ink)!important;
+  border-bottom-color:var(--accent)!important;
+}
+.scene-progress{height:1px!important;opacity:.55!important}
+.scene-title{font-weight:500!important}
+.scene-copy{font-size:.8rem!important;line-height:1.55!important}
+
+/* The five-item feature strip repeated the scene selector and read like a
+   generic landing-page card row. Keep the more useful source-backed metrics. */
+.capability-strip{display:none!important}
+
+.metrics{border-top:1px solid var(--line)!important}
+.metric{border-right:0!important;padding-top:28px!important;padding-bottom:28px!important}
+.metric:not(:first-child){position:relative}
+.metric:not(:first-child)::before{
+  content:"";position:absolute;left:0;top:24px;bottom:24px;width:1px;background:var(--line)
+}
+.metric .label{font-family:var(--sans)!important;font-size:.69rem!important;text-transform:none!important}
+.metric .value{font-size:1.9rem!important;font-weight:500!important}
+.metric .sub{font-size:.72rem!important;line-height:1.45!important}
+
+.section{padding:82px 0!important}
+.section-head{grid-template-columns:150px minmax(0,1fr)!important;margin-bottom:42px!important}
+.section-index{
+  font-family:var(--sans)!important;
+  font-size:.72rem!important;
+  text-transform:none!important;
+  color:#9fa99a!important;
+}
+.section-title h2{font-size:2.25rem!important;font-weight:520!important;letter-spacing:-.035em!important}
+.section-title p{font-size:.94rem!important;line-height:1.6!important;color:#9fa69e!important}
+
+.tabs,.subtabs{
+  border:0!important;
+  border-bottom:1px solid var(--line)!important;
+  background:transparent!important;
+  gap:22px!important;
+}
+.tab,.mode{
+  font-family:var(--sans)!important;
+  font-size:.76rem!important;
+  text-transform:none!important;
+  letter-spacing:0!important;
+  border:0!important;
+  border-bottom:2px solid transparent!important;
+  padding:10px 0!important;
+}
+.tab.active,.mode.active{
+  background:transparent!important;
+  color:var(--ink)!important;
+  border-bottom-color:var(--accent)!important;
+}
+
+.note,.interpretation{
+  background:transparent!important;
+  border-left:1px solid #6f786d!important;
+  padding:10px 14px!important;
+}
+
+.panel{background:#0c0f0d!important}
+.diagram{background:#0b0e0c!important}
+
+.mission-shell{background:#0a0d0b!important;border-color:#343a34!important}
+.mission-top{padding:20px 22px!important}
+.mission-top h3{font-size:1rem!important}
+.mission-controls,.mission-readout{background:#0c0f0d!important}
+.mission-status{font-family:var(--sans)!important;text-transform:none!important;letter-spacing:0!important}
+.live-dot{box-shadow:none!important}
+.control-group label,.readout-block span{
+  font-family:var(--sans)!important;
+  text-transform:none!important;
+  letter-spacing:0!important;
+}
+select{font-family:var(--sans)!important}
+.patent-demo-presets button,.scenario-btn,.control-btn{
+  font-family:var(--sans)!important;
+  text-transform:none!important;
+  letter-spacing:0!important;
+}
+.legend{background:#090b0a!important;font-size:.61rem!important}
+
+.signal-step{font-family:var(--sans)!important;font-size:.74rem!important}
+.signal-step::before{content:""!important;display:inline-block;width:9px;height:1px;background:var(--accent);vertical-align:middle;margin:0 10px 4px 0!important}
+
+.formulas{gap:28px!important;border:0!important;margin-top:20px!important}
+.formula{border:0!important;border-top:1px solid var(--line)!important;padding:16px 0!important}
+.formula code{font-size:.78rem!important}
+
+.thesis-grid{gap:34px!important}
+.thesis{
+  border:0!important;
+  border-top:1px solid var(--line)!important;
+  background:transparent!important;
+  padding:20px 0 0!important;
+}
+.thesis .tag{font-family:var(--sans)!important;font-size:.67rem!important}
+.thesis h3{font-size:1.08rem!important;font-weight:520!important;line-height:1.35!important}
+.thesis p{font-size:.82rem!important;line-height:1.6!important}
+
+footer{
+  font-family:var(--sans)!important;
+  letter-spacing:0!important;
+  text-transform:none!important;
+  line-height:1.5!important;
+}
+
+@media(max-width:1000px){
+  .cinematic-copy{padding-right:0!important}
+  .section-head{grid-template-columns:1fr!important;gap:10px!important}
+  .metrics{grid-template-columns:repeat(2,1fr)!important}
+  .metric:nth-child(3)::before{display:none!important}
+}
+
+@media(max-width:640px){
+  .shell{padding-left:20px!important;padding-right:20px!important}
+  .toplinks{gap:16px!important;font-size:.71rem!important}
+  .cinematic-copy h1{font-size:3.25rem!important}
+  .cinematic-copy .lede{font-size:.95rem!important}
+  .metrics{grid-template-columns:1fr!important}
+  .metric:not(:first-child)::before{display:none!important}
+  .metric{padding-left:0!important;border-top:1px solid var(--line)!important}
+  .metric:first-child{border-top:0!important}
+  .scene-nav{left:14px!important;right:14px!important}
+  .scene-btn{padding:10px 12px!important}
+  .section{padding:64px 0!important}
+  .section-title h2{font-size:2rem!important}
+  .thesis-grid{grid-template-columns:1fr!important;gap:28px!important}
+}
