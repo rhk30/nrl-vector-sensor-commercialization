@@ -19,6 +19,7 @@
 <link rel="icon" type="image/svg+xml" href="rhkearth-logo.svg">
 <link rel="stylesheet" href="site.css?v=4">
 <link rel="stylesheet" href="cinematic.css?v=3">
+<link rel="stylesheet" href="professional.css?v=1">
 </head>
 <body>
 <div class="shell">
@@ -114,10 +115,13 @@
       </aside>
       <div class="mission-stage">
         <svg viewBox="0 0 800 600" role="img" aria-label="Top-down source-bearing geometry demonstrator">
-          <g fill="none" stroke="#293029" stroke-width="1"><line x1="400" y1="35" x2="400" y2="565"/><line x1="135" y1="300" x2="665" y2="300"/></g>
-          <g font-family="monospace" font-size="10" fill="#626862"><text x="408" y="58">N</text><text x="665" y="294">E</text><text x="408" y="552">S</text><text x="112" y="294">W</text></g>
-          <line id="trueBearingLine" x1="400" y1="300" x2="277.7" y2="177.7" stroke="#c6ae76" stroke-width="1" stroke-dasharray="5 6"/>
-          <g id="sensorRoot" transform="translate(400 300)"><circle r="11" fill="#090b0a" stroke="#d6ddcf" stroke-width="1.5"/><g id="floatingSensor"><line x1="-25" y1="0" x2="25" y2="0" stroke="#a9b59b" stroke-width="2"/><line x1="0" y1="-25" x2="0" y2="25" stroke="#a9b59b" stroke-width="2"/><rect x="-7" y="-7" width="14" height="14" fill="#151915" stroke="#efefe9"/></g><g id="towerSensor" style="display:none"><rect x="-8" y="-22" width="16" height="44" fill="#151915" stroke="#efefe9"/><line x1="-18" y1="-18" x2="18" y2="18" stroke="#a9b59b" stroke-width="3"/><line x1="18" y1="-18" x2="-18" y2="18" stroke="#a9b59b" stroke-width="3"/></g><g id="platformSensor" style="display:none"><path d="M-30 8Q0-16 30 8Q0 18-30 8Z" fill="#151915" stroke="#efefe9"/><rect x="-5" y="-4" width="10" height="10" fill="#a9b59b"/></g></g>
+          <g fill="none" stroke="#293029" stroke-width="1"><line x1="400" y1="70" x2="400" y2="530"/><line x1="170" y1="300" x2="630" y2="300"/><circle cx="400" cy="300" r="86"/><circle cx="400" cy="300" r="173"/></g>
+          <text x="400" y="50" text-anchor="middle" fill="#8f978f" font-family="monospace" font-size="11">N</text><text x="653" y="304" fill="#8f978f" font-family="monospace" font-size="11">E</text><text x="400" y="560" text-anchor="middle" fill="#8f978f" font-family="monospace" font-size="11">S</text><text x="140" y="304" fill="#8f978f" font-family="monospace" font-size="11">W</text>
+          <g id="floatingSensor"><circle cx="400" cy="300" r="28" fill="#151915" stroke="#a9b59b"/><line x1="400" y1="272" x2="400" y2="248" stroke="#a9b59b"/><line x1="400" y1="328" x2="400" y2="352" stroke="#a9b59b"/><line x1="372" y1="300" x2="348" y2="300" stroke="#a9b59b"/><line x1="428" y1="300" x2="452" y2="300" stroke="#a9b59b"/></g>
+          <g id="towerSensor" style="display:none"><rect x="382" y="254" width="36" height="92" fill="#151915" stroke="#a9b59b"/><line x1="387" y1="266" x2="413" y2="334" stroke="#a9b59b"/><line x1="413" y1="266" x2="387" y2="334" stroke="#a9b59b"/></g>
+          <g id="platformSensor" style="display:none"><path d="M350 300Q400 264 456 300Q404 333 350 315Z" fill="#151915" stroke="#a9b59b"/><circle cx="400" cy="300" r="7" fill="#a9b59b"/></g>
+          <line id="trueBearingLine" x1="400" y1="300" x2="277.7" y2="177.7" stroke="#c6ae76" stroke-width="1" stroke-dasharray="6 6"/><text id="northBearing" x="412" y="84" fill="#c6ae76" font-family="monospace" font-size="10">315°</text><text id="stageTargetLabel" x="294" y="181" fill="#efefe9" font-family="monospace" font-size="10">GENERIC ACOUSTIC SOURCE</text><text id="stageRangeLabel" x="470" y="295" fill="#626862" font-family="monospace" font-size="10"></text>
+          <circle class="wave-ring" cx="277.7" cy="177.7" r="22" fill="none" stroke="#a9b59b" opacity=".3"/><circle class="wave-ring" cx="277.7" cy="177.7" r="54" fill="none" stroke="#a9b59b" opacity=".2"/><circle class="wave-ring" cx="277.7" cy="177.7" r="86" fill="none" stroke="#a9b59b" opacity=".1"/>
           <g id="targetGroup" transform="translate(277.7 177.7)"><g id="surfaceTarget" style="display:none"><path d="M0-28Q10-16 11 13L5 27H-5L-11 13Q-10-16 0-28Z" fill="#151915" stroke="#efefe9"/></g><g id="subTarget" style="display:none"><ellipse rx="10" ry="31" fill="#151915" stroke="#efefe9"/><line x1="-17" y1="6" x2="17" y2="6" stroke="#a9b59b" stroke-width="2"/></g><g id="sourceTarget"><circle r="13" fill="#151915" stroke="#efefe9"/><circle r="4" fill="#a9b59b"/></g></g>
         </svg>
         <div class="legend"><div><i class="dashed"></i> SENSOR → SOURCE BEARING</div><div><i class="incoming"></i> SOURCE → SENSOR PROPAGATION</div></div>
