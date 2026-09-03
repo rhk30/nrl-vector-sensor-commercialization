@@ -8,6 +8,7 @@ on:
       - .github/workflows/build-experimental-integrated.yml
       - scripts/patch-experimental-source.py
       - scripts/patch-live-runtime.py
+      - scripts/clean-experimental-ui-source.py
       - scripts/remove-experimental-voice.py
       - scripts/tune-experimental-cctv.py
       - scripts/add-chicago-live-cameras.py
@@ -53,6 +54,7 @@ jobs:
         run: |
           python ../scripts/patch-experimental-source.py
           python ../scripts/patch-live-runtime.py
+          python ../scripts/clean-experimental-ui-source.py
           python ../scripts/remove-experimental-voice.py
           python ../scripts/tune-experimental-cctv.py
 
@@ -63,6 +65,7 @@ jobs:
           grep -q "overpass.kumi.systems" src/data/traffic.js
           grep -q "directMediaUrl" src/data/cctv.js
           grep -q "mediaRefreshTimer" src/data/cctv.js
+          grep -q "rhkearth-chrome-cleanup" index.html
 
       - name: Install dependencies
         working-directory: _gev
@@ -165,6 +168,7 @@ jobs:
           grep -R -q "overpass.kumi.systems" dist/assets
           grep -R -q "overpass.private.coffee" dist/assets
           grep -R -q "rhkLive" dist/assets
+          grep -q "rhkearth-chrome-cleanup" dist/index.html
 
           python - <<'PY'
           import json
@@ -205,7 +209,8 @@ jobs:
           test -s experimental/live-data/chicago-street-activity.json
           test -f experimental/rhkearth-runtime.js
           test -f experimental/rhkearth-theme.css
-          printf '%s\n' "Native RHKEARTH Experimental build. Civilian Live Flights use the browser-CORS adsb.lol viewport feed; Military Flights retain the RHKEARTH-refreshed adsb.lol military source; London CCTV uses TfL rolling video where provided; Street Traffic uses multi-mirror OSM Overpass failover. Chicago continuous-live cameras are owned by CCTV and Chicago CDOT street activity is owned by Traffic. Scope, Scenes and voice control removed." > experimental/RHKEARTH_BUILD.txt
+          grep -q "rhkearth-chrome-cleanup" experimental/index.html
+          printf '%s\n' "Native RHKEARTH Experimental build. Civilian Live Flights use the browser-CORS adsb.lol viewport feed; Military Flights retain the RHKEARTH-refreshed adsb.lol military source; London CCTV uses TfL rolling video where provided; Street Traffic uses multi-mirror OSM Overpass failover. Chicago continuous-live cameras are owned by CCTV and Chicago CDOT street activity is owned by Traffic. Scope, Scenes, TSC chrome, residual emoji chrome and voice control removed." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit integrated bundle
         run: |
