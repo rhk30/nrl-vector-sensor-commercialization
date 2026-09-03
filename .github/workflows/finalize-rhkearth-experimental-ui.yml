@@ -39,19 +39,24 @@ jobs:
           html = html.replace('<h2>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></h2>', '<h2>RHKEARTH</h2>')
           html = html.replace('<span class="share-icon" aria-hidden="true">&#x1F517;</span>', '<span class="material-symbols-outlined" aria-hidden="true">link</span>')
 
-          if '/experimental/rhkearth-theme.css' not in html:
-              html = html.replace('</head>', '  <link rel="stylesheet" href="/experimental/rhkearth-theme.css?v=1">\n</head>', 1)
+          # RHKEARTH public console must never require a visitor to sign into
+          # a third-party AI service. Remove any older Puter injection.
+          html = re.sub(r'\s*<script[^>]+src="https://js\.puter\.com/v2/?"[^>]*></script>', '', html)
 
-          puter = '<script src="https://js.puter.com/v2/"></script>'
-          runtime = '<script src="/experimental/rhkearth-runtime.js?v=1"></script>'
-          if 'js.puter.com/v2/' not in html:
+          if '/experimental/rhkearth-theme.css' not in html:
+              html = html.replace('</head>', '  <link rel="stylesheet" href="/experimental/rhkearth-theme.css?v=2">\n</head>', 1)
+          else:
+              html = re.sub(r'/experimental/rhkearth-theme\.css\?v=\d+', '/experimental/rhkearth-theme.css?v=2', html)
+
+          runtime = '<script src="/experimental/rhkearth-runtime.js?v=2"></script>'
+          if '/experimental/rhkearth-runtime.js' not in html:
               match = re.search(r'\s*<script type="module"[^>]+src="/experimental/assets/[^\"]+\.js"></script>', html)
               if match:
-                  html = html[:match.start()] + '\n  ' + puter + '\n  ' + runtime + html[match.start():]
+                  html = html[:match.start()] + '\n  ' + runtime + html[match.start():]
               else:
-                  html = html.replace('</head>', f'  {puter}\n  {runtime}\n</head>', 1)
-          elif '/experimental/rhkearth-runtime.js' not in html:
-              html = html.replace('</head>', f'  {runtime}\n</head>', 1)
+                  html = html.replace('</head>', f'  {runtime}\n</head>', 1)
+          else:
+              html = re.sub(r'/experimental/rhkearth-runtime\.js\?v=\d+', '/experimental/rhkearth-runtime.js?v=2', html)
 
           emblem = '''  <div id="rhkearth-clear-emblem" aria-hidden="true">
     <img src="/experimental/logo.svg" alt="" />
@@ -69,10 +74,10 @@ jobs:
           test -s experimental/rhkearth-theme.css
           grep -q 'RHKEARTH</span>' experimental/index.html
           grep -q 'INTELLIGENCE CONSOLE' experimental/index.html
-          grep -q 'js.puter.com/v2/' experimental/index.html
-          grep -q 'rhkearth-runtime.js' experimental/index.html
-          grep -q 'rhkearth-theme.css' experimental/index.html
+          grep -q 'rhkearth-runtime.js?v=2' experimental/index.html
+          grep -q 'rhkearth-theme.css?v=2' experimental/index.html
           grep -q 'rhkearth-clear-emblem' experimental/index.html
+          ! grep -q 'js.puter.com' experimental/index.html
           ! grep -q 'title-accent">EXPERIMENTAL' experimental/index.html
 
       - name: Commit finalized interface
