@@ -123,4 +123,11 @@ if not street_patch.exists():
     raise SystemExit('RHKEARTH Chicago street-activity patch script missing')
 exec(compile(street_patch.read_text(encoding='utf-8'), str(street_patch), 'exec'))
 
-print('RHKEARTH Chicago/Chicagoland operating area added; circular scope and Scenes removed; continuous-live CCTV and street-activity layers added')
+# Repair the three core live-source paths in the static/native build:
+# civilian adsb.lol flights, TfL rolling-video CCTV, and Overpass mirror failover.
+live_runtime_patch = Path('../scripts/patch-live-runtime.py')
+if not live_runtime_patch.exists():
+    raise SystemExit('RHKEARTH live runtime repair patch missing')
+exec(compile(live_runtime_patch.read_text(encoding='utf-8'), str(live_runtime_patch), 'exec'))
+
+print('RHKEARTH Chicago/Chicagoland operating area added; circular scope and Scenes removed; live flights/CCTV/traffic runtime repaired')
