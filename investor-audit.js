@@ -29,7 +29,7 @@ if(market){const h=q('.section-title h2',market),p=q('.section-title p',market);
 
 if(market&&!document.body.dataset.rhkApplicationsBootstrap){
   document.body.dataset.rhkApplicationsBootstrap='1';
-  import('./market-bridge-v4.js?v=9').catch(err=>{
+  import('./market-bridge-v10.js?v=10').catch(err=>{
     console.warn('RHKEARTH Applications visualization fallback:',err);
     if(!q('.market-motion',market)){
       const fallback=document.createElement('section');
