@@ -6,7 +6,7 @@ html = index.read_text(encoding='utf-8')
 
 theme = Path('experimental/rhkearth-theme.css')
 css = theme.read_text(encoding='utf-8')
-logo_fix_marker = '/* RHKEARTH square-logo normalization v1 */'
+logo_fix_marker = 'RHKEARTH square-logo normalization v1'
 logo_fix = r'''
 
 /* RHKEARTH square-logo normalization v1
