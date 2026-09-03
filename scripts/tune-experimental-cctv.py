@@ -130,4 +130,5 @@ if not live_runtime_patch.exists():
     raise SystemExit('RHKEARTH live runtime repair patch missing')
 exec(compile(live_runtime_patch.read_text(encoding='utf-8'), str(live_runtime_patch), 'exec'))
 
+# Rebuild marker: 2026-09-03 live flights / London video / traffic repair.
 print('RHKEARTH Chicago/Chicagoland operating area added; circular scope and Scenes removed; live flights/CCTV/traffic runtime repaired')
