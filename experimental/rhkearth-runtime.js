@@ -179,3 +179,5 @@
     ensureClearViewEmblem();
   });
 })();
+
+// RHKEARTH shell revision 2: login-free direct-entry console.
