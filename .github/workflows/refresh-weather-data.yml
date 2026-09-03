@@ -1,0 +1,51 @@
+name: Refresh RHKEARTH Weather data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/refresh-weather-data.yml
+      - scripts/refresh-weather-data.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-weather-data
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch official NOAA weather feeds
+        run: python scripts/refresh-weather-data.py
+
+      - name: Commit refreshed weather snapshots
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add experimental-data/weather
+          if git diff --cached --quiet; then
+            echo "Weather snapshots unchanged."
+            exit 0
+          fi
+          git commit -m "Refresh RHKEARTH Weather snapshots [skip ci]"
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              exit 0
+            fi
+            git fetch origin main
+            git rebase origin/main
+          done
+          exit 1
