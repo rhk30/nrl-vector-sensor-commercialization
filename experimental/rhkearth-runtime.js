@@ -102,7 +102,6 @@
         icon.classList.add('rhk-glyph');
       }
     });
-    // Catch obvious emoji-only controls created after initial render.
     document.querySelectorAll('button, .layer-item, .data-layer-item').forEach((el) => {
       const txt = (el.textContent || '').trim();
       if (/^[\p{Extended_Pictographic}\uFE0F\u200D]+$/u.test(txt)) {
@@ -111,6 +110,19 @@
       }
     });
   };
+
+  const ensureClearViewEmblem = () => {
+    if (document.getElementById('rhkearth-clear-emblem')) return;
+    const emblem = document.createElement('div');
+    emblem.id = 'rhkearth-clear-emblem';
+    emblem.setAttribute('aria-hidden', 'true');
+    emblem.innerHTML = '<img src="/experimental/logo.svg" alt="" /><span>RHKEARTH</span>';
+    document.body.appendChild(emblem);
+  };
+
   new MutationObserver(cleanLayerIcons).observe(document.documentElement, { childList: true, subtree: true });
-  window.addEventListener('DOMContentLoaded', cleanLayerIcons);
+  window.addEventListener('DOMContentLoaded', () => {
+    cleanLayerIcons();
+    ensureClearViewEmblem();
+  });
 })();
