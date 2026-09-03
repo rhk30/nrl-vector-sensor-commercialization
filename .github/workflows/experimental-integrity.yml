@@ -16,6 +16,7 @@ permissions:
 jobs:
   browser:
     runs-on: ubuntu-latest
+    timeout-minutes: 4
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -41,20 +42,21 @@ jobs:
       - name: Validate Experimental assets and boot
         run: |
           curl -fsS http://127.0.0.1:8000/experimental/cesium/Cesium.js >/dev/null
-          curl -fsS http://127.0.0.1:8000/experimental/rhkearth-runtime.js?v=2 >/dev/null
-          curl -fsS http://127.0.0.1:8000/experimental/rhkearth-theme.css?v=2 >/dev/null
+          curl -fsS 'http://127.0.0.1:8000/experimental/rhkearth-runtime.js?v=2' >/dev/null
+          curl -fsS 'http://127.0.0.1:8000/experimental/rhkearth-theme.css?v=2' >/dev/null
           curl -fsS http://127.0.0.1:8000/experimental-data/military.json >/dev/null
           curl -fsS http://127.0.0.1:8000/experimental-data/celestrak/starlink >/dev/null
           curl -fsS http://127.0.0.1:8000/experimental-data/launches.json >/dev/null
           curl -fsS http://127.0.0.1:8000/experimental-data/cctv.json >/dev/null
           python - <<'PY'
-          import time
           from selenium import webdriver
           from selenium.webdriver.common.by import By
           from selenium.webdriver.chrome.options import Options
           from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.common.exceptions import TimeoutException
 
           options = Options()
+          options.page_load_strategy = 'eager'
           options.add_argument('--headless=new')
           options.add_argument('--no-sandbox')
           options.add_argument('--disable-dev-shm-usage')
@@ -62,10 +64,17 @@ jobs:
           options.set_capability('goog:loggingPrefs', {'browser': 'ALL'})
 
           driver = webdriver.Chrome(options=options)
+          driver.set_page_load_timeout(25)
           wait = WebDriverWait(driver, 45)
           try:
               driver.set_window_size(1440, 1000)
-              driver.get('http://127.0.0.1:8000/experimental/')
+              try:
+                  driver.get('http://127.0.0.1:8000/experimental/')
+              except TimeoutException:
+                  # Outside imagery/font providers must not decide whether the
+                  # native RHKEARTH shell itself counts as booted.
+                  pass
+
               wait.until(lambda d: d.title == 'RHKEARTH // Intelligence Console')
               wait.until(lambda d: d.execute_script('return !!window.__godsEyeView?.viewer'))
               wait.until(lambda d: len(d.find_elements(By.CSS_SELECTOR, '#cesiumContainer canvas')) > 0)
