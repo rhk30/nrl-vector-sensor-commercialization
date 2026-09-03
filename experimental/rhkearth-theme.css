@@ -1,0 +1,107 @@
+:root {
+  --rhk-bg: #090b0a;
+  --rhk-panel: rgba(12, 15, 12, 0.88);
+  --rhk-panel-2: rgba(18, 21, 18, 0.92);
+  --rhk-line: #343b34;
+  --rhk-line-soft: rgba(169,181,155,.20);
+  --rhk-accent: #a9b59b;
+  --rhk-text: #efefe9;
+  --rhk-muted: #8f978f;
+  --rhk-dim: #626862;
+}
+
+/* RHKEARTH visual language layered over the upstream console. */
+#title-bar,
+#data-panel,
+#data-layers,
+.data-panel,
+.panel,
+.modal,
+.glass-panel,
+[class*="panel"] {
+  border-color: var(--rhk-line-soft) !important;
+}
+
+#title-bar {
+  background: linear-gradient(180deg, rgba(9,11,10,.86), rgba(9,11,10,.42), transparent) !important;
+}
+
+#title-bar h1,
+#title-bar .title-accent {
+  color: var(--rhk-text) !important;
+  letter-spacing: .08em !important;
+  text-shadow: none !important;
+}
+
+#title-bar .subtitle {
+  color: var(--rhk-muted) !important;
+  letter-spacing: .16em !important;
+}
+
+button,
+select,
+input,
+.layer-item,
+.data-layer-item,
+[class*="layer-row"] {
+  border-radius: 0 !important;
+}
+
+.data-layer-item,
+.layer-item,
+[class*="layer-row"] {
+  background: rgba(9,11,10,.78) !important;
+  border-color: rgba(169,181,155,.15) !important;
+}
+
+.data-layer-item:hover,
+.layer-item:hover,
+[class*="layer-row"]:hover {
+  background: rgba(20,24,20,.92) !important;
+  border-color: rgba(169,181,155,.38) !important;
+}
+
+.rhk-glyph {
+  min-width: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: "JetBrains Mono", ui-monospace, monospace !important;
+  font-size: 9px !important;
+  line-height: 1 !important;
+  letter-spacing: .08em !important;
+  font-weight: 700 !important;
+  color: var(--rhk-accent) !important;
+  background: rgba(169,181,155,.06) !important;
+  border: 1px solid rgba(169,181,155,.24) !important;
+  padding: 5px 4px !important;
+  text-shadow: none !important;
+}
+
+#toast,
+#global-loading-status,
+#traffic-sync-chip,
+#cctv-sync-chip {
+  background: var(--rhk-panel) !important;
+  border-color: var(--rhk-line) !important;
+  color: var(--rhk-text) !important;
+  box-shadow: none !important;
+}
+
+/* Reduce neon/cyber-game styling without weakening the globe. */
+.title-glow,
+[class*="neon"],
+[class*="glow"] {
+  filter: saturate(.45) !important;
+}
+
+#title-bar .brand-logo img {
+  filter: grayscale(1) contrast(1.05) brightness(1.15) !important;
+}
+
+/* Keep map/HUD modes intact; only normalize chrome. */
+#intel-hud,
+#cockpit-hud,
+#cesiumContainer {
+  --rhk-ui-accent: var(--rhk-accent);
+}
