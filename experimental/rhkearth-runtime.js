@@ -2,6 +2,16 @@
   const nativeFetch = window.fetch.bind(window);
   const DATA_ROOT = '/experimental-data';
 
+  // RHKEARTH is a direct-entry console, not an onboarding demo. Suppress the
+  // upstream first-run mission launcher before the application initializes.
+  try {
+    window.localStorage?.setItem('gev:first-run-mission:v1', 'suppressed');
+    window.sessionStorage?.setItem('gev:first-run-mission-session:v1', 'dismissed');
+  } catch {
+    // Storage can be blocked in hardened/private browser contexts; DOM removal
+    // below is the second line of defense.
+  }
+
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
@@ -146,6 +156,7 @@
   const removeSetupPrompts = () => {
     document.getElementById('key-setup')?.remove();
     document.getElementById('key-setup-chip')?.remove();
+    document.getElementById('first-run-launcher')?.remove();
   };
 
   const ensureClearViewEmblem = () => {
