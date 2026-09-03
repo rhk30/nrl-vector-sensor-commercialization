@@ -8,6 +8,8 @@ on:
     paths:
       - .github/workflows/finalize-rhkearth-experimental-ui.yml
       - scripts/finalize-experimental-ui.py
+      - scripts/rhkearth-weather.js
+      - scripts/rhkearth-weather.css
       - experimental/rhkearth-runtime.js
       - experimental/rhkearth-theme.css
 
@@ -35,7 +37,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add experimental/index.html
+          git add experimental/index.html experimental/rhkearth-weather.js experimental/rhkearth-weather.css
           if git diff --cached --quiet; then
             echo "RHKEARTH Experimental interface already finalized."
             exit 0
