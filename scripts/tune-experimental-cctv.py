@@ -91,4 +91,4 @@ if not live_patch.exists():
     raise SystemExit('RHKEARTH Chicago live CCTV patch script missing')
 exec(compile(live_patch.read_text(encoding='utf-8'), str(live_patch), 'exec'))
 
-print('RHKEARTH Chicago/Chicagoland operating area added; circular scope removed; continuous-live CCTV layer added; active legacy CCTV frame cadence set to 4 seconds')
+print('RHKEARTH Chicago/Chicagoland operating area added; circular scope removed; continuous-live CCTV layer added; latest RHKEARTH shell preserved')
