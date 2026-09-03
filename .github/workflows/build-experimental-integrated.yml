@@ -10,11 +10,16 @@ on:
       - scripts/patch-live-runtime.py
       - scripts/patch-flight-trails-models.py
       - scripts/patch-entity-details.py
+      - scripts/patch-noir-default.py
       - scripts/clean-experimental-ui-source.py
       - scripts/remove-experimental-voice.py
       - scripts/tune-experimental-cctv.py
       - scripts/add-chicago-live-cameras.py
       - scripts/add-chicago-street-activity.py
+      - scripts/rhkearth-weather.js
+      - scripts/rhkearth-weather.css
+      - scripts/rhkearth-weather-fallback.js
+      - scripts/rhkearth-weather-worldwide.js
       - scripts/finalize-experimental-ui.py
       - rhkearth-logo.svg
 
@@ -58,6 +63,7 @@ jobs:
           python ../scripts/patch-live-runtime.py
           python ../scripts/patch-flight-trails-models.py
           python ../scripts/patch-entity-details.py
+          python ../scripts/patch-noir-default.py
           python ../scripts/clean-experimental-ui-source.py
           python ../scripts/remove-experimental-voice.py
           python ../scripts/tune-experimental-cctv.py
@@ -76,6 +82,7 @@ jobs:
           grep -q "overpass.kumi.systems" src/data/traffic.js
           grep -q "directMediaUrl" src/data/cctv.js
           grep -q "mediaRefreshTimer" src/data/cctv.js
+          grep -q "styleManager.setStyle('noir')" src/main.js
           grep -q "rhkearth-chrome-cleanup" index.html
 
       - name: Install dependencies
@@ -187,6 +194,7 @@ jobs:
           grep -R -q "overpass.kumi.systems" dist/assets
           grep -R -q "overpass.private.coffee" dist/assets
           grep -R -q "rhkLive" dist/assets
+          grep -R -q "setStyle(\"noir\")\|setStyle('noir')" dist/assets
           grep -q "rhkearth-chrome-cleanup" dist/index.html
 
           python - <<'PY'
@@ -228,8 +236,11 @@ jobs:
           test -s experimental/live-data/chicago-street-activity.json
           test -f experimental/rhkearth-runtime.js
           test -f experimental/rhkearth-theme.css
+          test -f experimental/rhkearth-weather.js
+          test -f experimental/rhkearth-weather-worldwide.js
+          grep -q "rhkearth-weather-worldwide.js?v=1" experimental/index.html
           grep -q "rhkearth-chrome-cleanup" experimental/index.html
-          printf '%s\n' "Native RHKEARTH Experimental build. Civilian Live Flights use browser-CORS ADS-B with same-origin OpenSky fallback, selected aircraft draw observed/historical flight trails when trace providers permit, use type-aware 3D models, and expose expanded identifiers and motion details. Selected AIS vessels expose available type, speed, heading/course, destination, MMSI/IMO/callsign, dimensions/draught, coordinates and last-position freshness without fabricating missing fields. Space Missions and Satellites remain visible concurrently. Military Flights retain RHKEARTH-refreshed adsb.lol military source; London CCTV uses TfL rolling video where provided; Street Traffic uses multi-mirror OSM Overpass failover. Chicago continuous-live cameras are owned by CCTV and Chicago CDOT street activity is owned by Traffic. Scope, Scenes, TSC chrome, residual emoji chrome and voice control removed." > experimental/RHKEARTH_BUILD.txt
+          printf '%s\n' "Native RHKEARTH Experimental build. Noir is the default visual baseline for ordinary sessions while shared links retain their encoded visual state. Weather mode adds worldwide map-center conditions from Open-Meteo and global severe-storm event context from NASA EONET; U.S. NEXRAD/NWS and NHC products remain clearly labeled regional official feeds. Civilian Live Flights use browser-CORS ADS-B with same-origin OpenSky fallback, selected aircraft draw observed/historical flight trails when trace providers permit, use type-aware 3D models, and expose expanded identifiers and motion details. Selected AIS vessels expose available type, speed, heading/course, destination, MMSI/IMO/callsign, dimensions/draught, coordinates and last-position freshness without fabricating missing fields. Space Missions and Satellites remain visible concurrently. Military Flights retain RHKEARTH-refreshed adsb.lol military source; London CCTV uses TfL rolling video where provided; Street Traffic uses multi-mirror OSM Overpass failover. Chicago continuous-live cameras are owned by CCTV and Chicago CDOT street activity is owned by Traffic. Scope, Scenes, TSC chrome, residual emoji chrome and voice control removed." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit integrated bundle
         run: |
