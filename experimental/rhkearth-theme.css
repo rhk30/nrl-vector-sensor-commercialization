@@ -4,19 +4,19 @@
   --rhk-panel-2: rgba(18, 21, 18, 0.94);
   --rhk-line: #343b34;
   --rhk-line-soft: rgba(169,181,155,.20);
-  --rhk-accent: #a9b59b;
+  --rhk-accent: #efefe9;
   --rhk-text: #efefe9;
   --rhk-muted: #8f978f;
   --rhk-dim: #626862;
-  --rhk-live: #9fc5ad;
-  --rhk-info: #9fb8c5;
-  --rhk-warn: #d3b36a;
-  --rhk-critical: #c97868;
-  --rhk-off: #737a73;
+  --rhk-live: #efefe9;
+  --rhk-info: #efefe9;
+  --rhk-warn: #efefe9;
+  --rhk-critical: #efefe9;
+  --rhk-off: #8f978f;
 }
 
-/* RHKEARTH visual language: graphite instrument chrome, semantic color only
-   when color communicates operational state. */
+/* RHKEARTH visual language: graphite instrument chrome with the same neutral
+   off-white / graphite typography used by the primary RHKEARTH wordmark. */
 #title-bar,
 #data-panel,
 #data-layers,
@@ -199,20 +199,19 @@ input {
   color: var(--rhk-text) !important;
 }
 
-/* Default selected state is intentionally quiet. Feed-state selectors below
-   carry the meaningful color. */
+/* Selected and feed-state text stays neutral; state is conveyed by the control
+   structure/background instead of unrelated green/blue/yellow typography. */
 #data-panel .data-toggle-btn.active {
   background: rgba(169,181,155,.14) !important;
   border-color: rgba(169,181,155,.58) !important;
   color: var(--rhk-text) !important;
 }
 
-/* Operational status colors. These replace the upstream neon/cyan treatment. */
 #data-panel .data-toggle-btn.feed-nominal,
 #data-panel .data-toggle-btn[data-feed-state="nominal"] {
   color: var(--rhk-live) !important;
-  border-color: rgba(159,197,173,.48) !important;
-  background: rgba(159,197,173,.07) !important;
+  border-color: rgba(169,181,155,.48) !important;
+  background: rgba(169,181,155,.07) !important;
 }
 
 #data-panel .data-toggle-btn.feed-loading,
@@ -220,8 +219,8 @@ input {
 #data-panel .data-toggle-btn.lifecycle-enabling,
 #data-panel .data-toggle-btn.lifecycle-disabling {
   color: var(--rhk-info) !important;
-  border-color: rgba(159,184,197,.46) !important;
-  background: rgba(159,184,197,.06) !important;
+  border-color: rgba(169,181,155,.46) !important;
+  background: rgba(169,181,155,.06) !important;
 }
 
 #data-panel .data-toggle-btn.feed-degraded,
@@ -231,8 +230,8 @@ input {
 #data-panel .data-toggle-btn[data-feed-state="stale"],
 #data-panel .data-toggle-btn[data-feed-state="fallback"] {
   color: var(--rhk-warn) !important;
-  border-color: rgba(211,179,106,.46) !important;
-  background: rgba(211,179,106,.055) !important;
+  border-color: rgba(169,181,155,.40) !important;
+  background: rgba(169,181,155,.05) !important;
 }
 
 #data-panel .data-toggle-btn.feed-unavailable,
@@ -243,14 +242,11 @@ input {
   background: rgba(115,122,115,.035) !important;
 }
 
-#data-panel .data-toggle-row:has(.feed-nominal) .data-icon.rhk-layer-symbol {
-  color: var(--rhk-live) !important;
-}
-
+#data-panel .data-toggle-row:has(.feed-nominal) .data-icon.rhk-layer-symbol,
 #data-panel .data-toggle-row:has(.feed-degraded) .data-icon.rhk-layer-symbol,
 #data-panel .data-toggle-row:has(.feed-stale) .data-icon.rhk-layer-symbol,
 #data-panel .data-toggle-row:has(.feed-fallback) .data-icon.rhk-layer-symbol {
-  color: var(--rhk-warn) !important;
+  color: var(--rhk-text) !important;
 }
 
 #data-panel .data-toggle-row:has(.feed-unavailable) .data-icon.rhk-layer-symbol {
@@ -285,15 +281,14 @@ input {
 }
 
 #data-panel .data-toggle-chip:hover,
-#data-panel .data-toggle-chip:focus-visible {
+#data-panel .data-toggle-chip:focus-visible,
+#data-panel .data-toggle-chip.active {
   color: var(--rhk-text) !important;
   border-color: rgba(169,181,155,.42) !important;
 }
 
 #data-panel .data-toggle-chip.active {
-  color: var(--rhk-live) !important;
-  border-color: rgba(159,197,173,.52) !important;
-  background: rgba(159,197,173,.055) !important;
+  background: rgba(169,181,155,.055) !important;
 }
 
 #data-panel .data-toggle-legend-item {
@@ -310,14 +305,13 @@ input {
   filter: none !important;
 }
 
-/* Generic information hierarchy outside the data rail. */
+/* Generic information hierarchy outside the data rail. All operational words
+   now share the RHKEARTH wordmark color; only intentionally muted secondary
+   metadata stays gray. */
 .status-live,
 .status-nominal,
 [data-status="live"],
-[data-status="nominal"] {
-  color: var(--rhk-live) !important;
-}
-
+[data-status="nominal"],
 .status-warning,
 .status-degraded,
 .status-stale,
@@ -325,15 +319,12 @@ input {
 [data-status="warning"],
 [data-status="degraded"],
 [data-status="stale"],
-[data-status="fallback"] {
-  color: var(--rhk-warn) !important;
-}
-
+[data-status="fallback"],
 .status-critical,
 .status-error,
 [data-status="critical"],
 [data-status="error"] {
-  color: var(--rhk-critical) !important;
+  color: var(--rhk-text) !important;
 }
 
 .status-offline,
@@ -341,6 +332,36 @@ input {
 [data-status="offline"],
 [data-status="unavailable"] {
   color: var(--rhk-off) !important;
+}
+
+/* Neutralize the inherited cyan/green/yellow text across the operational
+   console while leaving map geometry, swatches, imagery and state dots alone. */
+#intel-hud,
+#cockpit-hud,
+#data-panel,
+#style-indicator,
+#global-loading-status,
+#traffic-sync-chip,
+#cctv-sync-chip,
+[class*="panel"],
+[class*="readout"],
+[class*="status"] {
+  color: var(--rhk-text) !important;
+  text-shadow: none !important;
+}
+
+#intel-hud :is(span, small, strong, p, label, button, select, option),
+#cockpit-hud :is(span, small, strong, p, label, button, select, option),
+#data-panel :is(span, small, strong, p, label, button, select, option),
+#style-indicator :is(span, small, strong, p, label, button),
+#global-loading-status :is(span, small, strong, p),
+#traffic-sync-chip :is(span, small, strong, p),
+#cctv-sync-chip :is(span, small, strong, p),
+[class*="panel"] :is(span, small, strong, p, label, button, select, option),
+[class*="readout"] :is(span, small, strong, p, label),
+[class*="status"] :is(span, small, strong, p, label) {
+  color: var(--rhk-text) !important;
+  text-shadow: none !important;
 }
 
 /* No demo onboarding, local-key setup, voice-agent, or city-specific duplicate
@@ -427,5 +448,5 @@ body.ui-clean-view #rhkearth-clear-emblem {
 #intel-hud,
 #cockpit-hud,
 #cesiumContainer {
-  --rhk-ui-accent: var(--rhk-accent);
+  --rhk-ui-accent: var(--rhk-text);
 }
