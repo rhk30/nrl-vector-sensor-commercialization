@@ -9,6 +9,7 @@ on:
       - scripts/patch-experimental-source.py
       - scripts/patch-live-runtime.py
       - scripts/patch-flight-trails-models.py
+      - scripts/patch-entity-details.py
       - scripts/clean-experimental-ui-source.py
       - scripts/remove-experimental-voice.py
       - scripts/tune-experimental-cctv.py
@@ -56,6 +57,7 @@ jobs:
           python ../scripts/patch-experimental-source.py
           python ../scripts/patch-live-runtime.py
           python ../scripts/patch-flight-trails-models.py
+          python ../scripts/patch-entity-details.py
           python ../scripts/clean-experimental-ui-source.py
           python ../scripts/remove-experimental-voice.py
           python ../scripts/tune-experimental-cctv.py
@@ -65,8 +67,12 @@ jobs:
           grep -q "normalizeAdsbLolPointResponse" src/data/flights.js
           grep -q "viewport · up to 250 nm" src/data/flights.js
           grep -q "trace_full_" src/data/flights.js
+          grep -q "ICAO .*originCountry" src/data/flights.js || grep -q "originCountry" src/data/flights.js
+          grep -q "CLIMB +" src/data/flights.js
           grep -q "showPoints: true" src/data/rocketLaunches.js
           grep -q "fastjet:    { url: '/models/jet.glb'" src/data/aircraftClass.js
+          grep -q "CALL .*callsign" src/data/aisLiveVessels.js || grep -q "record.callsign" src/data/aisLiveVessels.js
+          grep -q "DRAFT" src/data/aisLiveVessels.js
           grep -q "overpass.kumi.systems" src/data/traffic.js
           grep -q "directMediaUrl" src/data/cctv.js
           grep -q "mediaRefreshTimer" src/data/cctv.js
@@ -171,6 +177,8 @@ jobs:
           # verify the intended production adapters survived minification.
           grep -R -q "api.adsb.lol/v2/point" dist/assets
           grep -R -q "trace_full_" dist/assets
+          grep -R -q "CLIMB +" dist/assets
+          grep -R -q "DRAFT" dist/assets
           grep -R -q "bell206.glb" dist/assets
           grep -R -q "citation2.glb" dist/assets
           grep -R -q "atr72.glb" dist/assets
@@ -221,7 +229,7 @@ jobs:
           test -f experimental/rhkearth-runtime.js
           test -f experimental/rhkearth-theme.css
           grep -q "rhkearth-chrome-cleanup" experimental/index.html
-          printf '%s\n' "Native RHKEARTH Experimental build. Civilian Live Flights use browser-CORS ADS-B with same-origin OpenSky fallback, selected aircraft draw observed/historical flight trails when trace providers permit, and type-aware 3D models are used by aircraft class. Space Missions and Satellites remain visible concurrently. Military Flights retain RHKEARTH-refreshed adsb.lol military source; London CCTV uses TfL rolling video where provided; Street Traffic uses multi-mirror OSM Overpass failover. Chicago continuous-live cameras are owned by CCTV and Chicago CDOT street activity is owned by Traffic. Scope, Scenes, TSC chrome, residual emoji chrome and voice control removed." > experimental/RHKEARTH_BUILD.txt
+          printf '%s\n' "Native RHKEARTH Experimental build. Civilian Live Flights use browser-CORS ADS-B with same-origin OpenSky fallback, selected aircraft draw observed/historical flight trails when trace providers permit, use type-aware 3D models, and expose expanded identifiers and motion details. Selected AIS vessels expose available type, speed, heading/course, destination, MMSI/IMO/callsign, dimensions/draught, coordinates and last-position freshness without fabricating missing fields. Space Missions and Satellites remain visible concurrently. Military Flights retain RHKEARTH-refreshed adsb.lol military source; London CCTV uses TfL rolling video where provided; Street Traffic uses multi-mirror OSM Overpass failover. Chicago continuous-live cameras are owned by CCTV and Chicago CDOT street activity is owned by Traffic. Scope, Scenes, TSC chrome, residual emoji chrome and voice control removed." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit integrated bundle
         run: |
