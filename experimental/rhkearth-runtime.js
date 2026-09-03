@@ -12,6 +12,37 @@
     // below is the second line of defense.
   }
 
+  // Force every text label drawn inside Cesium itself to use the same neutral
+  // off-white/graphite palette as the RHKEARTH wordmark. CSS cannot affect
+  // labels rendered into the WebGL canvas, so enforce this immediately before
+  // each LabelCollection draw without changing geometry, imagery, swatches,
+  // tracks, or other semantic map colors.
+  const lockCesiumLabelPalette = () => {
+    const Cesium = window.Cesium;
+    const proto = Cesium?.LabelCollection?.prototype;
+    if (!Cesium?.Color || !proto?.update || proto.__rhkearthNeutralLabels) return;
+
+    const neutral = Cesium.Color.fromCssColorString('#efefe9');
+    const outline = Cesium.Color.fromCssColorString('#090b0a');
+    const nativeUpdate = proto.update;
+
+    proto.update = function rhkearthNeutralLabelUpdate(frameState) {
+      try {
+        for (let i = 0; i < this.length; i += 1) {
+          const label = this.get(i);
+          if (!label) continue;
+          if (!Cesium.Color.equals(label.fillColor, neutral)) label.fillColor = neutral;
+          if (!Cesium.Color.equals(label.outlineColor, outline)) label.outlineColor = outline;
+        }
+      } catch (error) {
+        console.warn('[RHKEARTH] Cesium label palette pass skipped', error);
+      }
+      return nativeUpdate.call(this, frameState);
+    };
+    proto.__rhkearthNeutralLabels = true;
+  };
+  lockCesiumLabelPalette();
+
   const jsonResponse = (data, status = 200, extraHeaders = {}) => new Response(JSON.stringify(data), {
     status,
     headers: {
@@ -118,29 +149,66 @@
     const lat = Math.max(-90, Math.min(90, latitude));
     const lon = Math.max(-180, Math.min(180, longitude));
     const signal = init?.signal || (typeof input === 'object' ? input?.signal : undefined);
-    const endpoint = `https://api.adsb.lol/v2/point/${lat.toFixed(4)}/${lon.toFixed(4)}/250`;
+    const providers = [
+      {
+        name: 'Airplanes.live',
+        endpoint: `https://api.airplanes.live/v2/point/${lat.toFixed(4)}/${lon.toFixed(4)}/250`,
+      },
+      {
+        name: 'adsb.lol',
+        endpoint: `https://api.adsb.lol/v2/point/${lat.toFixed(4)}/${lon.toFixed(4)}/250`,
+      },
+      {
+        name: 'adsb.fi',
+        endpoint: `https://opendata.adsb.fi/api/v3/lat/${lat.toFixed(4)}/lon/${lon.toFixed(4)}/dist/250`,
+      },
+    ];
 
-    const response = await nativeFetch(endpoint, {
+    for (const provider of providers) {
+      try {
+        const response = await nativeFetch(provider.endpoint, {
+          cache: 'no-store',
+          mode: 'cors',
+          signal,
+        });
+        if (!response.ok) throw new Error(`${provider.name} HTTP ${response.status}`);
+
+        const payload = await response.json();
+        const adapted = Array.isArray(payload?.aircraft) ? { ...payload, ac: payload.aircraft } : payload;
+        const normalized = Array.isArray(adapted?.ac)
+          ? normalizeAdsbLolPointResponse(adapted)
+          : adapted;
+
+        if (!normalized || !Array.isArray(normalized.states)) {
+          throw new Error(`Malformed ${provider.name} response`);
+        }
+
+        return jsonResponse(normalized, 200, {
+          'x-flight-source': provider.name,
+          'x-flight-coverage': 'viewport · up to 250 nm',
+        });
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        console.warn(`[RHKEARTH] ${provider.name} civilian flight route failed`, error);
+      }
+    }
+
+    // Static-hosting fallback: this is same-origin and therefore cannot fail
+    // because of third-party browser CORS policy. It is refreshed hourly by
+    // GitHub Actions from OpenSky's current state-vector endpoint.
+    const snapshot = await nativeFetch(`${DATA_ROOT}/flights.json`, {
       cache: 'no-store',
-      mode: 'cors',
       signal,
     });
-    if (!response.ok) {
-      throw new Error(`adsb.lol HTTP ${response.status}`);
+    if (!snapshot.ok) throw new Error(`RHKEARTH aircraft snapshot HTTP ${snapshot.status}`);
+    const payload = await snapshot.json();
+    if (!payload || !Array.isArray(payload.states)) {
+      throw new Error('RHKEARTH aircraft snapshot malformed');
     }
-
-    const payload = await response.json();
-    const normalized = Array.isArray(payload?.ac)
-      ? normalizeAdsbLolPointResponse(payload)
-      : payload;
-
-    if (!normalized || !Array.isArray(normalized.states)) {
-      throw new Error('Malformed adsb.lol response');
-    }
-
-    return jsonResponse(normalized, 200, {
-      'x-flight-source': 'adsb.lol',
-      'x-flight-coverage': 'viewport · up to 250 nm',
+    return jsonResponse(payload, 200, {
+      'x-flight-source': 'OpenSky · RHKEARTH snapshot',
+      'x-flight-coverage': 'global · scheduled refresh fallback',
+      'x-flight-fallback': 'same-origin',
     });
   }
 
@@ -171,9 +239,8 @@
     try {
       // Backward-compatible repair for older integrated bundles. The old client
       // calls a Vite-only /api/opensky proxy, which cannot exist on GitHub Pages.
-      // Route that request to the same browser-CORS adsb.lol feed used by the
-      // current build patch and return the OpenSky-shaped payload the renderer
-      // already understands.
+      // Route it through the live provider pool with a same-origin OpenSky
+      // snapshot fallback so old cached bundles still receive aircraft data.
       if (path === '/api/opensky') {
         return await civilianFlightsResponse(url, init, input);
       }
@@ -219,8 +286,8 @@
       console.warn('[RHKEARTH] Compatibility route failed:', path, error);
       if (path === '/api/opensky') {
         return jsonResponse({ error: 'Aircraft feed temporarily unavailable' }, 503, {
-          'x-flight-source': 'adsb.lol',
-          'x-flight-coverage': 'viewport · up to 250 nm',
+          'x-flight-source': 'RHKEARTH aircraft sources',
+          'x-flight-coverage': 'live providers + same-origin snapshot',
         });
       }
     }
@@ -290,21 +357,6 @@
     });
   };
 
-  const cleanFlightStatus = () => {
-    const row = document.querySelector('[data-layer-id="flights"]');
-    if (!row) return;
-    const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
-    const nodes = [];
-    let node;
-    while ((node = walker.nextNode())) nodes.push(node);
-    nodes.forEach((textNode) => {
-      const current = textNode.nodeValue || '';
-      let next = current.replace(/OpenSky Network/gi, 'adsb.lol');
-      next = next.replace(/OpenSky/gi, 'adsb.lol');
-      if (next !== current) textNode.nodeValue = next;
-    });
-  };
-
   const removeVoiceControls = () => {
     const controller = window.__godsEyeView?.voiceCommands || window.__gevVoiceCommands;
     if (controller && typeof controller.stop === 'function') {
@@ -358,7 +410,6 @@
     document.getElementById('first-run-launcher')?.remove();
     removeVoiceControls();
     removeClassificationLabel();
-    cleanFlightStatus();
   };
 
   const ensureClearViewEmblem = () => {
@@ -390,4 +441,4 @@
   });
 })();
 
-// RHKEARTH shell revision 7: legacy OpenSky requests are repaired through the live browser-CORS adsb.lol aircraft feed.
+// RHKEARTH shell revision 9: same-origin aircraft fallback plus neutral Cesium and DOM typography.
