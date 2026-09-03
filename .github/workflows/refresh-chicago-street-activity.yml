@@ -36,14 +36,11 @@ jobs:
           import urllib.request
 
           OUT = Path('experimental-data/chicago-street-activity.json')
-          DATASET = 'hr8i-6s6s'  # Transportation Department Permits - Current and Future
+          DATASET = 'hr8i-6s6s'
           UA = 'RHKEARTH/1.0 (+https://rhkearth.com/experimental/; Chicago public-data refresh)'
 
           def get_json(url):
-              req = urllib.request.Request(url, headers={
-                  'User-Agent': UA,
-                  'Accept': 'application/json',
-              })
+              req = urllib.request.Request(url, headers={'User-Agent': UA, 'Accept': 'application/json'})
               with urllib.request.urlopen(req, timeout=30) as response:
                   if response.status != 200:
                       raise RuntimeError(f'HTTP {response.status}: {url}')
@@ -56,9 +53,6 @@ jobs:
                       return value
               return None
 
-          # The view is already filtered by the City to current/future permits.
-          # Fetch enough rows to cover the live view without silently clipping at
-          # Socrata's default 1,000-record page size.
           rows = []
           limit = 5000
           for offset in range(0, 20000, limit):
@@ -77,35 +71,19 @@ jobs:
                   lon = float(first(row, 'longitude', 'lon', 'lng'))
               except (TypeError, ValueError):
                   location = first(row, 'location')
-                  if isinstance(location, dict):
-                      try:
-                          lat = float(location.get('latitude'))
-                          lon = float(location.get('longitude'))
-                      except (TypeError, ValueError):
-                          continue
-                  else:
+                  if not isinstance(location, dict):
+                      continue
+                  try:
+                      lat = float(location.get('latitude'))
+                      lon = float(location.get('longitude'))
+                  except (TypeError, ValueError):
                       continue
 
-              # City limits plus a tiny geocoding tolerance.
               if not (41.60 <= lat <= 42.05 and -87.95 <= lon <= -87.50):
                   continue
 
-              app_type = str(first(
-                  row,
-                  'applicationtype', 'application_type',
-                  'applicationdescription', 'application_description',
-                  'worktype', 'work_type',
-              ) or 'Street activity').strip()
-              description = str(first(
-                  row,
-                  'workdescription', 'work_description',
-                  'applicationdescription', 'application_description',
-                  'comments', 'detail', 'description',
-              ) or '').strip()
-
-              # Prefer specific road-impact records when the view exposes that
-              # distinction, but keep all geocoded current/future CDOT permits so
-              # the layer does not silently lose useful street activity.
+              app_type = str(first(row, 'applicationtype', 'application_type', 'applicationdescription', 'application_description', 'worktype', 'work_type') or 'Street activity').strip()
+              description = str(first(row, 'workdescription', 'work_description', 'applicationdescription', 'application_description', 'comments', 'detail', 'description') or '').strip()
               lower = f'{app_type} {description}'.lower()
               if 'streetclosure' in lower or 'street closure' in lower:
                   kind = 'Street closure'
@@ -124,10 +102,7 @@ jobs:
               number_to = str(first(row, 'streetnumberto', 'street_number_to') or '').strip()
               direction = str(first(row, 'direction', 'streetdirection', 'street_direction') or '').strip()
               street_name = str(first(row, 'streetname', 'street_name') or '').strip()
-              if number_from and number_to and number_to != number_from:
-                  number = f'{number_from}-{number_to}'
-              else:
-                  number = number_from
+              number = f'{number_from}-{number_to}' if number_from and number_to and number_to != number_from else number_from
               street = ' '.join(part for part in [number, direction, street_name] if part).strip()
               if not street:
                   street = str(first(row, 'address', 'locationdescription', 'location_description') or 'Chicago street').strip()
@@ -145,19 +120,16 @@ jobs:
                   'end': first(row, 'enddate', 'end_date', 'workenddate', 'work_end_date'),
               })
 
-          # Large raw permit sets are useful, but rendering tens of thousands of
-          # labels is not. Keep a deterministic, citywide operational cohort.
           activities.sort(key=lambda r: (r['kind'], r['street'], r['id']))
           if len(activities) > 3500:
               activities = activities[:3500]
           if not activities:
               raise SystemExit('Chicago CDOT current/future feed produced no geocoded street activity')
 
-          now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
           OUT.parent.mkdir(exist_ok=True)
           OUT.write_text(json.dumps({
               'activities': activities,
-              'fetchedAt': now_ms,
+              'fetchedAt': int(datetime.now(timezone.utc).timestamp() * 1000),
               'source': 'City of Chicago CDOT Transportation Department Permits - Current and Future',
               'datasetId': DATASET,
               'note': 'Current/future street-impact permits; not a live vehicle-speed feed',
@@ -181,10 +153,25 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add experimental-data/chicago-street-activity.json
-          if git diff --cached --quiet; then
-            echo "Chicago street activity already current."
-            exit 0
-          fi
-          git commit -m "Refresh Chicago street activity [skip ci]"
-          git push
+          cp experimental-data/chicago-street-activity.json /tmp/chicago-street-activity.json
+
+          for attempt in 1 2 3; do
+            echo "Street publish attempt $attempt"
+            git fetch origin main
+            git reset --hard origin/main
+            mkdir -p experimental-data experimental/live-data
+            cp /tmp/chicago-street-activity.json experimental-data/chicago-street-activity.json
+            cp /tmp/chicago-street-activity.json experimental/live-data/chicago-street-activity.json
+            git add experimental-data/chicago-street-activity.json experimental/live-data/chicago-street-activity.json
+            if git diff --cached --quiet; then
+              echo "Chicago street activity already current."
+              exit 0
+            fi
+            git commit -m "Refresh Chicago street activity [skip ci]"
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Remote advanced during street refresh; retrying."
+          done
+          echo "Could not publish Chicago street activity after three attempts."
+          exit 1
