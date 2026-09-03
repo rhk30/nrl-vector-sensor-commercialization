@@ -83,4 +83,12 @@ for old, new in replacements.items():
     text = text.replace(old, new, 1)
 
 cctv.write_text(text, encoding='utf-8')
-print('RHKEARTH Chicago/Chicagoland operating area added; circular scope removed; active CCTV frame cadence set to 4 seconds')
+
+# Add RHKEARTH's Chicago-only continuous live camera layer. This intentionally
+# excludes JPEG/still feeds and uses only public HLS/iframe/video sources.
+live_patch = Path('../scripts/add-chicago-live-cameras.py')
+if not live_patch.exists():
+    raise SystemExit('RHKEARTH Chicago live CCTV patch script missing')
+exec(compile(live_patch.read_text(encoding='utf-8'), str(live_patch), 'exec'))
+
+print('RHKEARTH Chicago/Chicagoland operating area added; circular scope removed; continuous-live CCTV layer added; active legacy CCTV frame cadence set to 4 seconds')
