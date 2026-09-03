@@ -181,15 +181,36 @@
     document.getElementById('gev-voice-button')?.remove();
   };
 
-  const removeClassificationLabel = () => {
-    document.querySelectorAll('body *').forEach((element) => {
-      if (element.childElementCount !== 0) return;
-      const label = (element.textContent || '').replace(/\s+/g, ' ').trim();
-      if (!/^TOP\s+SECRET(?:\b|\s*[/·—-])/i.test(label)) return;
+  const classificationPattern = /TOP\s*SECRET(?:\s*\/\/\s*SI[-\s]?TK)?(?:\s*\/\/\s*NOFORN)?/i;
 
+  const removeClassificationLabel = () => {
+    // Remove the inherited fake-classification banner even when the upstream UI
+    // renders the words across nested spans instead of one leaf element.
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const matches = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      if (classificationPattern.test((node.nodeValue || '').replace(/\s+/g, ' '))) {
+        matches.push(node.parentElement);
+      }
+    }
+
+    matches.filter(Boolean).forEach((element) => {
+      let target = element;
+      while (target.parentElement && target.parentElement !== document.body) {
+        const parentText = (target.parentElement.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!classificationPattern.test(parentText) || parentText.length > 120) break;
+        target = target.parentElement;
+      }
+      target.remove();
+    });
+
+    // Fallback for a banner whose text is assembled entirely from child nodes.
+    document.querySelectorAll('body *').forEach((element) => {
+      const label = (element.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!classificationPattern.test(label) || label.length > 120) return;
       const rect = element.getBoundingClientRect();
-      const isTopLeft = rect.left < 360 && rect.top < 180;
-      if (isTopLeft) element.remove();
+      if (rect.top < 200 && rect.left < 500) element.remove();
     });
   };
 
@@ -230,4 +251,4 @@
   });
 })();
 
-// RHKEARTH shell revision 5: voice-free console, top-left Clear View branding, and no inherited classification label.
+// RHKEARTH shell revision 6: inherited fake-classification chrome is removed regardless of nested markup.
