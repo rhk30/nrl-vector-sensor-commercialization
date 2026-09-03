@@ -17,11 +17,11 @@ def replace(path, old, new, *, required=True, count=1):
 
 # -----------------------------------------------------------------------------
 # Civilian LIVE FLIGHTS: static hosting means there is no Vite /api/opensky
-# proxy in production. Use a small browser-CORS provider pool instead of betting
-# the layer on one public endpoint. Airplanes.live is primary; adsb.lol and
-# adsb.fi are automatic fallbacks. All three expose readsb/ADSBExchange-style
-# records, which are normalized into the OpenSky-shaped vectors the upstream
-# renderer already consumes. Requests stay regional to the current camera view.
+# proxy in production. Try browser-CORS regional providers first. If the browser
+# blocks or those providers are unavailable, use RHKEARTH's own hourly OpenSky
+# global snapshot from /experimental-data/flights.json. The same-origin fallback
+# is intentionally cached in memory so a provider outage does not redownload a
+# ~1.6 MB snapshot on every normal refresh tick.
 # -----------------------------------------------------------------------------
 flights = ROOT / 'src/data/flights.js'
 text = flights.read_text(encoding='utf-8')
@@ -69,9 +69,43 @@ const FLIGHT_API_PROVIDERS = [
   },
   {
     name: 'adsb.fi',
-    url: (lat, lon) => `https://opendata.adsb.fi/api/v2/lat/${lat}/lon/${lon}/dist/250`,
+    url: (lat, lon) => `https://opendata.adsb.fi/api/v3/lat/${lat}/lon/${lon}/dist/250`,
   },
 ];
+
+let _staticFlightSnapshot = null;
+let _staticFlightSnapshotLoadedAt = 0;
+const STATIC_FLIGHT_CACHE_MS = 15 * 60 * 1000;
+
+async function _staticFlightResponse(signal) {
+  const now = Date.now();
+  if (!_staticFlightSnapshot || now - _staticFlightSnapshotLoadedAt > STATIC_FLIGHT_CACHE_MS) {
+    const snapshotResponse = await fetch('/experimental-data/flights.json', {
+      signal,
+      cache: 'no-store',
+    });
+    if (!snapshotResponse.ok) {
+      throw new Error(`RHKEARTH aircraft snapshot HTTP ${snapshotResponse.status}`);
+    }
+    const snapshot = await snapshotResponse.json();
+    if (!snapshot || !Array.isArray(snapshot.states)) {
+      throw new Error('RHKEARTH aircraft snapshot malformed');
+    }
+    _staticFlightSnapshot = snapshot;
+    _staticFlightSnapshotLoadedAt = now;
+  }
+
+  return new Response(JSON.stringify(_staticFlightSnapshot), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
+      'x-flight-source': 'OpenSky · RHKEARTH snapshot',
+      'x-flight-coverage': 'global · scheduled refresh fallback',
+      'x-flight-fallback': 'same-origin',
+    },
+  });
+}
 
 async function _fetchFlightResponse(viewer, signal) {
   const { latitude, longitude } = _flightCenter(viewer);
@@ -115,7 +149,14 @@ async function _fetchFlightResponse(viewer, signal) {
     }
   }
 
-  throw lastError || new Error('All civilian flight providers unavailable');
+  try {
+    console.warn('[Data:Flights] Browser ADS-B providers unavailable; using RHKEARTH same-origin OpenSky snapshot', lastError);
+    return await _staticFlightResponse(signal);
+  } catch (snapshotError) {
+    if (signal?.aborted) throw snapshotError;
+    console.warn('[Data:Flights] Same-origin aircraft snapshot unavailable', snapshotError);
+    throw lastError || snapshotError || new Error('All civilian flight sources unavailable');
+  }
 }'''
     text, n = flight_url_pattern.subn(flight_url_replacement, text, count=1)
     if n != 1:
@@ -276,4 +317,4 @@ if 'rhkLive=' not in text:
 
     cctv.write_text(text, encoding='utf-8')
 
-print('RHKEARTH live runtime repaired: multi-source civilian flights, Overpass mirror failover, TfL rolling-video CCTV')
+print('RHKEARTH live runtime repaired: browser ADS-B with same-origin OpenSky fallback, Overpass mirror failover, TfL rolling-video CCTV')
