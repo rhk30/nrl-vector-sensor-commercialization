@@ -16,10 +16,10 @@ def replace(path, old, new, *, required=True, count=1):
 
 
 # -----------------------------------------------------------------------------
-# Civilian LIVE FLIGHTS: use the same free adsb.lol network that already powers
-# the working Military Flights layer. The upstream renderer consumes OpenSky-
-# shaped state vectors, so normalize adsb.lol's point response before handing it
-# to the existing motion/tracking pipeline.
+# Civilian LIVE FLIGHTS: IntelSky exposes a no-key, browser-CORS-enabled live
+# ADS-B JSON endpoint. The upstream RHKEARTH renderer consumes OpenSky-shaped
+# state vectors, so reuse the existing ADSB-v2 normalizer for IntelSky's `ac`
+# records and preserve all motion/tracking/rendering behavior.
 # -----------------------------------------------------------------------------
 flights = ROOT / 'src/data/flights.js'
 text = flights.read_text(encoding='utf-8')
@@ -31,24 +31,19 @@ if adsb_import not in text:
         raise SystemExit('Flights Cesium import anchor missing')
     text = text.replace(import_anchor, import_anchor + adsb_import, 1)
 
-text = text.replace("const API_URL = '/api/opensky';", "const API_URL = 'https://api.adsb.lol/v2';", 1)
-text = text.replace("let _lastSource = 'OpenSky Network';", "let _lastSource = 'adsb.lol';", 1)
-text = text.replace("let _lastCoverage = 'worldwide upstream snapshot';", "let _lastCoverage = '250nm viewport feed';", 1)
+text = text.replace("const API_URL = '/api/opensky';", "const API_URL = 'https://intelsky.org/api/';", 1)
+text = text.replace("let _lastSource = 'OpenSky Network';", "let _lastSource = 'IntelSky public ADS-B';", 1)
+text = text.replace("let _lastCoverage = 'worldwide upstream snapshot';", "let _lastCoverage = 'live global browser feed';", 1)
 
 flight_url_pattern = re.compile(
     r"function _flightApiUrl\(viewer\) \{.*?\n\}",
     re.S,
 )
 flight_url_replacement = r'''function _flightApiUrl(viewer) {
-  const cartographic = viewer?.camera?.positionCartographic;
-  const latitude = cartographic ? Cesium.Math.toDegrees(cartographic.latitude) : 0;
-  const longitude = cartographic ? Cesium.Math.toDegrees(cartographic.longitude) : 0;
-  const lat = Number.isFinite(latitude) ? latitude : 0;
-  const lon = Number.isFinite(longitude) ? longitude : 0;
-  // adsb.lol's public point endpoint is intentionally viewport-scoped. The
-  // 250nm radius is the service maximum and gives RHKEARTH useful metro/
-  // regional coverage without downloading a global aircraft snapshot.
-  return `${API_URL}/lat/${lat.toFixed(4)}/lon/${lon.toFixed(4)}/dist/250`;
+  // IntelSky's live endpoint is browser-CORS-enabled and returns the current
+  // global contact snapshot. The existing renderer handles thousands of
+  // aircraft and performs its own view/horizon culling.
+  return API_URL;
 }'''
 text, n = flight_url_pattern.subn(flight_url_replacement, text, count=1)
 if n != 1:
@@ -67,11 +62,11 @@ if old_payload not in text:
     raise SystemExit('Could not locate Flights response normalization block')
 text = text.replace(old_payload, new_payload, 1)
 
-text = text.replace("_lastError = 'Malformed OpenSky response';", "_lastError = 'Malformed adsb.lol response';", 1)
-text = text.replace("_lastSource = responseSource || 'OpenSky Network';", "_lastSource = responseSource || 'adsb.lol';", 1)
-text = text.replace("_lastCoverage = responseCoverage || 'worldwide upstream snapshot';", "_lastCoverage = responseCoverage || '250nm viewport feed';", 1)
-text = text.replace('`OpenSky HTTP ${response.status}`', '`adsb.lol HTTP ${response.status}`')
-text = text.replace('[Data:Flights] OpenSky unavailable', '[Data:Flights] adsb.lol unavailable')
+text = text.replace("_lastError = 'Malformed OpenSky response';", "_lastError = 'Malformed IntelSky response';", 1)
+text = text.replace("_lastSource = responseSource || 'OpenSky Network';", "_lastSource = responseSource || 'IntelSky public ADS-B';", 1)
+text = text.replace("_lastCoverage = responseCoverage || 'worldwide upstream snapshot';", "_lastCoverage = responseCoverage || 'live global browser feed';", 1)
+text = text.replace('`OpenSky HTTP ${response.status}`', '`IntelSky HTTP ${response.status}`')
+text = text.replace('[Data:Flights] OpenSky unavailable', '[Data:Flights] IntelSky unavailable')
 
 flights.write_text(text, encoding='utf-8')
 
@@ -199,4 +194,4 @@ text = text.replace(destroy_anchor, destroy_patch, 1)
 
 cctv.write_text(text, encoding='utf-8')
 
-print('RHKEARTH live runtime repaired: adsb.lol civilian flights, Overpass mirror failover, TfL rolling-video CCTV')
+print('RHKEARTH live runtime repaired: IntelSky civilian flights, Overpass mirror failover, TfL rolling-video CCTV')
