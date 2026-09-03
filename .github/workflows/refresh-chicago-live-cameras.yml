@@ -1,0 +1,177 @@
+name: Refresh Chicago live cameras
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 9 * * *'
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/refresh-chicago-live-cameras.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-chicago-live-cameras
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out RHKEARTH
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Discover public continuous Chicago camera feeds
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          from html import unescape
+          import json
+          import re
+          import time
+          import urllib.request
+
+          BASE = 'https://opencctv.org'
+          CITY = '/cameras/united-states/illinois/chicago'
+          OUT = Path('experimental-data/chicago-live-cameras.json')
+          UA = 'RHKEARTH/1.0 (+https://rhkearth.com/experimental/; public-camera catalog refresh)'
+          LIVE_TYPES = {'HLS', 'M3U8', 'IFRAME', 'MJPEG', 'MP4', 'WEBM'}
+
+          def fetch(url, attempts=3):
+              last = None
+              for attempt in range(attempts):
+                  try:
+                      req = urllib.request.Request(url, headers={
+                          'User-Agent': UA,
+                          'Accept': 'text/html,application/xhtml+xml',
+                      })
+                      with urllib.request.urlopen(req, timeout=20) as response:
+                          if response.status != 200:
+                              raise RuntimeError(f'HTTP {response.status}')
+                          return response.read().decode('utf-8', errors='replace')
+                  except Exception as exc:
+                      last = exc
+                      if attempt + 1 < attempts:
+                          time.sleep(1.5 * (attempt + 1))
+              raise RuntimeError(f'fetch failed {url}: {last}')
+
+          def clean_html(raw):
+              raw = re.sub(r'<script\b.*?</script>', ' ', raw, flags=re.I | re.S)
+              raw = re.sub(r'<style\b.*?</style>', ' ', raw, flags=re.I | re.S)
+              raw = re.sub(r'<[^>]+>', ' ', raw)
+              return re.sub(r'\s+', ' ', unescape(raw)).strip()
+
+          links = []
+          seen = set()
+          # Current Chicago catalog is paginated. Twelve pages leaves headroom
+          # above today's count without assuming that count is stable.
+          for page in range(1, 13):
+              url = f'{BASE}{CITY}' + ('' if page == 1 else f'?page={page}')
+              html = fetch(url)
+              found = re.findall(r'href=["\']([^"\']+)["\']', html, flags=re.I)
+              page_added = 0
+              for href in found:
+                  href = unescape(href).split('#', 1)[0]
+                  if not href.startswith(CITY + '/'):
+                      continue
+                  if '?' in href:
+                      href = href.split('?', 1)[0]
+                  if href in seen:
+                      continue
+                  seen.add(href)
+                  links.append(href)
+                  page_added += 1
+              if page > 1 and page_added == 0:
+                  break
+              time.sleep(0.08)
+
+          sources = []
+          for i, href in enumerate(links):
+              try:
+                  raw = fetch(BASE + href)
+                  text = clean_html(raw)
+                  feed = re.search(r'Feed Type\s+([A-Z0-9]+)', text, flags=re.I)
+                  feed_type = (feed.group(1).upper() if feed else '')
+                  if feed_type not in LIVE_TYPES:
+                      continue
+
+                  coords = re.search(r'Coordinates\s+(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)', text, flags=re.I)
+                  if not coords:
+                      continue
+                  lat = float(coords.group(1))
+                  lon = float(coords.group(2))
+                  if not (40.8 <= lat <= 42.9 and -89.2 <= lon <= -86.8):
+                      continue
+
+                  h1 = re.search(r'<h1[^>]*>(.*?)</h1>', raw, flags=re.I | re.S)
+                  name = clean_html(h1.group(1)) if h1 else href.rstrip('/').split('/')[-1].replace('-', ' ').title()
+                  cam_id = re.search(r'Camera ID\s+(\d+)', text, flags=re.I)
+                  category = re.search(r'Category\s+([A-Za-z][A-Za-z /&-]{0,40}?)(?=\s+Coordinates\b)', text, flags=re.I)
+                  camera_id = cam_id.group(1) if cam_id else href.rstrip('/').split('-')[-1]
+
+                  sources.append({
+                      'id': f'opencctv-{camera_id}',
+                      'name': name[:160],
+                      'category': (category.group(1).strip().lower() if category else 'camera'),
+                      'lat': lat,
+                      'lon': lon,
+                      'feedType': feed_type.lower(),
+                      # OpenCCTV explicitly publishes this camera page itself as
+                      # its iframe embed URL. Embedding the supported page avoids
+                      # bypassing provider referrer/token controls on raw streams.
+                      'embedUrl': BASE + href,
+                      'provider': 'OpenCCTV / public source',
+                  })
+              except Exception as exc:
+                  print(f'camera skip {href}: {exc}')
+              if i % 12 == 0:
+                  time.sleep(0.10)
+
+          # Deduplicate by camera id and keep deterministic ordering.
+          unique = {row['id']: row for row in sources}
+          sources = sorted(unique.values(), key=lambda row: (row['category'], row['name'], row['id']))
+          if not sources:
+              raise SystemExit('No continuous Chicago feeds discovered; preserving previous snapshot')
+
+          now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+          OUT.parent.mkdir(exist_ok=True)
+          OUT.write_text(json.dumps({
+              'sources': sources,
+              'fetchedAt': now_ms,
+              'source': 'OpenCCTV public live embeds',
+              'policy': 'Continuous/embedded live feeds only; still-image feeds excluded',
+              'catalogCandidates': len(links),
+          }, separators=(',', ':'), ensure_ascii=False) + '\n')
+          print(f'continuous_live={len(sources)} catalog_candidates={len(links)}')
+          PY
+
+      - name: Validate live camera snapshot
+        run: |
+          test -s experimental-data/chicago-live-cameras.json
+          python - <<'PY'
+          import json
+          data = json.load(open('experimental-data/chicago-live-cameras.json'))
+          rows = data.get('sources') or []
+          assert rows, 'camera snapshot empty'
+          assert all(str(r.get('feedType','')).lower() in {'hls','m3u8','iframe','mjpeg','mp4','webm'} for r in rows)
+          assert all(str(r.get('embedUrl','')).startswith('https://') for r in rows)
+          print('validated', len(rows), 'continuous live feeds')
+          PY
+
+      - name: Commit refreshed Chicago live-camera catalog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add experimental-data/chicago-live-cameras.json
+          if git diff --cached --quiet; then
+            echo "Chicago continuous-live camera catalog already current."
+            exit 0
+          fi
+          git commit -m "Refresh Chicago continuous live cameras [skip ci]"
+          git push
