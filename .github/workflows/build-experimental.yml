@@ -209,6 +209,64 @@ jobs:
                   (dist / target).write_text(src.read_text())
           PY
 
+      - name: Browser smoke test
+        working-directory: _gev
+        run: |
+          python -m pip install --disable-pip-version-check --quiet selenium
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/rhkearth-experimental-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill $PREVIEW_PID >/dev/null 2>&1 || true' EXIT
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:4173/experimental/ >/dev/null; then
+              break
+            fi
+            sleep 0.25
+          done
+          curl -fsS http://127.0.0.1:4173/experimental/ >/dev/null
+          curl -fsS http://127.0.0.1:4173/experimental/cesium/Cesium.js >/dev/null
+          python - <<'PY'
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.support.ui import WebDriverWait
+
+          opts = Options()
+          opts.add_argument('--headless=new')
+          opts.add_argument('--no-sandbox')
+          opts.add_argument('--disable-dev-shm-usage')
+          opts.add_argument('--disable-gpu')
+          opts.set_capability('goog:loggingPrefs', {'browser': 'ALL'})
+          driver = webdriver.Chrome(options=opts)
+          wait = WebDriverWait(driver, 15)
+          try:
+              driver.set_window_size(1440, 1000)
+              driver.get('http://127.0.0.1:4173/experimental/')
+              wait.until(lambda d: d.title == 'RHKEARTH // Experimental')
+              wait.until(lambda d: 'RHKEARTH' in d.find_element(By.ID, 'title-bar').text)
+              wait.until(lambda d: 'hidden' in (d.find_element(By.ID, 'loading-screen').get_attribute('class') or '').split())
+              wait.until(lambda d: d.execute_script('return !!window.__godsEyeView?.viewer'))
+              canvas = driver.find_element(By.CSS_SELECTOR, '#cesiumContainer canvas')
+              rect = driver.execute_script('const r=arguments[0].getBoundingClientRect();return [r.width,r.height]', canvas)
+              if rect[0] < 300 or rect[1] < 200:
+                  raise AssertionError(f'Cesium canvas did not render at usable size: {rect}')
+              loader = driver.find_element(By.ID, 'loading-screen').text
+              if 'RHKEARTH' not in loader:
+                  raise AssertionError('Startup cover is not RHKEARTH branded')
+              favicon = driver.find_element(By.CSS_SELECTOR, 'link[rel="icon"]').get_attribute('href')
+              if not favicon.endswith('/experimental/logo.svg'):
+                  raise AssertionError(f'Unexpected favicon: {favicon}')
+              serious = []
+              for entry in driver.get_log('browser'):
+                  msg = entry.get('message', '')
+                  if any(token in msg for token in ['Uncaught ', 'SyntaxError', 'ReferenceError', 'TypeError:']):
+                      serious.append(msg)
+              if serious:
+                  raise AssertionError('Runtime JavaScript errors: ' + ' | '.join(serious[:5]))
+              print('PASS: RHKEARTH Experimental boots, reveals the HUD, and renders a live Cesium canvas')
+          finally:
+              driver.quit()
+          PY
+
       - name: Publish finished app into RHKEARTH
         run: |
           rm -rf experimental
@@ -227,5 +285,5 @@ jobs:
             echo "No Experimental build changes to commit."
             exit 0
           fi
-          git commit -m "Fix native Experimental startup [skip ci]"
+          git commit -m "Verify native Experimental browser boot [skip ci]"
           git push
