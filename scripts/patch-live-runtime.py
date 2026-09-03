@@ -101,7 +101,7 @@ async function _staticFlightResponse(signal) {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store',
       'x-flight-source': 'OpenSky · RHKEARTH snapshot',
-      'x-flight-coverage': 'global · scheduled refresh fallback',
+      'x-flight-coverage': 'global · scheduled OpenSky snapshot',
       'x-flight-fallback': 'same-origin',
     },
   });
