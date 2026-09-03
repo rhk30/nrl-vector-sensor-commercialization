@@ -67,7 +67,7 @@ jobs:
         working-directory: _gev
         run: npm run build
 
-      - name: Adapt bundle for RHKEARTH subdirectory
+      - name: Adapt and brand bundle for RHKEARTH
         working-directory: _gev
         run: |
           python - <<'PY'
@@ -104,7 +104,16 @@ jobs:
           index = dist / 'index.html'
           html = index.read_text()
           html = html.replace('<head>', '<head>\n<meta name="robots" content="noindex,nofollow,noarchive">', 1)
+          html = html.replace('<title>God\'s Eye View</title>', '<title>RHKEARTH // Experimental</title>')
+          html = html.replace('<span>GOD\'S EYE <span class="title-accent">VIEW</span></span>', '<span>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></span>')
+          html = html.replace('<p class="subtitle">NO PLACE LEFT BEHIND</p>', '<p class="subtitle">EXPERIMENTAL SYSTEMS</p>')
           index.write_text(html)
+
+          # Use the existing RHKEARTH brand mark for the page header and favicon.
+          brand = Path('../rhkearth-logo.svg')
+          if not brand.exists():
+              raise SystemExit('RHKEARTH logo not found')
+          (dist / 'logo.svg').write_text(brand.read_text())
 
           for source, target in [
               ('LICENSE', 'UPSTREAM_LICENSE.txt'),
@@ -121,7 +130,7 @@ jobs:
           rm -rf experimental
           mkdir -p experimental
           cp -a _gev/dist/. experimental/
-          printf '%s\n' "Native static build of bilawalsidhu/gods-eye-view pinned at $UPSTREAM_COMMIT." > experimental/RHKEARTH_BUILD.txt
+          printf '%s\n' "Native static build of bilawalsidhu/gods-eye-view pinned at $UPSTREAM_COMMIT, branded for RHKEARTH Experimental." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit native bundle
         run: |
@@ -132,5 +141,5 @@ jobs:
             echo "No Experimental build changes to commit."
             exit 0
           fi
-          git commit -m "Publish native Experimental app [skip ci]"
+          git commit -m "Brand native Experimental as RHKEARTH [skip ci]"
           git push
