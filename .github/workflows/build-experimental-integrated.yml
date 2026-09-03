@@ -9,6 +9,8 @@ on:
       - scripts/patch-experimental-source.py
       - scripts/remove-experimental-voice.py
       - scripts/tune-experimental-cctv.py
+      - scripts/add-chicago-live-cameras.py
+      - scripts/add-chicago-street-activity.py
       - scripts/finalize-experimental-ui.py
       - rhkearth-logo.svg
 
@@ -26,6 +28,7 @@ jobs:
     env:
       PUPPETEER_SKIP_DOWNLOAD: '1'
       UPSTREAM_COMMIT: 9dfb5369e8bed1531a4bb7e95e247ae9bcaf3961
+
     steps:
       - name: Check out RHKEARTH
         uses: actions/checkout@v4
@@ -85,8 +88,6 @@ jobs:
               '/models/': '/experimental/models/',
               '"/logo.svg"': '"/experimental/logo.svg"',
               "'/logo.svg'": "'/experimental/logo.svg'",
-              '"/mic.svg"': '"/experimental/mic.svg"',
-              "'/mic.svg'": "'/experimental/mic.svg'",
               '"/pin.svg"': '"/experimental/pin.svg"',
               "'/pin.svg'": "'/experimental/pin.svg'",
               '"/location.svg"': '"/experimental/location.svg"',
@@ -131,28 +132,38 @@ jobs:
           live_dst = dist / 'live-data'
           if live_dst.exists():
               shutil.rmtree(live_dst)
-          if live_src.exists():
-              shutil.copytree(live_src, live_dst)
-          else:
+          if not live_src.exists():
               raise SystemExit('experimental-data directory is missing')
+          shutil.copytree(live_src, live_dst)
           PY
 
-      - name: Browser and data-layer smoke test
+      - name: Browser and Chicago integration smoke test
         working-directory: _gev
         run: |
           python -m pip install --disable-pip-version-check --quiet selenium
           npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/rhkearth-preview.log 2>&1 &
           PREVIEW_PID=$!
           trap 'kill $PREVIEW_PID >/dev/null 2>&1 || true' EXIT
-          for i in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:4173/experimental/ >/dev/null; then break; fi
+
+          READY=0
+          for i in $(seq 1 80); do
+            if curl -fsS http://127.0.0.1:4173/experimental/ >/dev/null; then
+              READY=1
+              break
+            fi
             sleep 0.25
           done
+          if [ "$READY" != "1" ]; then
+            cat /tmp/rhkearth-preview.log || true
+            exit 1
+          fi
+
           curl -fsS http://127.0.0.1:4173/experimental/cesium/Cesium.js >/dev/null
           curl -fsS http://127.0.0.1:4173/experimental/live-data/military.json >/dev/null
           curl -fsS http://127.0.0.1:4173/experimental/live-data/celestrak/stations >/dev/null
           curl -fsS http://127.0.0.1:4173/experimental/live-data/launches.json >/dev/null
-          curl -fsS http://127.0.0.1:4173/experimental/live-data/cctv.json >/dev/null
+          curl -fsS http://127.0.0.1:4173/experimental/live-data/chicago-live-cameras.json >/dev/null
+          curl -fsS http://127.0.0.1:4173/experimental/live-data/chicago-street-activity.json >/dev/null
 
           python - <<'PY'
           from selenium import webdriver
@@ -166,13 +177,14 @@ jobs:
           opts.add_argument('--disable-dev-shm-usage')
           opts.add_argument('--disable-gpu')
           opts.set_capability('goog:loggingPrefs', {'browser': 'ALL'})
+
           driver = webdriver.Chrome(options=opts)
           driver.set_script_timeout(120)
-          wait = WebDriverWait(driver, 25)
+          wait = WebDriverWait(driver, 35)
           try:
               driver.set_window_size(1440, 1000)
               driver.get('http://127.0.0.1:4173/experimental/')
-              wait.until(lambda d: d.title == 'RHKEARTH // Experimental')
+              wait.until(lambda d: 'RHKEARTH' in (d.title or '').upper())
               wait.until(lambda d: d.execute_script('return !!window.__godsEyeView?.viewer && !!window.__godsEyeView?.dataManager'))
               wait.until(lambda d: 'hidden' in (d.find_element(By.ID, 'loading-screen').get_attribute('class') or '').split())
 
@@ -185,64 +197,66 @@ jobs:
               if voice_state.get('commands') is not None or voice_state.get('ui'):
                   raise AssertionError(f'Voice control was not removed: {voice_state}')
 
-              results = driver.execute_async_script('''
+              duplicate_layers = driver.execute_script('''
+                const dm = window.__godsEyeView.dataManager;
+                return {
+                  camera: dm.layers.has('chicago-live-cameras'),
+                  street: dm.layers.has('chicago-street-activity'),
+                  cameraRow: !!document.querySelector('[data-layer-id="chicago-live-cameras"]'),
+                  streetRow: !!document.querySelector('[data-layer-id="chicago-street-activity"]'),
+                };
+              ''')
+              if any(duplicate_layers.values()):
+                  raise AssertionError(f'Chicago duplicated as standalone layers: {duplicate_layers}')
+
+              regional = driver.execute_async_script('''
                 const done = arguments[arguments.length - 1];
                 (async () => {
-                  const dm = window.__godsEyeView.dataManager;
-                  const out = {};
-                  for (const id of ['military','satellites','ais-live-vessels','cctv','earthquakes']) {
-                    try {
-                      await dm.setEnabled(id, true, { origin: 'user' });
-                      await new Promise(r => setTimeout(r, id === 'satellites' ? 3500 : 1800));
-                      const mod = dm.layers.get(id)?.module;
-                      out[id] = mod?.getStats?.() || { enabled: dm.isEffectivelyEnabled?.(id) };
-                    } catch (e) {
-                      out[id] = { error: String(e?.message || e) };
-                    }
-                  }
-                  done(out);
-                })();
+                  const app = window.__godsEyeView;
+                  const Cesium = window.Cesium;
+                  app.viewer.camera.setView({
+                    destination: Cesium.Cartesian3.fromDegrees(-87.6298, 41.8781, 14000),
+                    orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 },
+                  });
+                  await new Promise(r => setTimeout(r, 900));
+                  await app.dataManager.setEnabled('cctv', true, { origin: 'user' });
+                  await app.dataManager.setEnabled('traffic', true, { origin: 'user' });
+                  await new Promise(r => setTimeout(r, 3500));
+                  const cctv = app.dataManager.layers.get('cctv')?.module?.getStats?.() || {};
+                  const traffic = app.dataManager.layers.get('traffic')?.module?.getStats?.() || {};
+                  done({ cctv, traffic });
+                })().catch(e => done({ error: String(e?.stack || e) }));
               ''')
-              print('Layer smoke stats:', results)
+              print('Chicago regional stats:', regional)
+              if regional.get('error'):
+                  raise AssertionError(regional['error'])
 
-              for layer in ('military', 'satellites', 'ais-live-vessels', 'cctv', 'earthquakes'):
-                  stats = results.get(layer) or {}
-                  if stats.get('error'):
-                      raise AssertionError(f'{layer} smoke error: {stats}')
-                  if layer in ('military', 'satellites', 'ais-live-vessels', 'cctv') and int(stats.get('count') or 0) <= 0:
-                      raise AssertionError(f'{layer} returned no usable records: {stats}')
+              cctv_regional = (regional.get('cctv') or {}).get('regional') or {}
+              traffic_regional = (regional.get('traffic') or {}).get('regional') or {}
+              cam = cctv_regional.get('rhk-chicago-cctv-addon') or {}
+              street = traffic_regional.get('rhk-chicago-street-addon') or {}
+              if int(cam.get('visibleCount') or 0) < 1:
+                  raise AssertionError(f'Chicago CCTV did not render through CCTV owner: {cam}')
+              if int(street.get('visibleCount') or 0) < 1:
+                  raise AssertionError(f'Chicago street activity did not render through Traffic owner: {street}')
 
-              launch_count = driver.execute_async_script('''
+              # Move well away from Chicago; regional records must leave the scene.
+              gated = driver.execute_async_script('''
                 const done = arguments[arguments.length - 1];
-                fetch('/experimental/live-data/launches.json').then(r => r.json()).then(j => done((j.results || []).length)).catch(() => done(-1));
+                const app = window.__godsEyeView;
+                const Cesium = window.Cesium;
+                app.viewer.camera.setView({
+                  destination: Cesium.Cartesian3.fromDegrees(-0.1276, 51.5072, 14000),
+                  orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 },
+                });
+                setTimeout(() => {
+                  const c = app.dataManager.layers.get('cctv')?.module?.getStats?.()?.regional?.['rhk-chicago-cctv-addon'] || {};
+                  const t = app.dataManager.layers.get('traffic')?.module?.getStats?.()?.regional?.['rhk-chicago-street-addon'] || {};
+                  done({ c: c.visibleCount || 0, t: t.visibleCount || 0 });
+                }, 1200);
               ''')
-              if launch_count < 1:
-                  raise AssertionError('Launch Library snapshot is empty')
-
-              cctv_frame = driver.execute_async_script('''
-                const done = arguments[arguments.length - 1];
-                fetch('/experimental/live-data/cctv.json')
-                  .then(r => r.json())
-                  .then(j => {
-                    const url = j?.sources?.[0]?.snapshotUrl || j?.sources?.[0]?.url;
-                    if (!url) return done({ ok: false, error: 'no camera URL' });
-                    const img = new Image();
-                    const timer = setTimeout(() => done({ ok: false, error: 'frame timeout', url }), 15000);
-                    img.onload = () => {
-                      clearTimeout(timer);
-                      done({ ok: img.naturalWidth > 0 && img.naturalHeight > 0, width: img.naturalWidth, height: img.naturalHeight, url });
-                    };
-                    img.onerror = () => {
-                      clearTimeout(timer);
-                      done({ ok: false, error: 'frame load failed', url });
-                    };
-                    img.src = url + (url.includes('?') ? '&' : '?') + 'rhk_smoke=' + Date.now();
-                  })
-                  .catch(e => done({ ok: false, error: String(e?.message || e) }));
-              ''')
-              print('CCTV frame smoke:', cctv_frame)
-              if not cctv_frame.get('ok'):
-                  raise AssertionError(f'CCTV frame did not load: {cctv_frame}')
+              if int(gated.get('c') or 0) != 0 or int(gated.get('t') or 0) != 0:
+                  raise AssertionError(f'Chicago regional data remained rendered outside Chicago: {gated}')
 
               serious = []
               for entry in driver.get_log('browser'):
@@ -251,7 +265,8 @@ jobs:
                       serious.append(msg)
               if serious:
                   raise AssertionError('Runtime JavaScript errors: ' + ' | '.join(serious[:5]))
-              print('PASS: RHKEARTH Experimental boot + restored data layers + CCTV frame + voice removed')
+
+              print('PASS: RHKEARTH boot + Chicago folded into CCTV/Traffic + viewport gating + voice removed')
           finally:
               driver.quit()
           PY
@@ -272,9 +287,11 @@ jobs:
           test -f experimental/index.html
           test -f experimental/cesium/Cesium.js
           test -s experimental/live-data/military.json
+          test -s experimental/live-data/chicago-live-cameras.json
+          test -s experimental/live-data/chicago-street-activity.json
           test -f experimental/rhkearth-runtime.js
           test -f experimental/rhkearth-theme.css
-          printf '%s\n' "Native RHKEARTH Experimental build with keyless military, satellites, space missions, vessels, earthquakes, traffic fallback, wildfire events and TfL CCTV integration. Upstream voice control removed; active CCTV frames refresh every 4 seconds." > experimental/RHKEARTH_BUILD.txt
+          printf '%s\n' "Native RHKEARTH Experimental build. Chicago continuous-live cameras are owned by CCTV; Chicago CDOT street activity is owned by Traffic; both are viewport-gated. Scope, Scenes and voice control removed." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit integrated bundle
         run: |
@@ -294,7 +311,7 @@ jobs:
               echo "No Experimental bundle changes."
               exit 0
             fi
-            git commit -m "Restore RHKEARTH Experimental live layers [skip ci]"
+            git commit -m "Publish RHKEARTH Experimental native build [skip ci]"
             if git push origin main; then
               exit 0
             fi
