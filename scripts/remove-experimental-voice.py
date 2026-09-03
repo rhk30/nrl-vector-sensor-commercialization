@@ -15,4 +15,8 @@ text = text.replace(voice_import, '', 1)
 text = text.replace(voice_init, "    // RHKEARTH intentionally omits upstream microphone / Realtime voice control.\n    window.__godsEyeView.voiceCommands = null;\n", 1)
 main.write_text(text, encoding='utf-8')
 
-print('RHKEARTH Experimental voice module removed from source entry point')
+mic_asset = Path('public/mic.svg')
+if mic_asset.exists():
+    mic_asset.unlink()
+
+print('RHKEARTH Experimental voice module and microphone asset removed')
