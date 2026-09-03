@@ -4,6 +4,78 @@ import re
 index = Path('experimental/index.html')
 html = index.read_text(encoding='utf-8')
 
+theme = Path('experimental/rhkearth-theme.css')
+css = theme.read_text(encoding='utf-8')
+logo_fix_marker = '/* RHKEARTH square-logo normalization v1 */'
+logo_fix = r'''
+
+/* RHKEARTH square-logo normalization v1
+   The inherited GEV shell assumes a 775:520 eye logo. RHKEARTH is a 1:1 mark,
+   so lock every shell presentation to square geometry and remove inherited
+   radio-eye ornamentation that otherwise appears in some operating modes. */
+.brand-logo {
+  aspect-ratio: 1 / 1 !important;
+}
+
+#title-bar .title-logo {
+  width: 42px !important;
+  height: 42px !important;
+  flex: 0 0 42px !important;
+  aspect-ratio: 1 / 1 !important;
+  filter: none !important;
+}
+
+#title-bar .title-logo > img,
+#title-bar .title-logo > svg {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+/* The upstream eye mark grows radio arcs in broadcast mode. Those arcs are not
+   part of the RHKEARTH identity and make the replacement mark look malformed. */
+#title-bar .title-logo::before,
+#title-bar .title-logo::after,
+#title-bar.radio-broadcasting .title-logo::before,
+#title-bar.radio-broadcasting .title-logo::after {
+  content: none !important;
+  display: none !important;
+  animation: none !important;
+}
+
+/* Keep the clear-view mark visually consistent with the standard title mark. */
+#rhkearth-clear-emblem {
+  opacity: .82 !important;
+  gap: 8px !important;
+}
+
+#rhkearth-clear-emblem img {
+  width: 27px !important;
+  height: 27px !important;
+  aspect-ratio: 1 / 1 !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+#rhkearth-clear-emblem::before {
+  content: none !important;
+  display: none !important;
+}
+
+@media (max-width: 700px) {
+  #title-bar .title-logo {
+    width: 36px !important;
+    height: 36px !important;
+    flex-basis: 36px !important;
+  }
+}
+'''
+if logo_fix_marker not in css:
+    css += logo_fix
+theme.write_text(css, encoding='utf-8')
+
 html = html.replace('<title>RHKEARTH // Experimental</title>', '<title>RHKEARTH // Intelligence Console</title>')
 html = html.replace('<span>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></span>', '<span>RHKEARTH</span>')
 html = html.replace('<p class="subtitle">EXPERIMENTAL SYSTEMS</p>', '<p class="subtitle">INTELLIGENCE CONSOLE</p>')
@@ -16,7 +88,7 @@ html = re.sub(r'\s*<script[^>]*src=["\']https://js\.puter\.com/v2/?["\'][^>]*></
 # Increment these whenever the RHKEARTH compatibility layer or typography theme
 # changes so browsers/CDNs cannot retain a visually or functionally stale copy.
 runtime_tag = '<script src="/experimental/rhkearth-runtime.js?v=9"></script>'
-theme_tag = '<link rel="stylesheet" href="/experimental/rhkearth-theme.css?v=4">'
+theme_tag = '<link rel="stylesheet" href="/experimental/rhkearth-theme.css?v=5">'
 
 if '/experimental/rhkearth-runtime.js' in html:
     html = re.sub(r'/experimental/rhkearth-runtime\.js(?:\?v=\d+)?', '/experimental/rhkearth-runtime.js?v=9', html)
@@ -28,7 +100,7 @@ else:
         html = html.replace('</head>', f'  {runtime_tag}\n</head>', 1)
 
 if '/experimental/rhkearth-theme.css' in html:
-    html = re.sub(r'/experimental/rhkearth-theme\.css(?:\?v=\d+)?', '/experimental/rhkearth-theme.css?v=4', html)
+    html = re.sub(r'/experimental/rhkearth-theme\.css(?:\?v=\d+)?', '/experimental/rhkearth-theme.css?v=5', html)
 else:
     html = html.replace('</head>', f'  {theme_tag}\n</head>', 1)
 
@@ -53,8 +125,9 @@ checks = {
     'RHKEARTH title': 'RHKEARTH // Intelligence Console' in html,
     'RHKEARTH subtitle': 'INTELLIGENCE CONSOLE' in html,
     'runtime v9': '/experimental/rhkearth-runtime.js?v=9' in html,
-    'theme v4': '/experimental/rhkearth-theme.css?v=4' in html,
+    'theme v5': '/experimental/rhkearth-theme.css?v=5' in html,
     'clear emblem': 'rhkearth-clear-emblem' in html,
+    'square logo CSS': logo_fix_marker in css,
     'no Puter': 'js.puter.com' not in html,
     'no visible Experimental title accent': 'title-accent">EXPERIMENTAL' not in html,
 }
