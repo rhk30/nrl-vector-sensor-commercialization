@@ -34,6 +34,47 @@ replace(
 
 
 # -----------------------------------------------------------------------------
+# SPACE MISSIONS + FLIGHT FEEDS: upstream treats Space Missions as an isolated
+# replay mode and clears/refuses every layer outside rocket-launches, satellites
+# and radio. RHKEARTH permits Live Flights and Military Flights as independent
+# companions. They are deliberately NOT added to CONTEXT_DEPENDENCIES: turning
+# either flight feed off must not exit Space Missions, and entering Space
+# Missions must not automatically enable a flight feed the user did not choose.
+# -----------------------------------------------------------------------------
+context_policy = ROOT / 'src/contextModePolicy.js'
+text = context_policy.read_text(encoding='utf-8')
+old = """const CONTEXT_COMPANIONS = new Set(['radio']);
+"""
+new = """const CONTEXT_COMPANIONS = new Set(['radio']);
+const CONTEXT_MODE_COMPANIONS = Object.freeze({
+  'space-missions': new Set(['flights', 'military']),
+});
+"""
+if old not in text:
+    raise SystemExit('Context companion anchor missing')
+text = text.replace(old, new, 1)
+old = """export function contextAllowedLayerIds(contextMode) {
+  return new Set([
+    ...(CONTEXT_DEPENDENCIES[contextMode] || ['military-awareness']),
+    ...CONTEXT_COMPANIONS,
+  ]);
+}
+"""
+new = """export function contextAllowedLayerIds(contextMode) {
+  return new Set([
+    ...(CONTEXT_DEPENDENCIES[contextMode] || ['military-awareness']),
+    ...(CONTEXT_MODE_COMPANIONS[contextMode] || []),
+    ...CONTEXT_COMPANIONS,
+  ]);
+}
+"""
+if old not in text:
+    raise SystemExit('contextAllowedLayerIds target missing')
+text = text.replace(old, new, 1)
+context_policy.write_text(text, encoding='utf-8')
+
+
+# -----------------------------------------------------------------------------
 # TYPE-AWARE 3D AIRCRAFT: the upstream build already ships real class models
 # for helicopters, light aircraft, business jets, UAVs, widebodies and
 # turboprops. Add the shipped jet.glb as the real fast-jet model instead of
@@ -145,4 +186,4 @@ if n != 1:
     raise SystemExit(f'Could not replace civilian flight trail backfill (matches={n})')
 flights.write_text(text, encoding='utf-8')
 
-print('RHKEARTH flight/satellite patch applied: concurrent satellites, type-aware models, selected-aircraft trace backfill')
+print('RHKEARTH flight/space patch applied: concurrent missions+satellites+flight feeds, type-aware models, selected-aircraft trace backfill')
