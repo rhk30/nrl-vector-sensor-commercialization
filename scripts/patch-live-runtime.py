@@ -181,6 +181,16 @@ async function _fetchFlightResponse(viewer, signal) {
         raise SystemExit('Could not locate Flights response normalization block')
     text = text.replace(old_payload, new_payload, 1)
 
+    # The upstream renderer marks any source timestamp older than two minutes as
+    # unavailable/backoff. That is correct for a supposedly-live direct feed but
+    # wrong for our explicitly-labeled scheduled fallback. Keep its actual source
+    # timestamp for honesty while allowing those real state vectors to render.
+    old_stale = "      const sourceStale = sourceAgeMs > SOURCE_STALE_MS;"
+    new_stale = "      const sameOriginFallback = response.headers.get('x-flight-fallback') === 'same-origin';\n      const sourceStale = !sameOriginFallback && sourceAgeMs > SOURCE_STALE_MS;"
+    if old_stale not in text:
+        raise SystemExit('Could not locate Flights source staleness gate')
+    text = text.replace(old_stale, new_stale, 1)
+
     text = text.replace("_lastError = 'Malformed OpenSky response';", "_lastError = 'Malformed civilian ADS-B response';", 1)
     text = text.replace("_lastSource = responseSource || 'OpenSky Network';", "_lastSource = responseSource || 'Airplanes.live';", 1)
     text = text.replace("_lastCoverage = responseCoverage || 'worldwide upstream snapshot';", "_lastCoverage = responseCoverage || 'viewport · up to 250 nm';", 1)
