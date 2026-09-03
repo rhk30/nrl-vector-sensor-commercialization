@@ -16,11 +16,12 @@ def replace(path, old, new, *, required=True, count=1):
 
 
 # -----------------------------------------------------------------------------
-# Civilian LIVE FLIGHTS: use adsb.lol directly in the browser. The military
-# layer already uses adsb.lol successfully; its public v2 point endpoint is
-# CORS-enabled and returns the ADS-B Exchange-style `ac` records handled by the
-# upstream adsbLolFallback normalizer. Keep requests regional to the current
-# camera view so RHKEARTH is responsive and does not need a global snapshot.
+# Civilian LIVE FLIGHTS: static hosting means there is no Vite /api/opensky
+# proxy in production. Use a small browser-CORS provider pool instead of betting
+# the layer on one public endpoint. Airplanes.live is primary; adsb.lol and
+# adsb.fi are automatic fallbacks. All three expose readsb/ADSBExchange-style
+# records, which are normalized into the OpenSky-shaped vectors the upstream
+# renderer already consumes. Requests stay regional to the current camera view.
 # -----------------------------------------------------------------------------
 flights = ROOT / 'src/data/flights.js'
 text = flights.read_text(encoding='utf-8')
@@ -32,29 +33,98 @@ if adsb_import not in text:
         raise SystemExit('Flights Cesium import anchor missing')
     text = text.replace(import_anchor, import_anchor + adsb_import, 1)
 
-text = text.replace("const API_URL = '/api/opensky';", "const API_URL = 'https://api.adsb.lol/v2/point';", 1)
-text = text.replace("let _lastSource = 'OpenSky Network';", "let _lastSource = 'adsb.lol';", 1)
+text = text.replace("const API_URL = '/api/opensky';", "const API_URL = 'https://api.airplanes.live/v2/point';", 1)
+text = text.replace("let _lastSource = 'OpenSky Network';", "let _lastSource = 'Airplanes.live';", 1)
 text = text.replace("let _lastCoverage = 'worldwide upstream snapshot';", "let _lastCoverage = 'viewport · up to 250 nm';", 1)
 
 flight_url_pattern = re.compile(
     r"function _flightApiUrl\(viewer\) \{.*?\n\}",
     re.S,
 )
-flight_url_replacement = r'''function _flightApiUrl(viewer) {
+flight_url_replacement = r'''function _flightCenter(viewer) {
   const cartographic = viewer?.camera?.positionCartographic;
-  if (!cartographic) return `${API_URL}/41.8781/-87.6298/250`;
+  if (!cartographic) return { latitude: 41.8781, longitude: -87.6298 };
   const latitude = Cesium.Math.toDegrees(cartographic.latitude);
   const longitude = Cesium.Math.toDegrees(cartographic.longitude);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    return `${API_URL}/41.8781/-87.6298/250`;
+    return { latitude: 41.8781, longitude: -87.6298 };
   }
-  // adsb.lol caps point searches at 250 nautical miles. That is a useful
-  // regional operating picture and avoids downloading a global aircraft set.
+  return { latitude, longitude };
+}
+
+function _flightApiUrl(viewer) {
+  const { latitude, longitude } = _flightCenter(viewer);
   return `${API_URL}/${latitude.toFixed(4)}/${longitude.toFixed(4)}/250`;
+}
+
+const FLIGHT_API_PROVIDERS = [
+  {
+    name: 'Airplanes.live',
+    url: (lat, lon) => `https://api.airplanes.live/v2/point/${lat}/${lon}/250`,
+  },
+  {
+    name: 'adsb.lol',
+    url: (lat, lon) => `https://api.adsb.lol/v2/point/${lat}/${lon}/250`,
+  },
+  {
+    name: 'adsb.fi',
+    url: (lat, lon) => `https://opendata.adsb.fi/api/v2/lat/${lat}/lon/${lon}/dist/250`,
+  },
+];
+
+async function _fetchFlightResponse(viewer, signal) {
+  const { latitude, longitude } = _flightCenter(viewer);
+  const lat = latitude.toFixed(4);
+  const lon = longitude.toFixed(4);
+  let lastError = null;
+
+  for (const provider of FLIGHT_API_PROVIDERS) {
+    try {
+      const upstream = await fetch(provider.url(lat, lon), {
+        signal,
+        cache: 'no-store',
+        mode: 'cors',
+      });
+      if (!upstream.ok) {
+        throw new Error(`${provider.name} HTTP ${upstream.status}`);
+      }
+      const payload = await upstream.json();
+      const adapted = Array.isArray(payload?.aircraft)
+        ? { ...payload, ac: payload.aircraft }
+        : payload;
+      const normalized = Array.isArray(adapted?.ac)
+        ? normalizeAdsbLolPointResponse(adapted)
+        : adapted;
+      if (!normalized || !Array.isArray(normalized.states)) {
+        throw new Error(`${provider.name} malformed response`);
+      }
+      return new Response(JSON.stringify(normalized), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+          'x-flight-source': provider.name,
+          'x-flight-coverage': 'viewport · up to 250 nm',
+        },
+      });
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      lastError = error;
+      console.warn(`[Data:Flights] ${provider.name} failed, trying fallback`, error);
+    }
+  }
+
+  throw lastError || new Error('All civilian flight providers unavailable');
 }'''
 text, n = flight_url_pattern.subn(flight_url_replacement, text, count=1)
 if n != 1:
     raise SystemExit('Could not replace Flights API URL builder')
+
+old_fetch = "      const response = await fetch(_flightApiUrl(viewer || _viewer), { signal: updateSignal });"
+new_fetch = "      const response = await _fetchFlightResponse(viewer || _viewer, updateSignal);"
+if old_fetch not in text:
+    raise SystemExit('Could not locate Flights fetch call')
+text = text.replace(old_fetch, new_fetch, 1)
 
 old_payload = '''      const data = await response.json();
       updateSignal.throwIfAborted();
@@ -69,14 +139,13 @@ if old_payload not in text:
     raise SystemExit('Could not locate Flights response normalization block')
 text = text.replace(old_payload, new_payload, 1)
 
-text = text.replace("_lastError = 'Malformed OpenSky response';", "_lastError = 'Malformed adsb.lol response';", 1)
-text = text.replace("_lastSource = responseSource || 'OpenSky Network';", "_lastSource = responseSource || 'adsb.lol';", 1)
+text = text.replace("_lastError = 'Malformed OpenSky response';", "_lastError = 'Malformed civilian ADS-B response';", 1)
+text = text.replace("_lastSource = responseSource || 'OpenSky Network';", "_lastSource = responseSource || 'Airplanes.live';", 1)
 text = text.replace("_lastCoverage = responseCoverage || 'worldwide upstream snapshot';", "_lastCoverage = responseCoverage || 'viewport · up to 250 nm';", 1)
-text = text.replace('`OpenSky HTTP ${response.status}`', '`adsb.lol HTTP ${response.status}`')
-text = text.replace('[Data:Flights] OpenSky unavailable', '[Data:Flights] adsb.lol unavailable')
-text = text.replace("source: 'OpenSky Network',", "source: 'adsb.lol',", 1)
-text = text.replace("source: _lastSource,", "source: _lastSource,", 1)
-text = text.replace("reason: 'OpenSky snapshot unavailable'", "reason: 'adsb.lol snapshot unavailable'")
+text = text.replace('`OpenSky HTTP ${response.status}`', '`Civilian ADS-B HTTP ${response.status}`')
+text = text.replace('[Data:Flights] OpenSky unavailable', '[Data:Flights] civilian ADS-B unavailable')
+text = text.replace("source: 'OpenSky Network',", "source: 'Airplanes.live',", 1)
+text = text.replace("reason: 'OpenSky snapshot unavailable'", "reason: 'Civilian ADS-B snapshot unavailable'")
 
 flights.write_text(text, encoding='utf-8')
 
@@ -204,4 +273,4 @@ text = text.replace(destroy_anchor, destroy_patch, 1)
 
 cctv.write_text(text, encoding='utf-8')
 
-print('RHKEARTH live runtime repaired: adsb.lol civilian flights, Overpass mirror failover, TfL rolling-video CCTV')
+print('RHKEARTH live runtime repaired: multi-source civilian flights, Overpass mirror failover, TfL rolling-video CCTV')
