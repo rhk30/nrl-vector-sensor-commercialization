@@ -7,6 +7,8 @@ on:
     paths:
       - .github/workflows/build-experimental-integrated.yml
       - scripts/patch-experimental-source.py
+      - scripts/remove-experimental-voice.py
+      - scripts/finalize-experimental-ui.py
       - rhkearth-logo.svg
 
 permissions:
@@ -43,7 +45,9 @@ jobs:
 
       - name: Apply RHKEARTH source patches
         working-directory: _gev
-        run: python ../scripts/patch-experimental-source.py
+        run: |
+          python ../scripts/patch-experimental-source.py
+          python ../scripts/remove-experimental-voice.py
 
       - name: Install dependencies
         working-directory: _gev
@@ -175,6 +179,10 @@ jobs:
               if w < 300 or h < 200:
                   raise AssertionError(f'Cesium canvas unusable: {w}x{h}')
 
+              voice_state = driver.execute_script('return { commands: window.__godsEyeView?.voiceCommands, ui: !!document.getElementById("gev-voice-control") }')
+              if voice_state.get('commands') is not None or voice_state.get('ui'):
+                  raise AssertionError(f'Voice control was not removed: {voice_state}')
+
               results = driver.execute_async_script('''
                 const done = arguments[arguments.length - 1];
                 (async () => {
@@ -241,20 +249,30 @@ jobs:
                       serious.append(msg)
               if serious:
                   raise AssertionError('Runtime JavaScript errors: ' + ' | '.join(serious[:5]))
-              print('PASS: RHKEARTH Experimental boot + restored data layers + CCTV frame')
+              print('PASS: RHKEARTH Experimental boot + restored data layers + CCTV frame + voice removed')
           finally:
               driver.quit()
           PY
 
       - name: Publish integrated native app
         run: |
+          mkdir -p /tmp/rhkearth-shell
+          cp experimental/rhkearth-runtime.js /tmp/rhkearth-shell/rhkearth-runtime.js
+          cp experimental/rhkearth-theme.css /tmp/rhkearth-shell/rhkearth-theme.css
+
           rm -rf experimental
           mkdir -p experimental
           cp -a _gev/dist/. experimental/
+          cp /tmp/rhkearth-shell/rhkearth-runtime.js experimental/rhkearth-runtime.js
+          cp /tmp/rhkearth-shell/rhkearth-theme.css experimental/rhkearth-theme.css
+          python scripts/finalize-experimental-ui.py
+
           test -f experimental/index.html
           test -f experimental/cesium/Cesium.js
           test -s experimental/live-data/military.json
-          printf '%s\n' "Native RHKEARTH Experimental build with keyless military, satellites, space missions, vessels, earthquakes, traffic fallback, wildfire events and TfL CCTV integration." > experimental/RHKEARTH_BUILD.txt
+          test -f experimental/rhkearth-runtime.js
+          test -f experimental/rhkearth-theme.css
+          printf '%s\n' "Native RHKEARTH Experimental build with keyless military, satellites, space missions, vessels, earthquakes, traffic fallback, wildfire events and TfL CCTV integration. Upstream voice control removed." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit integrated bundle
         run: |
