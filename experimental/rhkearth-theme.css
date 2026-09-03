@@ -243,10 +243,12 @@ input,
   filter: saturate(.35) brightness(.9) !important;
 }
 
-/* No demo onboarding or local-key setup surfaces on the RHKEARTH public console. */
+/* No demo onboarding, local-key setup, or voice-agent surface on RHKEARTH. */
 #first-run-launcher,
 #key-setup,
-#key-setup-chip {
+#key-setup-chip,
+#gev-voice-control,
+#gev-voice-button {
   display: none !important;
 }
 
@@ -261,13 +263,15 @@ input,
   filter: grayscale(1) contrast(1.05) brightness(1.15) !important;
 }
 
-/* Quiet brand mark that remains in clear/minimal views. */
+/* Clear View gets one restrained RHKEARTH mark in the top-left. It stays hidden
+   in the normal console, where the primary title bar already carries the brand. */
 #rhkearth-clear-emblem {
   position: fixed;
   left: 18px;
-  bottom: 18px;
+  top: 18px;
+  bottom: auto;
   z-index: 1500;
-  display: flex;
+  display: none;
   align-items: center;
   gap: 9px;
   pointer-events: none;
@@ -280,6 +284,10 @@ input,
   letter-spacing: .18em;
   text-transform: uppercase;
   text-shadow: 0 1px 8px rgba(0,0,0,.8);
+}
+
+body.ui-clean-view #rhkearth-clear-emblem {
+  display: flex;
 }
 
 #rhkearth-clear-emblem img {
@@ -303,7 +311,8 @@ input,
 @media (max-width: 700px) {
   #rhkearth-clear-emblem {
     left: 12px;
-    bottom: 12px;
+    top: 12px;
+    bottom: auto;
     font-size: 9px;
     opacity: .64;
   }
