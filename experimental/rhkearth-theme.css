@@ -99,6 +99,58 @@ input,
   filter: grayscale(1) contrast(1.05) brightness(1.15) !important;
 }
 
+/* Quiet brand mark that remains in clear/minimal views. */
+#rhkearth-clear-emblem {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  pointer-events: none;
+  user-select: none;
+  opacity: .72;
+  color: rgba(239,239,233,.88);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 8px rgba(0,0,0,.8);
+}
+
+#rhkearth-clear-emblem img {
+  width: 27px;
+  height: 27px;
+  display: block;
+  object-fit: contain;
+  filter: grayscale(1) brightness(1.25) contrast(1.08) drop-shadow(0 1px 5px rgba(0,0,0,.8));
+}
+
+#rhkearth-clear-emblem::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: -6px;
+  bottom: -6px;
+  width: 1px;
+  background: rgba(169,181,155,.38);
+}
+
+@media (max-width: 700px) {
+  #rhkearth-clear-emblem {
+    left: 12px;
+    bottom: 12px;
+    font-size: 9px;
+    opacity: .64;
+  }
+  #rhkearth-clear-emblem img {
+    width: 23px;
+    height: 23px;
+  }
+}
+
 /* Keep map/HUD modes intact; only normalize chrome. */
 #intel-hud,
 #cockpit-hud,
