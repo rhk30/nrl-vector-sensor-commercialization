@@ -450,3 +450,67 @@ body.ui-clean-view #rhkearth-clear-emblem {
 #cesiumContainer {
   --rhk-ui-accent: var(--rhk-text);
 }
+
+
+/* RHKEARTH square-logo normalization v1
+   The inherited GEV shell assumes a 775:520 eye logo. RHKEARTH is a 1:1 mark,
+   so lock every shell presentation to square geometry and remove inherited
+   radio-eye ornamentation that otherwise appears in some operating modes. */
+.brand-logo {
+  aspect-ratio: 1 / 1 !important;
+}
+
+#title-bar .title-logo {
+  width: 42px !important;
+  height: 42px !important;
+  flex: 0 0 42px !important;
+  aspect-ratio: 1 / 1 !important;
+  filter: none !important;
+}
+
+#title-bar .title-logo > img,
+#title-bar .title-logo > svg {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+/* The upstream eye mark grows radio arcs in broadcast mode. Those arcs are not
+   part of the RHKEARTH identity and make the replacement mark look malformed. */
+#title-bar .title-logo::before,
+#title-bar .title-logo::after,
+#title-bar.radio-broadcasting .title-logo::before,
+#title-bar.radio-broadcasting .title-logo::after {
+  content: none !important;
+  display: none !important;
+  animation: none !important;
+}
+
+/* Keep the clear-view mark visually consistent with the standard title mark. */
+#rhkearth-clear-emblem {
+  opacity: .82 !important;
+  gap: 8px !important;
+}
+
+#rhkearth-clear-emblem img {
+  width: 27px !important;
+  height: 27px !important;
+  aspect-ratio: 1 / 1 !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+#rhkearth-clear-emblem::before {
+  content: none !important;
+  display: none !important;
+}
+
+@media (max-width: 700px) {
+  #title-bar .title-logo {
+    width: 36px !important;
+    height: 36px !important;
+    flex-basis: 36px !important;
+  }
+}
