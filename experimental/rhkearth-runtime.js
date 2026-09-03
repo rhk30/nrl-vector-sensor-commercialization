@@ -181,11 +181,24 @@
     document.getElementById('gev-voice-button')?.remove();
   };
 
+  const removeClassificationLabel = () => {
+    document.querySelectorAll('body *').forEach((element) => {
+      if (element.childElementCount !== 0) return;
+      const label = (element.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!/^TOP\s+SECRET(?:\b|\s*[/·—-])/i.test(label)) return;
+
+      const rect = element.getBoundingClientRect();
+      const isTopLeft = rect.left < 360 && rect.top < 180;
+      if (isTopLeft) element.remove();
+    });
+  };
+
   const removeSetupPrompts = () => {
     document.getElementById('key-setup')?.remove();
     document.getElementById('key-setup-chip')?.remove();
     document.getElementById('first-run-launcher')?.remove();
     removeVoiceControls();
+    removeClassificationLabel();
   };
 
   const ensureClearViewEmblem = () => {
@@ -217,4 +230,4 @@
   });
 })();
 
-// RHKEARTH shell revision 4: voice-free console and top-left Clear View branding.
+// RHKEARTH shell revision 5: voice-free console, top-left Clear View branding, and no inherited classification label.
