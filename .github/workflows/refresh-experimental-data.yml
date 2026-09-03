@@ -32,6 +32,7 @@ jobs:
           from pathlib import Path
           from datetime import datetime, timezone, timedelta
           import json
+          import math
           import time
           import urllib.parse
           import urllib.request
@@ -66,6 +67,12 @@ jobs:
           def write_json(path, payload):
               Path(path).write_text(json.dumps(payload, separators=(',', ':'), ensure_ascii=False) + '\n')
 
+          def heading_from_id(value):
+              acc = 0
+              for ch in str(value):
+                  acc = ((acc * 33) + ord(ch)) & 0xFFFFFFFF
+              return (acc % 16) * 22.5
+
           now = datetime.now(timezone.utc)
           now_ms = int(now.timestamp() * 1000)
 
@@ -74,6 +81,79 @@ jobs:
           if not isinstance(military.get('ac'), list):
               raise RuntimeError('adsb.lol military payload missing ac array')
           write_json(ROOT / 'military.json', military)
+
+          # Transport for London JamCams. Catalog + official public S3 stills.
+          tfl_rows = get_json('https://api.tfl.gov.uk/Place/Type/JamCam')
+          if not isinstance(tfl_rows, list):
+              raise RuntimeError('TfL JamCam payload was not a list')
+          cctv_sources = []
+          for place in tfl_rows:
+              props = {
+                  str(item.get('key')): item.get('value')
+                  for item in (place.get('additionalProperties') or [])
+                  if item.get('key')
+              }
+              if str(props.get('available', '')).lower() != 'true':
+                  continue
+              try:
+                  lat = float(place.get('lat'))
+                  lon = float(place.get('lon'))
+              except (TypeError, ValueError):
+                  continue
+              image_url = str(props.get('imageUrl') or '').strip()
+              if not image_url.startswith('https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/'):
+                  continue
+              raw_id = str(place.get('id') or '').replace('JamCams_', '').strip()
+              if not raw_id:
+                  continue
+              camera_id = f'tfl-{raw_id}'
+              cctv_sources.append({
+                  'id': camera_id,
+                  'name': str(place.get('commonName') or f'JamCam {raw_id}'),
+                  'city': 'London',
+                  'cityId': 'london',
+                  'provider': 'Transport for London',
+                  'lat': lat,
+                  'lon': lon,
+                  'headingDeg': heading_from_id(camera_id),
+                  'headingConfidence': 'low',
+                  'pitchDeg': -17,
+                  'fovDeg': 74,
+                  'rangeM': 700,
+                  'mountHeightM': 8,
+                  'groundElevationM': 15,
+                  'feedType': 'image',
+                  'url': image_url,
+                  'snapshotUrl': image_url,
+                  'sourceKind': 'tfl-open-data',
+                  'license': 'Powered by TfL Open Data',
+              })
+          # Keep the app's original catalog budget; prioritize cameras nearest
+          # central London so first activation is useful rather than arbitrary.
+          london_lat, london_lon = 51.5074, -0.1278
+          cctv_sources.sort(key=lambda c: (c['lat'] - london_lat) ** 2 + (c['lon'] - london_lon) ** 2)
+          cctv_sources = cctv_sources[:250]
+          if not cctv_sources:
+              raise RuntimeError('TfL JamCam refresh produced no usable cameras')
+          write_json(ROOT / 'cctv.json', {
+              'sources': cctv_sources,
+              'fetchedAt': now_ms,
+              'source': 'Transport for London Open Data',
+          })
+          write_json(ROOT / 'cctv-health.json', {
+              'cameras': [
+                  {
+                      'id': cam['id'],
+                      'status': 'available',
+                      'sourceKind': 'tfl-open-data',
+                      'label': 'Transport for London',
+                      'message': 'Public TfL JamCam still',
+                      'updatedAt': now_ms,
+                  }
+                  for cam in cctv_sources
+              ],
+              'fetchedAt': now_ms,
+          })
 
           # Launch Library 2 rolling 30-day mission catalog.
           start = now - timedelta(days=30)
@@ -121,8 +201,6 @@ jobs:
                   dt = datetime.fromisoformat(date_text.replace('Z', '+00:00'))
               except ValueError:
                   dt = now
-              # Populate the FIRMS adapter's common coordinate/time fields while
-              # leaving FRP at zero: EONET does not claim thermal radiative power.
               fire_rows.append({
                   'lat': lat,
                   'lon': lon,
@@ -168,15 +246,18 @@ jobs:
           write_json(ROOT / 'meta.json', {
               'fetchedAt': now_ms,
               'military': 'adsb.lol snapshot',
+              'cctv': 'Transport for London JamCam catalog + public stills',
               'launches': 'Launch Library 2 snapshot',
               'fires': 'NASA EONET wildfire-event snapshot',
           })
-          print(f"military={len(military['ac'])} launches={len(launches['results'])} fires={len(fire_rows)}")
+          print(f"military={len(military['ac'])} cctv={len(cctv_sources)} launches={len(launches['results'])} fires={len(fire_rows)}")
           PY
 
       - name: Validate snapshots
         run: |
           test -s experimental-data/military.json
+          test -s experimental-data/cctv.json
+          test -s experimental-data/cctv-health.json
           test -s experimental-data/launches.json
           test -s experimental-data/fires.json
           test -s experimental-data/celestrak/stations
