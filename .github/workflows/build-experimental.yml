@@ -43,8 +43,9 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import json
+          import json, re, shutil
 
+          # Build under /experimental/ so Vite-generated asset URLs are correct.
           p = Path('vite.config.js')
           s = p.read_text()
           needle = "  return {\n    plugins: ["
@@ -53,6 +54,66 @@ jobs:
           s = s.replace(needle, "  return {\n    base: '/experimental/',\n    plugins: [", 1)
           p.write_text(s)
 
+          # RHKEARTH branding at source level, including the startup cover.
+          index = Path('index.html')
+          html = index.read_text()
+          html = html.replace("<title>God's Eye View</title>", '<title>RHKEARTH // Experimental</title>')
+          html = html.replace("<span>GOD'S EYE <span class=\"title-accent\">VIEW</span></span>", '<span>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></span>')
+          html = html.replace('<p class="subtitle">NO PLACE LEFT BEHIND</p>', '<p class="subtitle">EXPERIMENTAL SYSTEMS</p>')
+          html = html.replace("<h2>GOD'S EYE <span class=\"title-accent\">VIEW</span></h2>", '<h2>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></h2>')
+          html = html.replace('Initializing photorealistic world...', 'Initializing intelligence console...')
+          index.write_text(html)
+
+          brand = Path('../rhkearth-logo.svg')
+          if not brand.exists():
+              raise SystemExit('RHKEARTH logo not found')
+          Path('public/logo.svg').write_text(brand.read_text())
+
+          # Static startup should never block on remote terrain metadata.
+          stack = Path('src/mapStackController.js')
+          stack_text = stack.read_text()
+          old_esri = """provider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(ESRI_WORLD_IMAGERY_URL, {
+          credit: ESRI_IMAGERY_CREDIT,
+          enablePickFeatures: false,
+        });"""
+          new_esri = """provider = new Cesium.UrlTemplateImageryProvider({
+          url: `${ESRI_WORLD_IMAGERY_URL}/tile/{z}/{y}/{x}`,
+          credit: ESRI_IMAGERY_CREDIT,
+          maximumLevel: 19,
+        });"""
+          if old_esri not in stack_text:
+              raise SystemExit('Could not locate Esri startup provider block')
+          stack_text = stack_text.replace(old_esri, new_esri, 1)
+          stack_text, count = re.subn(
+              r"  async _getKeylessTerrainProvider\(\) \{.*?\n  \}\n\n  _emitChange",
+              "  async _getKeylessTerrainProvider() {\n    if (!this._reearthTerrainProvider) {\n      this._reearthTerrainProvider = new Cesium.EllipsoidTerrainProvider();\n    }\n    return this._reearthTerrainProvider;\n  }\n\n  _emitChange",
+              stack_text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('Could not replace keyless terrain startup block')
+          stack.write_text(stack_text)
+
+          # Never let restore state hold the loading screen indefinitely.
+          main = Path('src/main.js')
+          main_text = main.read_text()
+          old_restore = """    void Promise.all([
+      styleManager.initialRestorePromise,
+      new Promise((resolve) => setTimeout(resolve, 1000)),
+    ]).finally(() => {"""
+          new_restore = """    void Promise.all([
+      Promise.race([
+        styleManager.initialRestorePromise,
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]),
+      new Promise((resolve) => setTimeout(resolve, 500)),
+    ]).finally(() => {"""
+          if old_restore not in main_text:
+              raise SystemExit('Could not locate startup reveal block')
+          main.write_text(main_text.replace(old_restore, new_restore, 1))
+
+          # Remove the bundled noncommercial TeleGeography layer from this RHKEARTH copy.
           blank = {'type': 'FeatureCollection', 'features': []}
           cable_dir = Path('src/data/local_data/telegeography_submarine_cables')
           for name in ('cable-geo.json', 'landing-point-geo.json'):
@@ -67,13 +128,30 @@ jobs:
         working-directory: _gev
         run: npm run build
 
-      - name: Adapt and brand bundle for RHKEARTH
+      - name: Adapt bundle for RHKEARTH
         working-directory: _gev
         run: |
           python - <<'PY'
           from pathlib import Path
+          import shutil
 
           dist = Path('dist')
+
+          # vite-plugin-cesium nests this directory when Vite base is /experimental/.
+          # Flatten it so /experimental/cesium/* resolves on GitHub Pages.
+          nested_cesium = dist / 'experimental' / 'cesium'
+          target_cesium = dist / 'cesium'
+          if nested_cesium.exists():
+              if target_cesium.exists():
+                  shutil.rmtree(target_cesium)
+              shutil.move(str(nested_cesium), str(target_cesium))
+              try:
+                  (dist / 'experimental').rmdir()
+              except OSError:
+                  pass
+          if not (target_cesium / 'Cesium.js').exists():
+              raise SystemExit('Cesium runtime was not published to dist/cesium')
+
           text_ext = {'.html', '.js', '.css', '.json', '.svg', '.txt', '.md'}
           replacements = {
               '/models/': '/experimental/models/',
@@ -98,21 +176,17 @@ jobs:
               new = text
               for old, repl in replacements.items():
                   new = new.replace(old, repl)
+              new = new.replace("GOD'S EYE VIEW", 'RHKEARTH EXPERIMENTAL')
+              new = new.replace("God's Eye View", 'RHKEARTH Experimental')
               if new != text:
                   path.write_text(new)
 
           index = dist / 'index.html'
           html = index.read_text()
           html = html.replace('<head>', '<head>\n<meta name="robots" content="noindex,nofollow,noarchive">', 1)
-          html = html.replace('<title>God\'s Eye View</title>', '<title>RHKEARTH // Experimental</title>')
-          html = html.replace('<span>GOD\'S EYE <span class="title-accent">VIEW</span></span>', '<span>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></span>')
-          html = html.replace('<p class="subtitle">NO PLACE LEFT BEHIND</p>', '<p class="subtitle">EXPERIMENTAL SYSTEMS</p>')
           index.write_text(html)
 
-          # Use the existing RHKEARTH brand mark for the page header and favicon.
           brand = Path('../rhkearth-logo.svg')
-          if not brand.exists():
-              raise SystemExit('RHKEARTH logo not found')
           (dist / 'logo.svg').write_text(brand.read_text())
 
           for source, target in [
@@ -130,7 +204,9 @@ jobs:
           rm -rf experimental
           mkdir -p experimental
           cp -a _gev/dist/. experimental/
-          printf '%s\n' "Native static build of bilawalsidhu/gods-eye-view pinned at $UPSTREAM_COMMIT, branded for RHKEARTH Experimental." > experimental/RHKEARTH_BUILD.txt
+          test -f experimental/cesium/Cesium.js
+          test -f experimental/index.html
+          printf '%s\n' "Native static build of bilawalsidhu/gods-eye-view pinned at $UPSTREAM_COMMIT, adapted as RHKEARTH Experimental with nonblocking satellite startup." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit native bundle
         run: |
@@ -141,5 +217,5 @@ jobs:
             echo "No Experimental build changes to commit."
             exit 0
           fi
-          git commit -m "Brand native Experimental as RHKEARTH [skip ci]"
+          git commit -m "Fix native Experimental startup [skip ci]"
           git push
