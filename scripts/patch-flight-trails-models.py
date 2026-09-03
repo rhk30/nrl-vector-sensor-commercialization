@@ -186,4 +186,56 @@ if n != 1:
     raise SystemExit(f'Could not replace civilian flight trail backfill (matches={n})')
 flights.write_text(text, encoding='utf-8')
 
-print('RHKEARTH flight/space patch applied: concurrent missions+satellites+flight feeds, type-aware models, selected-aircraft trace backfill')
+
+# -----------------------------------------------------------------------------
+# STARTUP CAMERA: RHKEARTH should open as an orbital intelligence picture over
+# the United States, not inherit the upstream Austin street-level fly-in.
+# This only affects fresh loads; shared/restored views continue to own the camera.
+# -----------------------------------------------------------------------------
+camera = ROOT / 'src/camera.js'
+text = camera.read_text(encoding='utf-8')
+anchor = """/**
+ * Set camera to Austin on load with a cinematic fly-in.
+ */
+export function flyToAustin(viewer) {
+"""
+insert = """/**
+ * Set RHKEARTH's fresh-load camera to a stable orbital overview of the U.S.
+ */
+export function setUnitedStatesOrbitView(viewer) {
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromDegrees(-98.5795, 39.8283, 5800000),
+    orientation: {
+      heading: Cesium.Math.toRadians(0),
+      pitch: Cesium.Math.toRadians(-90),
+      roll: 0.0,
+    },
+  });
+}
+
+/**
+ * Set camera to Austin on load with a cinematic fly-in.
+ */
+export function flyToAustin(viewer) {
+"""
+if anchor not in text:
+    raise SystemExit('Austin camera anchor missing')
+text = text.replace(anchor, insert, 1)
+camera.write_text(text, encoding='utf-8')
+
+replace(
+    'src/main.js',
+    "import { flyToAustin } from './camera.js';",
+    "import { setUnitedStatesOrbitView } from './camera.js';",
+)
+replace(
+    'src/main.js',
+    """      loaderStatus.textContent = 'Flying to Austin, TX...';
+      flyToAustin(viewer);
+""",
+    """      loaderStatus.textContent = 'Positioning over the United States...';
+      setUnitedStatesOrbitView(viewer);
+""",
+)
+
+print('RHKEARTH flight/space/startup patch applied: concurrent missions+satellites+flight feeds, type-aware models, selected-aircraft trace backfill, US orbital startup')
