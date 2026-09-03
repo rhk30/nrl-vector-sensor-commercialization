@@ -31,8 +31,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24.14.0
-          cache: npm
-          cache-dependency-path: _gev/package-lock.json
 
       - name: Fetch pinned God's Eye View source
         run: |
@@ -47,7 +45,7 @@ jobs:
           from pathlib import Path
           import json
 
-          # Build the app specifically for https://rhkearth.com/experimental/.
+          # Build specifically for https://rhkearth.com/experimental/.
           p = Path('vite.config.js')
           s = p.read_text()
           needle = "  return {\n    plugins: ["
@@ -110,7 +108,6 @@ jobs:
           index = dist / 'index.html'
           html = index.read_text()
           html = html.replace('<head>', '<head>\n<meta name="robots" content="noindex,nofollow,noarchive">', 1)
-          # Small same-origin escape hatch; no upstream/third-party banner.
           html = html.replace('</body>', '''
 <a id="rhk-core-link" href="/" aria-label="Back to RHKEARTH">← RHKEARTH</a>
 <style>
@@ -120,7 +117,6 @@ jobs:
 </body>''', 1)
           index.write_text(html)
 
-          # Keep upstream licensing/attribution with the native copy.
           for source, target in [
               ('LICENSE', 'UPSTREAM_LICENSE.txt'),
               ('DATA_SOURCES.md', 'DATA_SOURCES.md'),
