@@ -1,1 +1,1 @@
-Native RHKEARTH Experimental build with keyless military, satellites, space missions, vessels, earthquakes, traffic fallback, wildfire events and TfL CCTV integration. Upstream voice control removed; active CCTV frames refresh every 4 seconds.
+Native RHKEARTH Experimental build. Civilian flights use viewport-scoped adsb.lol; London CCTV uses TfL rolling video where provided; Street Traffic uses multi-mirror OSM Overpass failover. Chicago continuous-live cameras are owned by CCTV and Chicago CDOT street activity is owned by Traffic. Scope, Scenes and voice control removed.
