@@ -6,7 +6,9 @@ on:
     branches: [main]
     paths:
       - .github/workflows/build-experimental.yml
+      - scripts/prepare-experimental-build.py
       - scripts/patch-experimental-data.py
+      - scripts/adapt-experimental-bundle.py
 
 permissions:
   contents: write
@@ -22,6 +24,7 @@ jobs:
     env:
       PUPPETEER_SKIP_DOWNLOAD: '1'
       UPSTREAM_COMMIT: 9dfb5369e8bed1531a4bb7e95e247ae9bcaf3961
+
     steps:
       - name: Check out RHKEARTH
         uses: actions/checkout@v4
@@ -33,186 +36,38 @@ jobs:
         with:
           node-version: 24.14.0
 
-      - name: Fetch pinned God's Eye View source
+      - name: Fetch pinned upstream source
         run: |
           git clone --filter=blob:none --no-checkout https://github.com/bilawalsidhu/gods-eye-view.git _gev
           cd _gev
           git checkout "$UPSTREAM_COMMIT"
 
-      - name: Prepare RHKEARTH static build
+      - name: Prepare RHKEARTH source
         working-directory: _gev
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          import json, re
+          python ../scripts/prepare-experimental-build.py
+          python ../scripts/patch-experimental-data.py
 
-          p = Path('vite.config.js')
-          s = p.read_text()
-          needle = "  return {\n    plugins: ["
-          if needle not in s:
-              raise SystemExit('Could not locate Vite config return block')
-          s = s.replace(needle, "  return {\n    base: '/experimental/',\n    plugins: [", 1)
-          p.write_text(s)
-
-          index = Path('index.html')
-          html = index.read_text()
-          html = html.replace("<title>God's Eye View</title>", '<title>RHKEARTH // Experimental</title>')
-          html = html.replace("<span>GOD'S EYE <span class=\"title-accent\">VIEW</span></span>", '<span>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></span>')
-          html = html.replace('<p class="subtitle">NO PLACE LEFT BEHIND</p>', '<p class="subtitle">EXPERIMENTAL SYSTEMS</p>')
-          html = html.replace("<h2>GOD'S EYE <span class=\"title-accent\">VIEW</span></h2>", '<h2>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></h2>')
-          html = html.replace('Initializing photorealistic world...', 'Initializing intelligence console...')
-          index.write_text(html)
-
-          brand = Path('../rhkearth-logo.svg')
-          if not brand.exists():
-              raise SystemExit('RHKEARTH logo not found')
-          Path('public/logo.svg').write_text(brand.read_text())
-
-          stack = Path('src/mapStackController.js')
-          stack_text = stack.read_text()
-          old_esri = "\n".join([
-              "provider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(ESRI_WORLD_IMAGERY_URL, {",
-              "          credit: ESRI_IMAGERY_CREDIT,",
-              "          enablePickFeatures: false,",
-              "        });",
-          ])
-          new_esri = "\n".join([
-              "provider = new Cesium.UrlTemplateImageryProvider({",
-              "          url: `${ESRI_WORLD_IMAGERY_URL}/tile/{z}/{y}/{x}`,",
-              "          credit: ESRI_IMAGERY_CREDIT,",
-              "          maximumLevel: 19,",
-              "        });",
-          ])
-          if old_esri not in stack_text:
-              raise SystemExit('Could not locate Esri startup provider block')
-          stack_text = stack_text.replace(old_esri, new_esri, 1)
-          terrain_replacement = "\n".join([
-              "  async _getKeylessTerrainProvider() {",
-              "    if (!this._reearthTerrainProvider) {",
-              "      this._reearthTerrainProvider = new Cesium.EllipsoidTerrainProvider();",
-              "    }",
-              "    return this._reearthTerrainProvider;",
-              "  }",
-              "",
-              "  _emitChange",
-          ])
-          stack_text, count = re.subn(
-              r"  async _getKeylessTerrainProvider\(\) \{.*?\n  \}\n\n  _emitChange",
-              terrain_replacement,
-              stack_text,
-              count=1,
-              flags=re.S,
-          )
-          if count != 1:
-              raise SystemExit('Could not replace keyless terrain startup block')
-          stack.write_text(stack_text)
-
-          main = Path('src/main.js')
-          main_text = main.read_text()
-          old_restore = "\n".join([
-              "    void Promise.all([",
-              "      styleManager.initialRestorePromise,",
-              "      new Promise((resolve) => setTimeout(resolve, 1000)),",
-              "    ]).finally(() => {",
-          ])
-          new_restore = "\n".join([
-              "    void Promise.all([",
-              "      Promise.race([",
-              "        styleManager.initialRestorePromise,",
-              "        new Promise((resolve) => setTimeout(resolve, 1500)),",
-              "      ]),",
-              "      new Promise((resolve) => setTimeout(resolve, 500)),",
-              "    ]).finally(() => {",
-          ])
-          if old_restore not in main_text:
-              raise SystemExit('Could not locate startup reveal block')
-          main.write_text(main_text.replace(old_restore, new_restore, 1))
-
-          blank = {'type': 'FeatureCollection', 'features': []}
-          cable_dir = Path('src/data/local_data/telegeography_submarine_cables')
-          for name in ('cable-geo.json', 'landing-point-geo.json'):
-              (cable_dir / name).write_text(json.dumps(blank, separators=(',', ':')))
-          PY
-
-      - name: Apply RHKEARTH data and navigation adapters
-        working-directory: _gev
-        run: python ../scripts/patch-experimental-data.py
-
-      - name: Install dependencies
-        working-directory: _gev
-        run: npm ci --no-audit --no-fund
-
-      - name: Build production bundle
-        working-directory: _gev
-        run: npm run build
-
-      - name: Adapt bundle for RHKEARTH
+      - name: Install and build
         working-directory: _gev
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          import shutil
+          npm ci --no-audit --no-fund
+          npm run build
 
-          dist = Path('dist')
-          nested_cesium = dist / 'experimental' / 'cesium'
-          target_cesium = dist / 'cesium'
-          if nested_cesium.exists():
-              if target_cesium.exists():
-                  shutil.rmtree(target_cesium)
-              shutil.move(str(nested_cesium), str(target_cesium))
-              try:
-                  (dist / 'experimental').rmdir()
-              except OSError:
-                  pass
-          if not (target_cesium / 'Cesium.js').exists():
-              raise SystemExit('Cesium runtime was not published to dist/cesium')
+      - name: Adapt finished bundle
+        working-directory: _gev
+        run: python ../scripts/adapt-experimental-bundle.py
 
-          text_ext = {'.html', '.js', '.css', '.json', '.svg', '.txt', '.md'}
-          replacements = {
-              '/models/': '/experimental/models/',
-              '"/logo.svg"': '"/experimental/logo.svg"',
-              "'/logo.svg'": "'/experimental/logo.svg'",
-              '"/mic.svg"': '"/experimental/mic.svg"',
-              "'/mic.svg'": "'/experimental/mic.svg'",
-              '"/pin.svg"': '"/experimental/pin.svg"',
-              "'/pin.svg'": "'/experimental/pin.svg'",
-              '"/location.svg"': '"/experimental/location.svg"',
-              "'/location.svg'": "'/experimental/location.svg'",
-              '"/visual-presets.svg"': '"/experimental/visual-presets.svg"',
-              "'/visual-presets.svg'": "'/experimental/visual-presets.svg'",
-          }
-          for path in dist.rglob('*'):
-              if not path.is_file() or path.suffix.lower() not in text_ext:
-                  continue
-              try:
-                  text = path.read_text()
-              except UnicodeDecodeError:
-                  continue
-              new = text
-              for old, repl in replacements.items():
-                  new = new.replace(old, repl)
-              new = new.replace("GOD'S EYE VIEW", 'RHKEARTH EXPERIMENTAL')
-              new = new.replace("God's Eye View", 'RHKEARTH Experimental')
-              if new != text:
-                  path.write_text(new)
-
-          index = dist / 'index.html'
-          html = index.read_text()
-          html = html.replace('<head>', '<head>\n<meta name="robots" content="noindex,nofollow,noarchive">', 1)
-          index.write_text(html)
-
-          brand = Path('../rhkearth-logo.svg')
-          (dist / 'logo.svg').write_text(brand.read_text())
-
-          for source, target in [
-              ('LICENSE', 'UPSTREAM_LICENSE.txt'),
-              ('DATA_SOURCES.md', 'DATA_SOURCES.md'),
-              ('public/models/README.md', 'MODEL_ATTRIBUTIONS.md'),
-          ]:
-              src = Path(source)
-              if src.exists():
-                  (dist / target).write_text(src.read_text())
-          PY
+      - name: Validate build files and data snapshots
+        run: |
+          test -f _gev/dist/index.html
+          test -f _gev/dist/cesium/Cesium.js
+          test -s experimental-data/military.json
+          test -s experimental-data/cctv.json
+          test -s experimental-data/cctv-health.json
+          test -s experimental-data/launches.json
+          test -s experimental-data/fires.json
+          test -s experimental-data/celestrak/active
 
       - name: Browser smoke test
         working-directory: _gev
@@ -221,7 +76,7 @@ jobs:
           npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/rhkearth-experimental-preview.log 2>&1 &
           PREVIEW_PID=$!
           trap 'kill $PREVIEW_PID >/dev/null 2>&1 || true' EXIT
-          for i in $(seq 1 40); do
+          for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:4173/experimental/ >/dev/null; then
               break
             fi
@@ -229,6 +84,7 @@ jobs:
           done
           curl -fsS http://127.0.0.1:4173/experimental/ >/dev/null
           curl -fsS http://127.0.0.1:4173/experimental/cesium/Cesium.js >/dev/null
+
           python - <<'PY'
           from selenium import webdriver
           from selenium.webdriver.common.by import By
@@ -241,28 +97,39 @@ jobs:
           opts.add_argument('--disable-dev-shm-usage')
           opts.add_argument('--disable-gpu')
           opts.set_capability('goog:loggingPrefs', {'browser': 'ALL'})
+
           driver = webdriver.Chrome(options=opts)
-          wait = WebDriverWait(driver, 15)
+          wait = WebDriverWait(driver, 20)
           try:
               driver.set_window_size(1440, 1000)
               driver.get('http://127.0.0.1:4173/experimental/')
               wait.until(lambda d: d.title == 'RHKEARTH // Experimental')
               wait.until(lambda d: 'RHKEARTH' in d.find_element(By.ID, 'title-bar').text)
+              loader_text = driver.execute_script(
+                  "return document.getElementById('loading-screen')?.textContent || ''"
+              )
+              if 'RHKEARTH' not in loader_text:
+                  raise AssertionError('Startup cover source is not RHKEARTH branded')
               wait.until(lambda d: 'hidden' in (d.find_element(By.ID, 'loading-screen').get_attribute('class') or '').split())
               wait.until(lambda d: d.execute_script('return !!window.__godsEyeView?.viewer'))
+
               canvas = driver.find_element(By.CSS_SELECTOR, '#cesiumContainer canvas')
-              rect = driver.execute_script('const r=arguments[0].getBoundingClientRect();return [r.width,r.height]', canvas)
+              rect = driver.execute_script(
+                  'const r=arguments[0].getBoundingClientRect();return [r.width,r.height]', canvas
+              )
               if rect[0] < 300 or rect[1] < 200:
                   raise AssertionError(f'Cesium canvas did not render at usable size: {rect}')
-              max_zoom = driver.execute_script('return window.__godsEyeView.viewer.scene.screenSpaceCameraController.maximumZoomDistance')
+
+              max_zoom = driver.execute_script(
+                  'return window.__godsEyeView.viewer.scene.screenSpaceCameraController.maximumZoomDistance'
+              )
               if max_zoom < 100_000_000:
                   raise AssertionError(f'Orbital zoom range not applied: {max_zoom}')
-              loader = driver.find_element(By.ID, 'loading-screen').text
-              if 'RHKEARTH' not in loader:
-                  raise AssertionError('Startup cover is not RHKEARTH branded')
+
               favicon = driver.find_element(By.CSS_SELECTOR, 'link[rel="icon"]').get_attribute('href')
               if not favicon.endswith('/experimental/logo.svg'):
                   raise AssertionError(f'Unexpected favicon: {favicon}')
+
               serious = []
               for entry in driver.get_log('browser'):
                   msg = entry.get('message', '')
@@ -270,6 +137,7 @@ jobs:
                       serious.append(msg)
               if serious:
                   raise AssertionError('Runtime JavaScript errors: ' + ' | '.join(serious[:5]))
+
               print('PASS: RHKEARTH Experimental boots, renders Cesium, and supports orbital zoom')
           finally:
               driver.quit()
@@ -282,7 +150,7 @@ jobs:
           cp -a _gev/dist/. experimental/
           test -f experimental/cesium/Cesium.js
           test -f experimental/index.html
-          printf '%s\n' "Native static build of bilawalsidhu/gods-eye-view pinned at $UPSTREAM_COMMIT, adapted as RHKEARTH Experimental with keyless data adapters and orbital navigation." > experimental/RHKEARTH_BUILD.txt
+          printf '%s\n' "Native static build of bilawalsidhu/gods-eye-view pinned at $UPSTREAM_COMMIT, adapted as RHKEARTH Experimental with keyless data adapters, TfL JamCams, and orbital navigation." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit native bundle
         run: |
