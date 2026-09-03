@@ -1,16 +1,22 @@
 :root {
   --rhk-bg: #090b0a;
-  --rhk-panel: rgba(12, 15, 12, 0.88);
-  --rhk-panel-2: rgba(18, 21, 18, 0.92);
+  --rhk-panel: rgba(12, 15, 12, 0.90);
+  --rhk-panel-2: rgba(18, 21, 18, 0.94);
   --rhk-line: #343b34;
   --rhk-line-soft: rgba(169,181,155,.20);
   --rhk-accent: #a9b59b;
   --rhk-text: #efefe9;
   --rhk-muted: #8f978f;
   --rhk-dim: #626862;
+  --rhk-live: #9fc5ad;
+  --rhk-info: #9fb8c5;
+  --rhk-warn: #d3b36a;
+  --rhk-critical: #c97868;
+  --rhk-off: #737a73;
 }
 
-/* RHKEARTH visual language layered over the upstream console. */
+/* RHKEARTH visual language: graphite instrument chrome, semantic color only
+   when color communicates operational state. */
 #title-bar,
 #data-panel,
 #data-layers,
@@ -23,7 +29,7 @@
 }
 
 #title-bar {
-  background: linear-gradient(180deg, rgba(9,11,10,.86), rgba(9,11,10,.42), transparent) !important;
+  background: linear-gradient(180deg, rgba(9,11,10,.88), rgba(9,11,10,.46), transparent) !important;
 }
 
 #title-bar h1,
@@ -45,6 +51,12 @@ input,
 .data-layer-item,
 [class*="layer-row"] {
   border-radius: 0 !important;
+}
+
+button,
+select,
+input {
+  box-shadow: none !important;
 }
 
 .data-layer-item,
@@ -72,8 +84,8 @@ input,
   letter-spacing: .08em !important;
   font-weight: 700 !important;
   color: var(--rhk-accent) !important;
-  background: rgba(169,181,155,.06) !important;
-  border: 1px solid rgba(169,181,155,.24) !important;
+  background: rgba(169,181,155,.05) !important;
+  border: 1px solid rgba(169,181,155,.22) !important;
   padding: 5px 4px !important;
   text-shadow: none !important;
 }
@@ -88,12 +100,12 @@ input,
   box-shadow: none !important;
 }
 
-/* RHKEARTH data rail: restrained instrument panel rather than app-store cards. */
+/* Data rail: restrained instrument list rather than app-store cards. */
 #data-panel {
-  background: rgba(8,10,9,.92) !important;
+  background: rgba(8,10,9,.93) !important;
   border: 1px solid rgba(169,181,155,.22) !important;
-  box-shadow: 0 18px 55px rgba(0,0,0,.32) !important;
-  backdrop-filter: blur(12px) saturate(.75);
+  box-shadow: 0 18px 55px rgba(0,0,0,.30) !important;
+  backdrop-filter: blur(12px) saturate(.72);
 }
 
 #data-panel .data-toggle-list {
@@ -140,7 +152,7 @@ input,
   color: var(--rhk-accent) !important;
   font-size: 17px !important;
   line-height: 1 !important;
-  opacity: .9 !important;
+  opacity: .88 !important;
   text-shadow: none !important;
 }
 
@@ -187,10 +199,63 @@ input,
   color: var(--rhk-text) !important;
 }
 
+/* Default selected state is intentionally quiet. Feed-state selectors below
+   carry the meaningful color. */
 #data-panel .data-toggle-btn.active {
-  background: var(--rhk-accent) !important;
-  border-color: var(--rhk-accent) !important;
-  color: #0a0c0a !important;
+  background: rgba(169,181,155,.14) !important;
+  border-color: rgba(169,181,155,.58) !important;
+  color: var(--rhk-text) !important;
+}
+
+/* Operational status colors. These replace the upstream neon/cyan treatment. */
+#data-panel .data-toggle-btn.feed-nominal,
+#data-panel .data-toggle-btn[data-feed-state="nominal"] {
+  color: var(--rhk-live) !important;
+  border-color: rgba(159,197,173,.48) !important;
+  background: rgba(159,197,173,.07) !important;
+}
+
+#data-panel .data-toggle-btn.feed-loading,
+#data-panel .data-toggle-btn[data-feed-state="loading"],
+#data-panel .data-toggle-btn.lifecycle-enabling,
+#data-panel .data-toggle-btn.lifecycle-disabling {
+  color: var(--rhk-info) !important;
+  border-color: rgba(159,184,197,.46) !important;
+  background: rgba(159,184,197,.06) !important;
+}
+
+#data-panel .data-toggle-btn.feed-degraded,
+#data-panel .data-toggle-btn.feed-stale,
+#data-panel .data-toggle-btn.feed-fallback,
+#data-panel .data-toggle-btn[data-feed-state="degraded"],
+#data-panel .data-toggle-btn[data-feed-state="stale"],
+#data-panel .data-toggle-btn[data-feed-state="fallback"] {
+  color: var(--rhk-warn) !important;
+  border-color: rgba(211,179,106,.46) !important;
+  background: rgba(211,179,106,.055) !important;
+}
+
+#data-panel .data-toggle-btn.feed-unavailable,
+#data-panel .data-toggle-btn[data-feed-state="unavailable"],
+#data-panel .data-toggle-btn[data-feed-state="uncertain"] {
+  color: var(--rhk-off) !important;
+  border-color: rgba(115,122,115,.34) !important;
+  background: rgba(115,122,115,.035) !important;
+}
+
+#data-panel .data-toggle-row:has(.feed-nominal) .data-icon.rhk-layer-symbol {
+  color: var(--rhk-live) !important;
+}
+
+#data-panel .data-toggle-row:has(.feed-degraded) .data-icon.rhk-layer-symbol,
+#data-panel .data-toggle-row:has(.feed-stale) .data-icon.rhk-layer-symbol,
+#data-panel .data-toggle-row:has(.feed-fallback) .data-icon.rhk-layer-symbol {
+  color: var(--rhk-warn) !important;
+}
+
+#data-panel .data-toggle-row:has(.feed-unavailable) .data-icon.rhk-layer-symbol {
+  color: var(--rhk-off) !important;
+  opacity: .62 !important;
 }
 
 #data-panel .data-toggle-meta {
@@ -226,45 +291,83 @@ input,
 }
 
 #data-panel .data-toggle-chip.active {
-  color: var(--rhk-accent) !important;
-  border-color: rgba(169,181,155,.58) !important;
-  background: rgba(169,181,155,.07) !important;
+  color: var(--rhk-live) !important;
+  border-color: rgba(159,197,173,.52) !important;
+  background: rgba(159,197,173,.055) !important;
 }
 
 #data-panel .data-toggle-legend-item {
-  color: rgba(239,239,233,.42) !important;
+  color: rgba(239,239,233,.44) !important;
   font-size: 7px !important;
   letter-spacing: .04em !important;
 }
 
+/* Do not globally desaturate legend swatches: traffic red/amber/green and other
+   semantic map legends need to remain legible. */
 #data-panel .data-toggle-legend-swatch {
   width: 5px !important;
   height: 5px !important;
-  filter: saturate(.35) brightness(.9) !important;
+  filter: none !important;
 }
 
-/* No demo onboarding, local-key setup, or voice-agent surface on RHKEARTH. */
+/* Generic information hierarchy outside the data rail. */
+.status-live,
+.status-nominal,
+[data-status="live"],
+[data-status="nominal"] {
+  color: var(--rhk-live) !important;
+}
+
+.status-warning,
+.status-degraded,
+.status-stale,
+.status-fallback,
+[data-status="warning"],
+[data-status="degraded"],
+[data-status="stale"],
+[data-status="fallback"] {
+  color: var(--rhk-warn) !important;
+}
+
+.status-critical,
+.status-error,
+[data-status="critical"],
+[data-status="error"] {
+  color: var(--rhk-critical) !important;
+}
+
+.status-offline,
+.status-unavailable,
+[data-status="offline"],
+[data-status="unavailable"] {
+  color: var(--rhk-off) !important;
+}
+
+/* No demo onboarding, local-key setup, voice-agent, or city-specific duplicate
+   layer rows on RHKEARTH. Chicago is supplied through the existing CCTV and
+   Traffic owners in the native build. */
 #first-run-launcher,
 #key-setup,
 #key-setup-chip,
 #gev-voice-control,
-#gev-voice-button {
+#gev-voice-button,
+[data-layer-id="chicago-live-cameras"],
+[data-layer-id="chicago-street-activity"] {
   display: none !important;
 }
 
-/* Reduce neon/cyber-game styling without weakening the globe. */
+/* Reduce cyber-game styling without weakening actual state visualization. */
 .title-glow,
 [class*="neon"],
 [class*="glow"] {
-  filter: saturate(.45) !important;
+  filter: saturate(.42) !important;
 }
 
 #title-bar .brand-logo img {
   filter: grayscale(1) contrast(1.05) brightness(1.15) !important;
 }
 
-/* Clear View gets one restrained RHKEARTH mark in the top-left. It stays hidden
-   in the normal console, where the primary title bar already carries the brand. */
+/* Clear View: one restrained RHKEARTH mark at top-left. */
 #rhkearth-clear-emblem {
   position: fixed;
   left: 18px;
@@ -312,7 +415,6 @@ body.ui-clean-view #rhkearth-clear-emblem {
   #rhkearth-clear-emblem {
     left: 12px;
     top: 12px;
-    bottom: auto;
     font-size: 9px;
     opacity: .64;
   }
@@ -322,7 +424,6 @@ body.ui-clean-view #rhkearth-clear-emblem {
   }
 }
 
-/* Keep map/HUD modes intact; only normalize chrome. */
 #intel-hud,
 #cockpit-hud,
 #cesiumContainer {
