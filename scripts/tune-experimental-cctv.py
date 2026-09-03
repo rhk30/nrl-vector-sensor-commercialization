@@ -64,6 +64,7 @@ scene_init = """    // Initialize deterministic scene playback for social clip c
 """
 if scene_init in main_text:
     main_text = main_text.replace(scene_init, '', 1)
+main_text = main_text.replace('      sceneDirector,\n', '', 1)
 main.write_text(main_text, encoding='utf-8')
 
 index = Path('index.html')
@@ -82,7 +83,6 @@ scene_panel_pattern = re.compile(
 )
 index_text, removed_scene_panels = scene_panel_pattern.subn('\n', index_text, count=1)
 if removed_scene_panels != 1:
-    # Fallback: remove just the scene panel block while preserving the parent stack.
     scene_panel_pattern = re.compile(
         r'\s*<!-- Scene Director Panel -->\s*<div id="scene-panel".*?</div>\s*</div>',
         re.S,
@@ -117,4 +117,10 @@ if not live_patch.exists():
     raise SystemExit('RHKEARTH Chicago live CCTV patch script missing')
 exec(compile(live_patch.read_text(encoding='utf-8'), str(live_patch), 'exec'))
 
-print('RHKEARTH Chicago/Chicagoland operating area added; circular scope and Scenes removed; continuous-live CCTV layer added')
+# Add current/future Chicago street impacts from the City of Chicago CDOT feed.
+street_patch = Path('../scripts/add-chicago-street-activity.py')
+if not street_patch.exists():
+    raise SystemExit('RHKEARTH Chicago street-activity patch script missing')
+exec(compile(street_patch.read_text(encoding='utf-8'), str(street_patch), 'exec'))
+
+print('RHKEARTH Chicago/Chicagoland operating area added; circular scope and Scenes removed; continuous-live CCTV and street-activity layers added')
