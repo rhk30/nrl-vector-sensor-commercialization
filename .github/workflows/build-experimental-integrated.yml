@@ -209,6 +209,31 @@ jobs:
               if launch_count < 1:
                   raise AssertionError('Launch Library snapshot is empty')
 
+              cctv_frame = driver.execute_async_script('''
+                const done = arguments[arguments.length - 1];
+                fetch('/experimental/live-data/cctv.json')
+                  .then(r => r.json())
+                  .then(j => {
+                    const url = j?.sources?.[0]?.snapshotUrl || j?.sources?.[0]?.url;
+                    if (!url) return done({ ok: false, error: 'no camera URL' });
+                    const img = new Image();
+                    const timer = setTimeout(() => done({ ok: false, error: 'frame timeout', url }), 15000);
+                    img.onload = () => {
+                      clearTimeout(timer);
+                      done({ ok: img.naturalWidth > 0 && img.naturalHeight > 0, width: img.naturalWidth, height: img.naturalHeight, url });
+                    };
+                    img.onerror = () => {
+                      clearTimeout(timer);
+                      done({ ok: false, error: 'frame load failed', url });
+                    };
+                    img.src = url + (url.includes('?') ? '&' : '?') + 'rhk_smoke=' + Date.now();
+                  })
+                  .catch(e => done({ ok: false, error: String(e?.message || e) }));
+              ''')
+              print('CCTV frame smoke:', cctv_frame)
+              if not cctv_frame.get('ok'):
+                  raise AssertionError(f'CCTV frame did not load: {cctv_frame}')
+
               serious = []
               for entry in driver.get_log('browser'):
                   msg = entry.get('message', '')
@@ -216,7 +241,7 @@ jobs:
                       serious.append(msg)
               if serious:
                   raise AssertionError('Runtime JavaScript errors: ' + ' | '.join(serious[:5]))
-              print('PASS: RHKEARTH Experimental boot + restored data layers')
+              print('PASS: RHKEARTH Experimental boot + restored data layers + CCTV frame')
           finally:
               driver.quit()
           PY
@@ -235,10 +260,25 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add experimental
-          if git diff --cached --quiet; then
-            echo "No Experimental bundle changes."
-            exit 0
-          fi
-          git commit -m "Restore RHKEARTH Experimental live layers [skip ci]"
-          git push
+          rm -rf /tmp/rhkearth-experimental-built
+          cp -a experimental /tmp/rhkearth-experimental-built
+
+          for attempt in 1 2 3; do
+            echo "Publish attempt $attempt"
+            git fetch origin main
+            git reset --hard origin/main
+            rm -rf experimental
+            cp -a /tmp/rhkearth-experimental-built experimental
+            git add experimental
+            if git diff --cached --quiet; then
+              echo "No Experimental bundle changes."
+              exit 0
+            fi
+            git commit -m "Restore RHKEARTH Experimental live layers [skip ci]"
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Remote advanced during publish; retrying against latest main."
+          done
+          echo "Could not publish Experimental bundle after three attempts."
+          exit 1
