@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Experimental // RHKEARTH</title>
+<meta name="description" content="RHKEARTH experimental lab. Third-party open-source geospatial intelligence tooling is explored here separately from the core RHKEARTH patent commercialization evaluation.">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<link rel="icon" type="image/svg+xml" href="rhkearth-logo.svg">
+<style>
+:root{--bg:#090b0a;--panel:#101310;--ink:#efefe9;--muted:#929990;--line:#293029;--accent:#a9b59b;--mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;--sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+body{overflow:hidden}
+a{color:inherit;text-decoration:none}
+.lab{height:100dvh;display:grid;grid-template-rows:70px 34px 1fr;background:var(--bg)}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:0 30px;border-bottom:1px solid var(--line);background:rgba(9,11,10,.97);z-index:3}
+.brand{display:flex;align-items:center;gap:13px;min-width:0}
+.mark{width:28px;height:28px;border:1px solid var(--accent);position:relative;flex:0 0 auto}
+.mark:before,.mark:after{content:"";position:absolute;background:var(--accent)}
+.mark:before{width:1px;top:4px;bottom:4px;left:13px}.mark:after{height:1px;left:4px;right:4px;top:13px}
+.identity{display:flex;align-items:baseline;gap:11px;min-width:0}.identity strong{font-size:.84rem;letter-spacing:.13em;text-transform:uppercase}.identity span{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;color:var(--accent);text-transform:uppercase;white-space:nowrap}
+.actions{display:flex;align-items:center;gap:18px;font-family:var(--mono);font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);white-space:nowrap}.actions a:hover{color:var(--ink)}
+.status{display:flex;align-items:center;justify-content:center;padding:0 18px;border-bottom:1px solid var(--line);background:#0c0f0c;color:#8f978f;font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frame{position:relative;min-height:0;background:#050605}
+.frame iframe{display:block;width:100%;height:100%;border:0;background:#050605}
+.fallback{position:absolute;right:18px;bottom:18px;z-index:2;display:flex;gap:8px;pointer-events:none}.fallback a{pointer-events:auto;border:1px solid rgba(169,181,155,.34);background:rgba(9,11,10,.84);backdrop-filter:blur(12px);padding:9px 11px;color:#bbc0ba;font-family:var(--mono);font-size:.58rem;letter-spacing:.06em;text-transform:uppercase}.fallback a:hover{border-color:var(--accent);color:var(--ink)}
+@media(max-width:760px){.topbar{padding:0 16px}.identity span{display:none}.actions{gap:12px}.actions .source{display:none}.status{font-size:.52rem}.fallback{right:10px;bottom:10px}}
+</style>
+</head>
+<body>
+<div class="lab">
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Back to RHKEARTH">
+      <span class="mark" aria-hidden="true"></span>
+      <span class="identity"><strong>RHKEARTH</strong><span>Experimental</span></span>
+    </a>
+    <nav class="actions" aria-label="Experimental navigation">
+      <a href="./">← Core site</a>
+      <a class="source" href="https://github.com/bilawalsidhu/gods-eye-view" target="_blank" rel="noopener noreferrer">Upstream source ↗</a>
+    </nav>
+  </header>
+  <div class="status">Third-party open-source experiment // God's Eye View by Bilawal Sidhu // separate from RHKEARTH technology, patent and performance claims</div>
+  <main class="frame">
+    <iframe
+      title="God's Eye View experimental workspace"
+      src="https://stackblitz.com/github/bilawalsidhu/gods-eye-view?embed=1&hideNavigation=1&view=preview&startScript=dev"
+      allow="clipboard-read; clipboard-write; fullscreen"
+      referrerpolicy="strict-origin-when-cross-origin"
+      loading="eager">
+    </iframe>
+    <div class="fallback" aria-label="Experimental workspace links">
+      <a href="https://stackblitz.com/github/bilawalsidhu/gods-eye-view?view=preview&startScript=dev" target="_blank" rel="noopener noreferrer">Open workspace ↗</a>
+      <a href="https://github.com/bilawalsidhu/gods-eye-view" target="_blank" rel="noopener noreferrer">Source ↗</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>
