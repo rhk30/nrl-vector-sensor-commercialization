@@ -45,7 +45,6 @@ jobs:
           from pathlib import Path
           import json
 
-          # Build specifically for https://rhkearth.com/experimental/.
           p = Path('vite.config.js')
           s = p.read_text()
           needle = "  return {\n    plugins: ["
@@ -54,9 +53,6 @@ jobs:
           s = s.replace(needle, "  return {\n    base: '/experimental/',\n    plugins: [", 1)
           p.write_text(s)
 
-          # Do not redistribute TeleGeography's CC BY-NC-SA cable geometry on
-          # the RHKEARTH commercialization site. Preserve the module contract
-          # with empty FeatureCollections so the upstream app still compiles.
           blank = {'type': 'FeatureCollection', 'features': []}
           cable_dir = Path('src/data/local_data/telegeography_submarine_cables')
           for name in ('cable-geo.json', 'landing-point-geo.json'):
@@ -108,13 +104,6 @@ jobs:
           index = dist / 'index.html'
           html = index.read_text()
           html = html.replace('<head>', '<head>\n<meta name="robots" content="noindex,nofollow,noarchive">', 1)
-          html = html.replace('</body>', '''
-<a id="rhk-core-link" href="/" aria-label="Back to RHKEARTH">← RHKEARTH</a>
-<style>
-#rhk-core-link{position:fixed;left:12px;top:10px;z-index:2147483647;padding:7px 9px;border:1px solid rgba(169,181,155,.35);background:rgba(9,11,10,.78);backdrop-filter:blur(10px);color:#d6ddcf;text-decoration:none;font:10px/1.2 SFMono-Regular,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;opacity:.72}
-#rhk-core-link:hover{opacity:1;border-color:#a9b59b}
-</style>
-</body>''', 1)
           index.write_text(html)
 
           for source, target in [
