@@ -13,11 +13,11 @@ html = html.replace('<span class="share-icon" aria-hidden="true">&#x1F517;</span
 # Never load third-party AI/login surfaces in the public RHKEARTH console.
 html = re.sub(r'\s*<script[^>]*src=["\']https://js\.puter\.com/v2/?["\'][^>]*></script>\s*', '\n', html, flags=re.I)
 
-runtime_tag = '<script src="/experimental/rhkearth-runtime.js?v=2"></script>'
+runtime_tag = '<script src="/experimental/rhkearth-runtime.js?v=3"></script>'
 theme_tag = '<link rel="stylesheet" href="/experimental/rhkearth-theme.css?v=2">'
 
 if '/experimental/rhkearth-runtime.js' in html:
-    html = re.sub(r'/experimental/rhkearth-runtime\.js(?:\?v=\d+)?', '/experimental/rhkearth-runtime.js?v=2', html)
+    html = re.sub(r'/experimental/rhkearth-runtime\.js(?:\?v=\d+)?', '/experimental/rhkearth-runtime.js?v=3', html)
 else:
     module_match = re.search(r'<script type="module"[^>]+src="/experimental/assets/[^"]+\.js"></script>', html)
     if module_match:
@@ -50,7 +50,7 @@ index.write_text(html, encoding='utf-8')
 checks = {
     'RHKEARTH title': 'RHKEARTH // Intelligence Console' in html,
     'RHKEARTH subtitle': 'INTELLIGENCE CONSOLE' in html,
-    'runtime v2': '/experimental/rhkearth-runtime.js?v=2' in html,
+    'runtime v3': '/experimental/rhkearth-runtime.js?v=3' in html,
     'theme v2': '/experimental/rhkearth-theme.css?v=2' in html,
     'clear emblem': 'rhkearth-clear-emblem' in html,
     'no Puter': 'js.puter.com' not in html,
