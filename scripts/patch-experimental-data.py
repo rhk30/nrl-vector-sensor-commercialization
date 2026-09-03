@@ -46,8 +46,7 @@ if '/api/celestrak/${' in sat_text:
     raise SystemExit('Unpatched CelesTrak route remains in satellites.js')
 sat.write_text(sat_text)
 
-# Space Missions — Launch Library 2 + the same locally refreshed CelesTrak
-# active catalog. Launches remain recent while avoiding an unavailable /api route.
+# Space Missions — Launch Library 2 + locally refreshed CelesTrak active catalog.
 replace('src/data/rocketLaunches.js', "const API_URL = '/api/launches';", "const API_URL = '/experimental-data/launches.json';")
 replace('src/data/rocketLaunches.js', "fetch('/api/celestrak/active')", "fetch('/experimental-data/celestrak/active')")
 
@@ -60,7 +59,7 @@ replace('src/data/firmsHeatmap.js', "loadingLabel = `LIVE · updated ${formatAgo
 replace('src/data/localLayers.js', "name: 'FIRMS Active Fires',", "name: 'Wildfire Events',")
 replace('src/data/localLayers.js', "source: 'NASA FIRMS · LIVE',", "source: 'NASA EONET · KEYLESS',")
 
-# Correct the visible attribution for the fallback build.
+# Correct visible attribution for the fallback build.
 credits = Path('src/data/dataCredits.js')
 credit_text = credits.read_text()
 credit_text = credit_text.replace(
@@ -69,14 +68,51 @@ credit_text = credit_text.replace(
 )
 credits.write_text(credit_text)
 
-# Keyless road simulation: the upstream server only proxied Overpass for CORS,
-# caching and resilience. Public Overpass supports browser POST requests, so use
-# it directly in this static build. TomTom remains optional; if its status route
-# is absent the existing code falls back to simulated flow.
+# Keyless road simulation: browser-safe public Overpass replaces the missing
+# Vite proxy. TomTom remains optional; without it the upstream simulated-flow
+# mode continues to animate the real OSM road network.
 replace(
     'src/data/traffic.js',
     "const OVERPASS_URL = '/api/overpass';",
     "const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';",
 )
 
-print('RHKEARTH Experimental static data adapters applied')
+# CCTV / traffic cameras -----------------------------------------------------
+# The catalog is refreshed from Transport for London's public JamCam feed.
+# Each source contains the official public S3 still-image URL, so the static
+# build can render real camera frames without the original Node frame proxy.
+replace('src/data/cctv.js', "const SOURCE_ENDPOINT = '/api/cctv/sources';", "const SOURCE_ENDPOINT = '/experimental-data/cctv.json';")
+replace('src/data/cctv.js', "const HEALTH_ENDPOINT = '/api/cctv/health';", "const HEALTH_ENDPOINT = '/experimental-data/cctv-health.json';")
+
+# Preserve direct public frame URLs on the camera records.
+replace(
+    'src/data/cctv.js',
+    "      feedConfigured: typeof source.url === 'string' && !!source.url.trim(),\n      lat,",
+    "      feedConfigured: typeof source.url === 'string' && !!source.url.trim(),\n      snapshotUrl: String(source.snapshotUrl || source.url || '').trim(),\n      lat,",
+)
+
+# Prefer a direct provider frame when one exists; fall back to the original
+# backend-shaped URL for seed cameras that have no public feed.
+replace(
+    'src/data/cctv.js',
+    "  return `${FRAME_ENDPOINT}/${encodeURIComponent(camera.id)}?${params.toString()}`;",
+    "  const direct = String(camera?.snapshotUrl || '').trim();\n  if (/^https:\\/\\//i.test(direct)) {\n    const sep = direct.includes('?') ? '&' : '?';\n    return `${direct}${sep}rhkTs=${tick}`;\n  }\n  return `${FRAME_ENDPOINT}/${encodeURIComponent(camera.id)}?${params.toString()}`;",
+)
+
+# Static RHKEARTH does not have the original terrain-height proxy. Do not let
+# CCTV initialization wait eight seconds for that missing endpoint; the layer
+# already has catalog/ellipsoid fallbacks and refines geometry when available.
+replace('src/data/cctv.js', 'const GROUND_PRIOR_INIT_WAIT_MS = 8000;', 'const GROUND_PRIOR_INIT_WAIT_MS = 100;')
+
+# Google-Earth-style navigation ---------------------------------------------
+# Explicitly allow an orbital/full-Earth pullback. This changes navigation
+# limits only; it does not change RHKEARTH imagery, HUD, or intelligence layers.
+main = Path('src/main.js')
+main_text = main.read_text()
+zoom_anchor = "    viewer.targetFrameRate = 60;\n"
+zoom_patch = """    viewer.targetFrameRate = 60;\n\n    // RHKEARTH Experimental: allow a true orbital/full-Earth pullback.\n    // Cesium remains the renderer; this only relaxes camera navigation range.\n    const rhkCameraController = viewer.scene.screenSpaceCameraController;\n    if (rhkCameraController) {\n      rhkCameraController.minimumZoomDistance = 1;\n      rhkCameraController.maximumZoomDistance = 150_000_000;\n      rhkCameraController.enableCollisionDetection = true;\n    }\n"""
+if zoom_anchor not in main_text:
+    raise SystemExit('Could not locate viewer.targetFrameRate camera anchor')
+main.write_text(main_text.replace(zoom_anchor, zoom_patch, 1))
+
+print('RHKEARTH Experimental static data, CCTV, traffic, and globe-navigation adapters applied')
