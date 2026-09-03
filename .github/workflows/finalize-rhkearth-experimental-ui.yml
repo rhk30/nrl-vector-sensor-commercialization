@@ -3,9 +3,11 @@ name: Finalize RHKEARTH Experimental UI
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - .github/workflows/finalize-rhkearth-experimental-ui.yml
+      - scripts/finalize-experimental-ui.py
       - experimental/rhkearth-runtime.js
       - experimental/rhkearth-theme.css
 
@@ -20,74 +22,23 @@ jobs:
   finalize:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Apply RHKEARTH interface shell
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          index = Path('experimental/index.html')
-          html = index.read_text()
-
-          html = html.replace('<title>RHKEARTH // Experimental</title>', '<title>RHKEARTH // Intelligence Console</title>')
-          html = html.replace('<span>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></span>', '<span>RHKEARTH</span>')
-          html = html.replace('<p class="subtitle">EXPERIMENTAL SYSTEMS</p>', '<p class="subtitle">INTELLIGENCE CONSOLE</p>')
-          html = html.replace('<h2>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></h2>', '<h2>RHKEARTH</h2>')
-          html = html.replace('<span class="share-icon" aria-hidden="true">&#x1F517;</span>', '<span class="material-symbols-outlined" aria-hidden="true">link</span>')
-
-          # RHKEARTH public console must never require a visitor to sign into
-          # a third-party AI service. Remove any older Puter injection.
-          html = re.sub(r'\s*<script[^>]+src="https://js\.puter\.com/v2/?"[^>]*></script>', '', html)
-
-          if '/experimental/rhkearth-theme.css' not in html:
-              html = html.replace('</head>', '  <link rel="stylesheet" href="/experimental/rhkearth-theme.css?v=2">\n</head>', 1)
-          else:
-              html = re.sub(r'/experimental/rhkearth-theme\.css\?v=\d+', '/experimental/rhkearth-theme.css?v=2', html)
-
-          runtime = '<script src="/experimental/rhkearth-runtime.js?v=2"></script>'
-          if '/experimental/rhkearth-runtime.js' not in html:
-              match = re.search(r'\s*<script type="module"[^>]+src="/experimental/assets/[^\"]+\.js"></script>', html)
-              if match:
-                  html = html[:match.start()] + '\n  ' + runtime + html[match.start():]
-              else:
-                  html = html.replace('</head>', f'  {runtime}\n</head>', 1)
-          else:
-              html = re.sub(r'/experimental/rhkearth-runtime\.js\?v=\d+', '/experimental/rhkearth-runtime.js?v=2', html)
-
-          emblem = '''  <div id="rhkearth-clear-emblem" aria-hidden="true">
-    <img src="/experimental/logo.svg" alt="" />
-    <span>RHKEARTH</span>
-  </div>'''
-          if 'id="rhkearth-clear-emblem"' not in html:
-              html = html.replace('  <div id="cesiumContainer"></div>', '  <div id="cesiumContainer"></div>\n' + emblem, 1)
-
-          index.write_text(html)
-          PY
-
-      - name: Validate final shell
-        run: |
-          test -s experimental/rhkearth-runtime.js
-          test -s experimental/rhkearth-theme.css
-          grep -q 'RHKEARTH</span>' experimental/index.html
-          grep -q 'INTELLIGENCE CONSOLE' experimental/index.html
-          grep -q 'rhkearth-runtime.js?v=2' experimental/index.html
-          grep -q 'rhkearth-theme.css?v=2' experimental/index.html
-          grep -q 'rhkearth-clear-emblem' experimental/index.html
-          ! grep -q 'js.puter.com' experimental/index.html
-          ! grep -q 'title-accent">EXPERIMENTAL' experimental/index.html
+      - name: Finalize RHKEARTH shell
+        run: python scripts/finalize-experimental-ui.py
 
       - name: Commit finalized interface
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add experimental/index.html experimental/rhkearth-runtime.js experimental/rhkearth-theme.css
+          git add experimental/index.html
           if git diff --cached --quiet; then
             echo "RHKEARTH Experimental interface already finalized."
             exit 0
           fi
-          git commit -m "Refine RHKEARTH intelligence console [skip ci]"
+          git commit -m "Finalize RHKEARTH intelligence console [skip ci]"
           git push
