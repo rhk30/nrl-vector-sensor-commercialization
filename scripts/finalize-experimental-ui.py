@@ -81,10 +81,12 @@ theme.write_text(css, encoding='utf-8')
 # after every native bundle publish rather than relying on generated files.
 weather_js_src = Path('scripts/rhkearth-weather.js')
 weather_css_src = Path('scripts/rhkearth-weather.css')
-if not weather_js_src.exists() or not weather_css_src.exists():
+weather_fallback_src = Path('scripts/rhkearth-weather-fallback.js')
+if not weather_js_src.exists() or not weather_css_src.exists() or not weather_fallback_src.exists():
     raise SystemExit('RHKEARTH Weather source files are missing')
 Path('experimental/rhkearth-weather.js').write_text(weather_js_src.read_text(encoding='utf-8'), encoding='utf-8')
 Path('experimental/rhkearth-weather.css').write_text(weather_css_src.read_text(encoding='utf-8'), encoding='utf-8')
+Path('experimental/rhkearth-weather-fallback.js').write_text(weather_fallback_src.read_text(encoding='utf-8'), encoding='utf-8')
 
 html = html.replace('<title>RHKEARTH // Experimental</title>', '<title>RHKEARTH // Intelligence Console</title>')
 html = html.replace('<span>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></span>', '<span>RHKEARTH</span>')
@@ -99,6 +101,7 @@ html = re.sub(r'\s*<script[^>]*src=["\']https://js\.puter\.com/v2/?["\'][^>]*></
 # changes so browsers/CDNs cannot retain a visually or functionally stale copy.
 runtime_tag = '<script src="/experimental/rhkearth-runtime.js?v=9"></script>'
 theme_tag = '<link rel="stylesheet" href="/experimental/rhkearth-theme.css?v=5">'
+weather_fallback_tag = '<script src="/experimental/rhkearth-weather-fallback.js?v=1"></script>'
 weather_script_tag = '<script src="/experimental/rhkearth-weather.js?v=1" defer></script>'
 weather_style_tag = '<link rel="stylesheet" href="/experimental/rhkearth-weather.css?v=1">'
 
@@ -115,6 +118,16 @@ if '/experimental/rhkearth-theme.css' in html:
     html = re.sub(r'/experimental/rhkearth-theme\.css(?:\?v=\d+)?', '/experimental/rhkearth-theme.css?v=5', html)
 else:
     html = html.replace('</head>', f'  {theme_tag}\n</head>', 1)
+
+if '/experimental/rhkearth-weather-fallback.js' in html:
+    html = re.sub(r'/experimental/rhkearth-weather-fallback\.js(?:\?v=\d+)?', '/experimental/rhkearth-weather-fallback.js?v=1', html)
+else:
+    runtime_pos = html.find(runtime_tag)
+    if runtime_pos >= 0:
+        end = runtime_pos + len(runtime_tag)
+        html = html[:end] + '\n  ' + weather_fallback_tag + html[end:]
+    else:
+        html = html.replace('</head>', f'  {weather_fallback_tag}\n</head>', 1)
 
 if '/experimental/rhkearth-weather.js' in html:
     html = re.sub(r'/experimental/rhkearth-weather\.js(?:\?v=\d+)?', '/experimental/rhkearth-weather.js?v=1', html)
@@ -152,8 +165,10 @@ checks = {
     'RHKEARTH subtitle': 'INTELLIGENCE CONSOLE' in html,
     'runtime v9': '/experimental/rhkearth-runtime.js?v=9' in html,
     'theme v5': '/experimental/rhkearth-theme.css?v=5' in html,
+    'weather fallback v1': '/experimental/rhkearth-weather-fallback.js?v=1' in html,
     'weather runtime v1': '/experimental/rhkearth-weather.js?v=1' in html,
     'weather style v1': '/experimental/rhkearth-weather.css?v=1' in html,
+    'weather fallback installed': Path('experimental/rhkearth-weather-fallback.js').exists(),
     'weather runtime installed': Path('experimental/rhkearth-weather.js').exists(),
     'weather style installed': Path('experimental/rhkearth-weather.css').exists(),
     'clear emblem': 'rhkearth-clear-emblem' in html,
