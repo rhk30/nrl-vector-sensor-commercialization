@@ -14,11 +14,111 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+
+<style id="rhkearth-neutral-instrument-chrome">
+/* RHKEARTH neutral instrument chrome v2 */
+#intel-hud {
+  --hud-color: rgba(239,239,233,.82) !important;
+  --hud-glow: rgba(239,239,233,.12) !important;
+  --hud-border: rgba(169,181,155,.24) !important;
+  color: #efefe9 !important;
+  text-shadow: none !important;
+}
+#intel-hud *,
+#style-indicator,
+#style-indicator *,
+#pp-toggles,
+#pp-toggles *,
+#param-slider-panel,
+#param-slider-panel * {
+  text-shadow: none !important;
+}
+#intel-hud .hud-system,
+#intel-hud .hud-mode,
+#intel-hud .hud-rec,
+#intel-hud .hud-orbital,
+#intel-hud .hud-bottom-left,
+#intel-hud .hud-bottom-right,
+#intel-hud .hud-left-edge,
+#intel-hud .hud-right-edge,
+#intel-hud .hud-bottom-bar,
+#intel-hud .hud-top-bar,
+#intel-hud [id^="hud-"] {
+  color: rgba(239,239,233,.82) !important;
+}
+#intel-hud .hud-bracket,
+#intel-hud .hud-corner,
+#intel-hud .hud-edge,
+#intel-hud .hud-top-bar,
+#intel-hud .hud-bottom-bar {
+  border-color: rgba(169,181,155,.24) !important;
+}
+#style-indicator .indicator-label { color: rgba(143,151,143,.76) !important; }
+#style-indicator .indicator-value { color: #efefe9 !important; }
+
+#pp-toggles,
+#param-slider-panel {
+  --accent: #efefe9 !important;
+  color: #efefe9 !important;
+  background: rgba(8,10,9,.92) !important;
+  border-color: rgba(169,181,155,.22) !important;
+}
+#pp-toggles .pp-toggle-btn,
+#pp-toggles .pp-mode-btn,
+#param-slider-panel .pp-mode-btn {
+  color: rgba(239,239,233,.72) !important;
+  background: rgba(169,181,155,.025) !important;
+  border-color: rgba(169,181,155,.20) !important;
+  box-shadow: none !important;
+}
+#pp-toggles .pp-toggle-btn:hover,
+#pp-toggles .pp-mode-btn:hover,
+#param-slider-panel .pp-mode-btn:hover {
+  color: #efefe9 !important;
+  background: rgba(169,181,155,.07) !important;
+  border-color: rgba(169,181,155,.42) !important;
+}
+#pp-toggles .pp-toggle-btn.active,
+#pp-toggles .pp-toggle-btn[aria-pressed="true"],
+#pp-toggles .pp-mode-btn.active,
+#pp-toggles .pp-mode-btn[aria-checked="true"],
+#param-slider-panel .pp-mode-btn.active,
+#param-slider-panel .pp-mode-btn[aria-checked="true"] {
+  color: #efefe9 !important;
+  background: rgba(169,181,155,.13) !important;
+  border-color: rgba(169,181,155,.58) !important;
+}
+#pp-toggles .pp-toggle-btn.active .pp-label,
+#pp-toggles .pp-toggle-btn[aria-pressed="true"] .pp-label,
+#pp-toggles .pp-icon,
+#pp-toggles .pp-label,
+#pp-toggles .pp-slider-mini-label,
+#pp-toggles .pp-slider-value,
+#param-slider-panel .pp-slider-mini-label,
+#param-slider-panel .pp-slider-value {
+  color: inherit !important;
+}
+#pp-toggles input[type="range"],
+#param-slider-panel input[type="range"] {
+  accent-color: #efefe9 !important;
+}
+#pp-toggles input[type="range"]::-webkit-slider-thumb,
+#param-slider-panel input[type="range"]::-webkit-slider-thumb {
+  background: #efefe9 !important;
+  box-shadow: none !important;
+}
+#data-panel .data-toggle-meta,
+#data-panel .data-count,
+#data-panel .data-toggle-legend-item {
+  color: rgba(143,151,143,.72) !important;
+}
+</style>
+
   <script src="/experimental/rhkearth-runtime.js?v=9"></script>
   <script src="/experimental/rhkearth-weather-fallback.js?v=1"></script>
   <script src="/experimental/rhkearth-weather.js?v=1" defer></script>
   <script src="/experimental/rhkearth-weather-worldwide.js?v=1" defer></script>
-  <script type="module" crossorigin src="/experimental/assets/index-ilZcBahj.js"></script>
+  <script type="module" crossorigin src="/experimental/assets/index-DmIoZRY-.js"></script>
   <link rel="stylesheet" crossorigin href="/experimental/assets/index-BoTC94b6.css">
   <link rel="stylesheet" href="/experimental/rhkearth-theme.css?v=5">
   <link rel="stylesheet" href="/experimental/rhkearth-weather.css?v=1">
@@ -47,7 +147,7 @@
   <!-- Style indicator -->
   <div id="style-indicator">
     <span class="indicator-label">ACTIVE STYLE</span>
-    <span class="indicator-value" id="active-style-name">NORMAL</span>
+    <span class="indicator-value" id="active-style-name">NOIR</span>
   </div>
 
   <!-- Top-center camera and share actions -->
@@ -503,7 +603,7 @@
       <div id="control-panel-popover" class="dock-popover-content">
       <button class="dock-pin-btn" data-pin-target="control-panel" type="button" aria-label="Pin visual presets" aria-pressed="false" title="Keep visual presets open"><img src="/experimental/pin.svg" alt="" /></button>
       <div id="style-buttons" class="button-grid">
-        <button class="style-btn active" data-style="normal">
+        <button class="style-btn" data-style="normal">
           <span class="btn-icon">◯</span>
           <span class="btn-label">Normal</span>
           <span class="btn-key">1</span>
@@ -528,7 +628,7 @@
           <span class="btn-label">Anime</span>
           <span class="btn-key">5</span>
         </button>
-        <button class="style-btn" data-style="noir">
+        <button class="style-btn active" data-style="noir">
           <span class="btn-icon">◐</span>
           <span class="btn-label">Noir</span>
           <span class="btn-key">6</span>
