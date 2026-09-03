@@ -3,6 +3,7 @@ from pathlib import Path
 ROOT = Path.cwd()
 ui = ROOT / 'src/ui.js'
 hud = ROOT / 'src/hud.js'
+main = ROOT / 'src/main.js'
 index = ROOT / 'index.html'
 
 ui_text = ui.read_text(encoding='utf-8')
@@ -35,6 +36,23 @@ else:
     ui_text = ui_text.replace(old_stage_init, new_stage_init, 1)
 
 ui.write_text(ui_text, encoding='utf-8')
+
+# Secondary runtime guard only: the real baseline is above in StyleManager.
+# This keeps the deployment integrity assertion explicit and protects against a
+# future upstream constructor regression without causing the old late-switch
+# behavior during normal operation.
+main_text = main.read_text(encoding='utf-8')
+main_anchor = "    const styleManager = new StyleManager(viewer, { mapStackController });\n"
+main_guard = """    const styleManager = new StyleManager(viewer, { mapStackController });
+    if (!styleManager.hasShareState && styleManager.activeStyle !== 'noir') {
+      styleManager.setStyle('noir');
+    }
+"""
+if main_anchor in main_text:
+    main_text = main_text.replace(main_anchor, main_guard, 1)
+elif "styleManager.setStyle('noir')" not in main_text:
+    raise SystemExit('Could not install Noir runtime fallback guard')
+main.write_text(main_text, encoding='utf-8')
 
 # The inherited HUD changes cyan/green/amber with the visual preset. RHKEARTH's
 # chrome is intentionally neutral; data geometry can retain semantic colors,
@@ -192,6 +210,7 @@ index.write_text(html, encoding='utf-8')
 checks = {
     'StyleManager baseline': "this.activeStyle = 'noir';" in ui_text,
     'Noir stage lit at construction': "this._setStageIntensity(this.stages[this.activeStyle], 1);" in ui_text,
+    'Noir fallback guard': "styleManager.setStyle('noir')" in main_text,
     'neutral HUD source palette': "rgba(239, 239, 233, 0.82)" in hud_text,
     'first-paint indicator': 'id="active-style-name">NOIR<' in html,
     'Noir button active': 'class="style-btn active" data-style="noir"' in html,
