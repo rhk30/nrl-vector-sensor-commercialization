@@ -130,10 +130,11 @@ traffic.write_text(text, encoding='utf-8')
 
 
 # -----------------------------------------------------------------------------
-# LONDON CCTV VIDEO: RHKEARTH's refreshed TfL catalog now carries both the JPG
-# poster and the official MP4 clip. The upstream CCTV module already supports
-# video textures; give it the direct media URL instead of its missing Node
-# /api/cctv/media proxy.
+# LONDON CCTV VIDEO: RHKEARTH's refreshed TfL catalog carries both the JPG
+# poster and the official MP4 rolling clip. The upstream CCTV module already
+# supports video textures; give it the direct media URL instead of its missing
+# Node /api/cctv/media proxy. TfL updates the rolling clip every few minutes, so
+# reload the active MP4 periodically instead of looping one stale clip forever.
 # -----------------------------------------------------------------------------
 cctv = ROOT / 'src/data/cctv.js'
 text = cctv.read_text(encoding='utf-8')
@@ -152,13 +153,50 @@ media_pattern = re.compile(
 )
 media_replacement = r'''function mediaUrlFor(camera) {
   const direct = String(camera?.directMediaUrl || '').trim();
-  if (/^https:\/\//i.test(direct)) return direct;
+  if (/^https:\/\//i.test(direct)) {
+    const sep = direct.includes('?') ? '&' : '?';
+    return `${direct}${sep}rhkLive=${Math.floor(Date.now() / 120000)}`;
+  }
   return `${MEDIA_ENDPOINT}/${encodeURIComponent(camera.id)}?ts=${Math.floor(Date.now() / 15000)}`;
 }'''
 text, n = media_pattern.subn(media_replacement, text, count=1)
 if n != 1:
     raise SystemExit('Could not patch CCTV direct media URL')
 
+video_anchor = '''    runtime.video = video;
+  } else {'''
+video_patch = '''    runtime.video = video;
+    // TfL JamCam MP4s are rolling recent clips at stable URLs. Reload every
+    // two minutes with a cache-buster so an activated camera advances to the
+    // newest provider clip instead of replaying the first clip indefinitely.
+    if (record.camera.directMediaUrl) {
+      runtime.mediaRefreshTimer = setInterval(() => {
+        if (!runtime.video) return;
+        const resume = !runtime.video.paused;
+        runtime.video.src = mediaUrlFor(record.camera);
+        runtime.video.load();
+        if (resume) runtime.video.play().catch(() => {});
+      }, 120000);
+    }
+  } else {'''
+if video_anchor not in text:
+    raise SystemExit('Could not locate CCTV video runtime anchor')
+text = text.replace(video_anchor, video_patch, 1)
+
+destroy_anchor = '''function destroyProjectionRuntime(runtime) {
+  if (!runtime) return;
+  if (runtime.video) {'''
+destroy_patch = '''function destroyProjectionRuntime(runtime) {
+  if (!runtime) return;
+  if (runtime.mediaRefreshTimer) {
+    clearInterval(runtime.mediaRefreshTimer);
+    runtime.mediaRefreshTimer = null;
+  }
+  if (runtime.video) {'''
+if destroy_anchor not in text:
+    raise SystemExit('Could not locate CCTV projection destroy anchor')
+text = text.replace(destroy_anchor, destroy_patch, 1)
+
 cctv.write_text(text, encoding='utf-8')
 
-print('RHKEARTH live runtime repaired: adsb.lol civilian flights, Overpass mirror failover, TfL MP4 CCTV media')
+print('RHKEARTH live runtime repaired: adsb.lol civilian flights, Overpass mirror failover, TfL rolling-video CCTV')
