@@ -74,7 +74,6 @@ jobs:
           if not (target_cesium / 'Cesium.js').exists():
               raise SystemExit('Cesium runtime missing from dist/cesium')
 
-          # Keep all static asset paths inside RHKEARTH /experimental/.
           text_ext = {'.html', '.js', '.css', '.json', '.svg', '.txt', '.md'}
           replacements = {
               '/models/': '/experimental/models/',
@@ -122,9 +121,6 @@ jobs:
               if src.exists():
                   (dist / target).write_text(src.read_text())
 
-          # Bring the latest RHKEARTH-refreshed snapshots into the preview and
-          # final native bundle. The refresh workflow updates this directory
-          # independently between full application rebuilds.
           live_src = Path('../experimental-data')
           live_dst = dist / 'live-data'
           if live_dst.exists():
@@ -153,7 +149,6 @@ jobs:
           curl -fsS http://127.0.0.1:4173/experimental/live-data/cctv.json >/dev/null
 
           python - <<'PY'
-          import time
           from selenium import webdriver
           from selenium.webdriver.common.by import By
           from selenium.webdriver.chrome.options import Options
@@ -166,6 +161,7 @@ jobs:
           opts.add_argument('--disable-gpu')
           opts.set_capability('goog:loggingPrefs', {'browser': 'ALL'})
           driver = webdriver.Chrome(options=opts)
+          driver.set_script_timeout(120)
           wait = WebDriverWait(driver, 25)
           try:
               driver.set_window_size(1440, 1000)
@@ -179,7 +175,6 @@ jobs:
               if w < 300 or h < 200:
                   raise AssertionError(f'Cesium canvas unusable: {w}x{h}')
 
-              # Enable the restored keyless layers through their real manager.
               results = driver.execute_async_script('''
                 const done = arguments[arguments.length - 1];
                 (async () => {
@@ -207,8 +202,6 @@ jobs:
                   if layer in ('military', 'satellites', 'ais-live-vessels', 'cctv') and int(stats.get('count') or 0) <= 0:
                       raise AssertionError(f'{layer} returned no usable records: {stats}')
 
-              # Space Missions is context-isolated, so verify its source files
-              # separately here; normal UI activation is exercised in-app.
               launch_count = driver.execute_async_script('''
                 const done = arguments[arguments.length - 1];
                 fetch('/experimental/live-data/launches.json').then(r => r.json()).then(j => done((j.results || []).length)).catch(() => done(-1));
