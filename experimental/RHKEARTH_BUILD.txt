@@ -1,1 +1,1 @@
-Native RHKEARTH Experimental build with keyless military, satellites, space missions, vessels, earthquakes, traffic fallback, wildfire events and TfL CCTV integration.
+Native RHKEARTH Experimental build with keyless military, satellites, space missions, vessels, earthquakes, traffic fallback, wildfire events and TfL CCTV integration. Upstream voice control removed.
