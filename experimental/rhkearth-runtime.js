@@ -93,6 +93,11 @@
           summary: localSummary(init),
         });
       }
+      // Voice is intentionally not part of RHKEARTH. Do not allow an inherited
+      // upstream Realtime route to trigger microphone/login/error behavior.
+      if (path.startsWith('/api/realtime/')) {
+        return jsonResponse({ configured: false, code: 'RHK_VOICE_REMOVED' }, 404);
+      }
     } catch (error) {
       console.warn('[RHKEARTH] Compatibility route failed:', path, error);
     }
@@ -162,10 +167,25 @@
     });
   };
 
+  const removeVoiceControls = () => {
+    const controller = window.__godsEyeView?.voiceCommands || window.__gevVoiceCommands;
+    if (controller && typeof controller.stop === 'function') {
+      try {
+        controller.stop({ removeUi: true });
+      } catch {
+        // The integrated RHKEARTH build removes voice at source; this is only a
+        // safety net for an older cached upstream bundle.
+      }
+    }
+    document.getElementById('gev-voice-control')?.remove();
+    document.getElementById('gev-voice-button')?.remove();
+  };
+
   const removeSetupPrompts = () => {
     document.getElementById('key-setup')?.remove();
     document.getElementById('key-setup-chip')?.remove();
     document.getElementById('first-run-launcher')?.remove();
+    removeVoiceControls();
   };
 
   const ensureClearViewEmblem = () => {
@@ -185,6 +205,7 @@
       refreshScheduled = false;
       removeSetupPrompts();
       cleanLayerIcons();
+      ensureClearViewEmblem();
     });
   };
 
@@ -196,4 +217,4 @@
   });
 })();
 
-// RHKEARTH shell revision 3: idempotent UI cleanup, login-free direct entry.
+// RHKEARTH shell revision 4: voice-free console and top-left Clear View branding.
