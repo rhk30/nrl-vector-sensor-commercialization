@@ -1,0 +1,151 @@
+name: Build native Experimental app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/build-experimental.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: native-experimental-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+      UPSTREAM_COMMIT: 9dfb5369e8bed1531a4bb7e95e247ae9bcaf3961
+    steps:
+      - name: Check out RHKEARTH
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: npm
+          cache-dependency-path: _gev/package-lock.json
+
+      - name: Fetch pinned God's Eye View source
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/bilawalsidhu/gods-eye-view.git _gev
+          cd _gev
+          git checkout "$UPSTREAM_COMMIT"
+
+      - name: Prepare RHKEARTH static build
+        working-directory: _gev
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          # Build the app specifically for https://rhkearth.com/experimental/.
+          p = Path('vite.config.js')
+          s = p.read_text()
+          needle = "  return {\n    plugins: ["
+          if needle not in s:
+              raise SystemExit('Could not locate Vite config return block')
+          s = s.replace(needle, "  return {\n    base: '/experimental/',\n    plugins: [", 1)
+          p.write_text(s)
+
+          # Do not redistribute TeleGeography's CC BY-NC-SA cable geometry on
+          # the RHKEARTH commercialization site. Preserve the module contract
+          # with empty FeatureCollections so the upstream app still compiles.
+          blank = {'type': 'FeatureCollection', 'features': []}
+          cable_dir = Path('src/data/local_data/telegeography_submarine_cables')
+          for name in ('cable-geo.json', 'landing-point-geo.json'):
+              (cable_dir / name).write_text(json.dumps(blank, separators=(',', ':')))
+          PY
+
+      - name: Install dependencies
+        working-directory: _gev
+        run: npm ci --no-audit --no-fund
+
+      - name: Build production bundle
+        working-directory: _gev
+        run: npm run build
+
+      - name: Adapt bundle for RHKEARTH subdirectory
+        working-directory: _gev
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          dist = Path('dist')
+          text_ext = {'.html', '.js', '.css', '.json', '.svg', '.txt', '.md'}
+          replacements = {
+              '/models/': '/experimental/models/',
+              '"/logo.svg"': '"/experimental/logo.svg"',
+              "'/logo.svg'": "'/experimental/logo.svg'",
+              '"/mic.svg"': '"/experimental/mic.svg"',
+              "'/mic.svg'": "'/experimental/mic.svg'",
+              '"/pin.svg"': '"/experimental/pin.svg"',
+              "'/pin.svg'": "'/experimental/pin.svg'",
+              '"/location.svg"': '"/experimental/location.svg"',
+              "'/location.svg'": "'/experimental/location.svg'",
+              '"/visual-presets.svg"': '"/experimental/visual-presets.svg"',
+              "'/visual-presets.svg'": "'/experimental/visual-presets.svg'",
+          }
+          for path in dist.rglob('*'):
+              if not path.is_file() or path.suffix.lower() not in text_ext:
+                  continue
+              try:
+                  text = path.read_text()
+              except UnicodeDecodeError:
+                  continue
+              new = text
+              for old, repl in replacements.items():
+                  new = new.replace(old, repl)
+              if new != text:
+                  path.write_text(new)
+
+          index = dist / 'index.html'
+          html = index.read_text()
+          html = html.replace('<head>', '<head>\n<meta name="robots" content="noindex,nofollow,noarchive">', 1)
+          # Small same-origin escape hatch; no upstream/third-party banner.
+          html = html.replace('</body>', '''
+<a id="rhk-core-link" href="/" aria-label="Back to RHKEARTH">← RHKEARTH</a>
+<style>
+#rhk-core-link{position:fixed;left:12px;top:10px;z-index:2147483647;padding:7px 9px;border:1px solid rgba(169,181,155,.35);background:rgba(9,11,10,.78);backdrop-filter:blur(10px);color:#d6ddcf;text-decoration:none;font:10px/1.2 SFMono-Regular,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;opacity:.72}
+#rhk-core-link:hover{opacity:1;border-color:#a9b59b}
+</style>
+</body>''', 1)
+          index.write_text(html)
+
+          # Keep upstream licensing/attribution with the native copy.
+          for source, target in [
+              ('LICENSE', 'UPSTREAM_LICENSE.txt'),
+              ('DATA_SOURCES.md', 'DATA_SOURCES.md'),
+              ('public/models/README.md', 'MODEL_ATTRIBUTIONS.md'),
+          ]:
+              src = Path(source)
+              if src.exists():
+                  (dist / target).write_text(src.read_text())
+          PY
+
+      - name: Publish finished app into RHKEARTH
+        run: |
+          rm -rf experimental
+          mkdir -p experimental
+          cp -a _gev/dist/. experimental/
+          printf '%s\n' "Native static build of bilawalsidhu/gods-eye-view pinned at $UPSTREAM_COMMIT." > experimental/RHKEARTH_BUILD.txt
+
+      - name: Commit native bundle
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add experimental
+          if git diff --cached --quiet; then
+            echo "No Experimental build changes to commit."
+            exit 0
+          fi
+          git commit -m "Publish native Experimental app [skip ci]"
+          git push
