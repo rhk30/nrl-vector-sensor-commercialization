@@ -53,6 +53,17 @@ if scope_install in main_text:
         "    // RHKEARTH intentionally uses the full rectangular viewport; no circular scope mask.\n\n",
         1,
     )
+
+# RHKEARTH is a live operating console, not a prerecorded scene-capture tool.
+scene_import = "import { SceneDirector } from './scenes/director.js';\n"
+if scene_import in main_text:
+    main_text = main_text.replace(scene_import, '', 1)
+scene_init = """    // Initialize deterministic scene playback for social clip capture
+    const sceneDirector = new SceneDirector(viewer, styleManager, dataManager);
+
+"""
+if scene_init in main_text:
+    main_text = main_text.replace(scene_init, '', 1)
 main.write_text(main_text, encoding='utf-8')
 
 index = Path('index.html')
@@ -64,6 +75,21 @@ scope_button_pattern = re.compile(
 index_text, removed_scope_buttons = scope_button_pattern.subn('', index_text, count=1)
 if removed_scope_buttons != 1 and 'id="scope-toggle"' in index_text:
     raise SystemExit('RHKEARTH scope toggle removal failed')
+
+scene_panel_pattern = re.compile(
+    r'\s*<!-- Scene Director Panel -->\s*<div id="scene-panel".*?</div>\s*</div>\s*(?=\s*</div>\s*<!-- Global Context)',
+    re.S,
+)
+index_text, removed_scene_panels = scene_panel_pattern.subn('\n', index_text, count=1)
+if removed_scene_panels != 1:
+    # Fallback: remove just the scene panel block while preserving the parent stack.
+    scene_panel_pattern = re.compile(
+        r'\s*<!-- Scene Director Panel -->\s*<div id="scene-panel".*?</div>\s*</div>',
+        re.S,
+    )
+    index_text, removed_scene_panels = scene_panel_pattern.subn('', index_text, count=1)
+if 'id="scene-panel"' in index_text:
+    raise SystemExit('RHKEARTH Scenes panel removal failed')
 index.write_text(index_text, encoding='utf-8')
 
 # -----------------------------------------------------------------------------
@@ -91,4 +117,4 @@ if not live_patch.exists():
     raise SystemExit('RHKEARTH Chicago live CCTV patch script missing')
 exec(compile(live_patch.read_text(encoding='utf-8'), str(live_patch), 'exec'))
 
-print('RHKEARTH Chicago/Chicagoland operating area added; circular scope removed; continuous-live CCTV layer added; latest RHKEARTH shell preserved')
+print('RHKEARTH Chicago/Chicagoland operating area added; circular scope and Scenes removed; continuous-live CCTV layer added')
