@@ -76,6 +76,32 @@ jobs:
           now = datetime.now(timezone.utc)
           now_ms = int(now.timestamp() * 1000)
 
+          # Civilian aircraft fallback. The live browser layer still attempts
+          # regional ADS-B feeds first; this same-origin OpenSky snapshot means
+          # a browser CORS/provider failure no longer makes Live Flights empty.
+          # OpenSky's anonymous current-state endpoint supports global current
+          # state vectors with rate limits, so one scheduled request per hour is
+          # deliberately conservative.
+          flights_path = ROOT / 'flights.json'
+          flights = None
+          try:
+              flights = get_json('https://opensky-network.org/api/states/all')
+              if not isinstance(flights, dict) or not isinstance(flights.get('states'), list):
+                  raise RuntimeError('OpenSky payload missing states array')
+              flights['rhkFetchedAt'] = now_ms
+              flights['rhkSource'] = 'OpenSky Network scheduled snapshot'
+              flights['rhkCoverage'] = 'global current-state snapshot'
+              write_json(flights_path, flights)
+          except Exception as exc:
+              if flights_path.exists() and flights_path.stat().st_size > 0:
+                  print(f'OpenSky refresh unavailable; retaining prior civilian snapshot: {exc}')
+                  try:
+                      flights = json.loads(flights_path.read_text(encoding='utf-8'))
+                  except Exception:
+                      flights = {'states': []}
+              else:
+                  raise
+
           # Military ADS-B snapshot. adsb.lol publishes this under ODbL 1.0.
           military = get_json('https://api.adsb.lol/v2/mil')
           if not isinstance(military.get('ac'), list):
@@ -245,16 +271,18 @@ jobs:
 
           write_json(ROOT / 'meta.json', {
               'fetchedAt': now_ms,
+              'flights': 'OpenSky scheduled global current-state snapshot',
               'military': 'adsb.lol snapshot',
               'cctv': 'Transport for London JamCam catalog + public stills',
               'launches': 'Launch Library 2 snapshot',
               'fires': 'NASA EONET wildfire-event snapshot',
           })
-          print(f"military={len(military['ac'])} cctv={len(cctv_sources)} launches={len(launches['results'])} fires={len(fire_rows)}")
+          print(f"flights={len((flights or {}).get('states') or [])} military={len(military['ac'])} cctv={len(cctv_sources)} launches={len(launches['results'])} fires={len(fire_rows)}")
           PY
 
       - name: Validate snapshots
         run: |
+          test -s experimental-data/flights.json
           test -s experimental-data/military.json
           test -s experimental-data/cctv.json
           test -s experimental-data/cctv-health.json
