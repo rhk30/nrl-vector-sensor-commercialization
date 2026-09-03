@@ -56,7 +56,7 @@ jobs:
           python ../scripts/tune-experimental-cctv.py
 
           # Fail immediately if the three repaired source paths did not land.
-          grep -q "https://api.adsb.lol/v2" src/data/flights.js
+          grep -q "https://intelsky.org/api/" src/data/flights.js
           grep -q "normalizeAdsbLolPointResponse" src/data/flights.js
           grep -q "overpass.kumi.systems" src/data/traffic.js
           grep -q "directMediaUrl" src/data/cctv.js
@@ -160,7 +160,7 @@ jobs:
           # Vite compilation already verifies module syntax/imports. These
           # bundle assertions verify the intended production adapters survived
           # minification and are actually present in the artifact we publish.
-          grep -R -q "api.adsb.lol/v2" dist/assets
+          grep -R -q "intelsky.org/api" dist/assets
           grep -R -q "overpass.kumi.systems" dist/assets
           grep -R -q "overpass.private.coffee" dist/assets
           grep -R -q "rhkLive" dist/assets
@@ -204,7 +204,7 @@ jobs:
           test -s experimental/live-data/chicago-street-activity.json
           test -f experimental/rhkearth-runtime.js
           test -f experimental/rhkearth-theme.css
-          printf '%s\n' "Native RHKEARTH Experimental build. Civilian flights use viewport-scoped adsb.lol; London CCTV uses TfL rolling video where provided; Street Traffic uses multi-mirror OSM Overpass failover. Chicago continuous-live cameras are owned by CCTV and Chicago CDOT street activity is owned by Traffic. Scope, Scenes and voice control removed." > experimental/RHKEARTH_BUILD.txt
+          printf '%s\n' "Native RHKEARTH Experimental build. Civilian Live Flights use IntelSky's no-key browser-CORS live ADS-B feed; Military Flights retain the RHKEARTH-refreshed adsb.lol military source; London CCTV uses TfL rolling video where provided; Street Traffic uses multi-mirror OSM Overpass failover. Chicago continuous-live cameras are owned by CCTV and Chicago CDOT street activity is owned by Traffic. Scope, Scenes and voice control removed." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit integrated bundle
         run: |
