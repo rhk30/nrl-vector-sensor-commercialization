@@ -1,0 +1,190 @@
+name: Refresh Chicago street activity
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/refresh-chicago-street-activity.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-chicago-street-activity
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out RHKEARTH
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Refresh current/future CDOT street impacts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          import json
+          import urllib.parse
+          import urllib.request
+
+          OUT = Path('experimental-data/chicago-street-activity.json')
+          DATASET = 'hr8i-6s6s'  # Transportation Department Permits - Current and Future
+          UA = 'RHKEARTH/1.0 (+https://rhkearth.com/experimental/; Chicago public-data refresh)'
+
+          def get_json(url):
+              req = urllib.request.Request(url, headers={
+                  'User-Agent': UA,
+                  'Accept': 'application/json',
+              })
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  if response.status != 200:
+                      raise RuntimeError(f'HTTP {response.status}: {url}')
+                  return json.loads(response.read().decode('utf-8'))
+
+          def first(row, *names):
+              for name in names:
+                  value = row.get(name)
+                  if value not in (None, ''):
+                      return value
+              return None
+
+          # The view is already filtered by the City to current/future permits.
+          # Fetch enough rows to cover the live view without silently clipping at
+          # Socrata's default 1,000-record page size.
+          rows = []
+          limit = 5000
+          for offset in range(0, 20000, limit):
+              query = urllib.parse.urlencode({'$limit': limit, '$offset': offset})
+              page = get_json(f'https://data.cityofchicago.org/resource/{DATASET}.json?{query}')
+              if not isinstance(page, list):
+                  raise RuntimeError('Chicago CDOT payload was not a list')
+              rows.extend(page)
+              if len(page) < limit:
+                  break
+
+          activities = []
+          for i, row in enumerate(rows):
+              try:
+                  lat = float(first(row, 'latitude', 'lat'))
+                  lon = float(first(row, 'longitude', 'lon', 'lng'))
+              except (TypeError, ValueError):
+                  location = first(row, 'location')
+                  if isinstance(location, dict):
+                      try:
+                          lat = float(location.get('latitude'))
+                          lon = float(location.get('longitude'))
+                      except (TypeError, ValueError):
+                          continue
+                  else:
+                      continue
+
+              # City limits plus a tiny geocoding tolerance.
+              if not (41.60 <= lat <= 42.05 and -87.95 <= lon <= -87.50):
+                  continue
+
+              app_type = str(first(
+                  row,
+                  'applicationtype', 'application_type',
+                  'applicationdescription', 'application_description',
+                  'worktype', 'work_type',
+              ) or 'Street activity').strip()
+              description = str(first(
+                  row,
+                  'workdescription', 'work_description',
+                  'applicationdescription', 'application_description',
+                  'comments', 'detail', 'description',
+              ) or '').strip()
+
+              # Prefer specific road-impact records when the view exposes that
+              # distinction, but keep all geocoded current/future CDOT permits so
+              # the layer does not silently lose useful street activity.
+              lower = f'{app_type} {description}'.lower()
+              if 'streetclosure' in lower or 'street closure' in lower:
+                  kind = 'Street closure'
+              elif 'lane' in lower:
+                  kind = 'Lane impact'
+              elif 'sidewalk' in lower:
+                  kind = 'Sidewalk impact'
+              elif 'traffic' in lower:
+                  kind = 'Traffic impact'
+              elif 'block party' in lower:
+                  kind = 'Street closure · event'
+              else:
+                  kind = app_type[:80]
+
+              number_from = str(first(row, 'streetnumberfrom', 'street_number_from', 'streetnumber', 'street_number') or '').strip()
+              number_to = str(first(row, 'streetnumberto', 'street_number_to') or '').strip()
+              direction = str(first(row, 'direction', 'streetdirection', 'street_direction') or '').strip()
+              street_name = str(first(row, 'streetname', 'street_name') or '').strip()
+              if number_from and number_to and number_to != number_from:
+                  number = f'{number_from}-{number_to}'
+              else:
+                  number = number_from
+              street = ' '.join(part for part in [number, direction, street_name] if part).strip()
+              if not street:
+                  street = str(first(row, 'address', 'locationdescription', 'location_description') or 'Chicago street').strip()
+
+              activities.append({
+                  'id': str(first(row, 'uniquekey', 'unique_key', 'applicationnumber', 'application_number') or f'cdot-{i}'),
+                  'applicationNumber': first(row, 'applicationnumber', 'application_number'),
+                  'kind': kind,
+                  'type': app_type[:120],
+                  'description': description[:500],
+                  'street': street[:160],
+                  'lat': lat,
+                  'lon': lon,
+                  'start': first(row, 'startdate', 'start_date', 'workstartdate', 'work_start_date'),
+                  'end': first(row, 'enddate', 'end_date', 'workenddate', 'work_end_date'),
+              })
+
+          # Large raw permit sets are useful, but rendering tens of thousands of
+          # labels is not. Keep a deterministic, citywide operational cohort.
+          activities.sort(key=lambda r: (r['kind'], r['street'], r['id']))
+          if len(activities) > 3500:
+              activities = activities[:3500]
+          if not activities:
+              raise SystemExit('Chicago CDOT current/future feed produced no geocoded street activity')
+
+          now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+          OUT.parent.mkdir(exist_ok=True)
+          OUT.write_text(json.dumps({
+              'activities': activities,
+              'fetchedAt': now_ms,
+              'source': 'City of Chicago CDOT Transportation Department Permits - Current and Future',
+              'datasetId': DATASET,
+              'note': 'Current/future street-impact permits; not a live vehicle-speed feed',
+          }, separators=(',', ':'), ensure_ascii=False) + '\n')
+          print(f'Chicago street activity records: {len(activities)}')
+          PY
+
+      - name: Validate snapshot
+        run: |
+          test -s experimental-data/chicago-street-activity.json
+          python - <<'PY'
+          import json
+          data = json.load(open('experimental-data/chicago-street-activity.json'))
+          rows = data.get('activities') or []
+          assert rows, 'street activity snapshot empty'
+          assert all(isinstance(r.get('lat'), (int,float)) and isinstance(r.get('lon'), (int,float)) for r in rows[:100])
+          print('validated', len(rows), 'Chicago street activity records')
+          PY
+
+      - name: Commit refreshed street activity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add experimental-data/chicago-street-activity.json
+          if git diff --cached --quiet; then
+            echo "Chicago street activity already current."
+            exit 0
+          fi
+          git commit -m "Refresh Chicago street activity [skip ci]"
+          git push
