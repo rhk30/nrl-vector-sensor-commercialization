@@ -243,7 +243,8 @@ input,
   filter: saturate(.35) brightness(.9) !important;
 }
 
-/* RHKEARTH public build does not expose the upstream local-key setup surface. */
+/* No demo onboarding or local-key setup surfaces on the RHKEARTH public console. */
+#first-run-launcher,
 #key-setup,
 #key-setup-chip {
   display: none !important;
