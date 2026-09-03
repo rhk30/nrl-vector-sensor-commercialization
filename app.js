@@ -6,7 +6,7 @@ const $=id=>document.getElementById(id);
 const marketSection=document.getElementById('market');
 if(marketSection&&!document.body.dataset.rhkApplicationsAppBootstrap){
   document.body.dataset.rhkApplicationsAppBootstrap='1';
-  import('./market-bridge-v4.js?v=10').catch(err=>{
+  import('./market-bridge-v10.js?v=10').catch(err=>{
     console.warn('RHKEARTH Applications visualization fallback:',err);
     if(!marketSection.querySelector('.market-motion')){
       const fallback=document.createElement('section');fallback.className='market-motion market-motion-fallback';fallback.innerHTML='<div style="margin:28px 0 42px;padding:32px;border:1px solid rgba(170,180,168,.18);color:#8e978e;font:11px/1.7 ui-monospace,monospace">MARITIME OPERATING PICTURE UNAVAILABLE IN THIS BROWSER SESSION</div>';marketSection.querySelector('.section-head')?.insertAdjacentElement('afterend',fallback);
