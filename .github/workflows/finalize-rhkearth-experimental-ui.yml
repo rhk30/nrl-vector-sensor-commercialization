@@ -1,0 +1,81 @@
+name: Finalize RHKEARTH Experimental UI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/finalize-rhkearth-experimental-ui.yml
+      - experimental/rhkearth-runtime.js
+      - experimental/rhkearth-theme.css
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-experimental-ui-finalize
+  cancel-in-progress: true
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply RHKEARTH interface shell
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          index = Path('experimental/index.html')
+          html = index.read_text()
+
+          html = html.replace('<title>RHKEARTH // Experimental</title>', '<title>RHKEARTH // Intelligence Console</title>')
+          html = html.replace('<span>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></span>', '<span>RHKEARTH</span>')
+          html = html.replace('<p class="subtitle">EXPERIMENTAL SYSTEMS</p>', '<p class="subtitle">INTELLIGENCE CONSOLE</p>')
+          html = html.replace('<h2>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></h2>', '<h2>RHKEARTH</h2>')
+          html = html.replace('Initializing intelligence console...', 'Initializing intelligence console...')
+          html = html.replace('<span class="share-icon" aria-hidden="true">&#x1F517;</span>', '<span class="material-symbols-outlined" aria-hidden="true">link</span>')
+
+          if '/experimental/rhkearth-theme.css' not in html:
+              html = html.replace('</head>', '  <link rel="stylesheet" href="/experimental/rhkearth-theme.css?v=1">\n</head>', 1)
+
+          puter = '<script src="https://js.puter.com/v2/"></script>'
+          runtime = '<script src="/experimental/rhkearth-runtime.js?v=1"></script>'
+          if 'js.puter.com/v2/' not in html:
+              match = re.search(r'\s*<script type="module"[^>]+src="/experimental/assets/[^\"]+\.js"></script>', html)
+              if match:
+                  html = html[:match.start()] + '\n  ' + puter + '\n  ' + runtime + html[match.start():]
+              else:
+                  html = html.replace('</head>', f'  {puter}\n  {runtime}\n</head>', 1)
+          elif '/experimental/rhkearth-runtime.js' not in html:
+              html = html.replace('</head>', f'  {runtime}\n</head>', 1)
+
+          index.write_text(html)
+          PY
+
+      - name: Validate final shell
+        run: |
+          test -s experimental/rhkearth-runtime.js
+          test -s experimental/rhkearth-theme.css
+          grep -q 'RHKEARTH</span>' experimental/index.html
+          grep -q 'INTELLIGENCE CONSOLE' experimental/index.html
+          grep -q 'js.puter.com/v2/' experimental/index.html
+          grep -q 'rhkearth-runtime.js' experimental/index.html
+          grep -q 'rhkearth-theme.css' experimental/index.html
+          ! grep -q 'title-accent">EXPERIMENTAL' experimental/index.html
+
+      - name: Commit finalized interface
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add experimental/index.html experimental/rhkearth-runtime.js experimental/rhkearth-theme.css
+          if git diff --cached --quiet; then
+            echo "RHKEARTH Experimental interface already finalized."
+            exit 0
+          fi
+          git commit -m "Refine RHKEARTH intelligence console [skip ci]"
+          git push
