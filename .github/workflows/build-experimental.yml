@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/build-experimental.yml
+      - scripts/patch-experimental-data.py
 
 permissions:
   contents: write
@@ -133,6 +134,10 @@ jobs:
               (cable_dir / name).write_text(json.dumps(blank, separators=(',', ':')))
           PY
 
+      - name: Apply RHKEARTH data and navigation adapters
+        working-directory: _gev
+        run: python ../scripts/patch-experimental-data.py
+
       - name: Install dependencies
         working-directory: _gev
         run: npm ci --no-audit --no-fund
@@ -249,6 +254,9 @@ jobs:
               rect = driver.execute_script('const r=arguments[0].getBoundingClientRect();return [r.width,r.height]', canvas)
               if rect[0] < 300 or rect[1] < 200:
                   raise AssertionError(f'Cesium canvas did not render at usable size: {rect}')
+              max_zoom = driver.execute_script('return window.__godsEyeView.viewer.scene.screenSpaceCameraController.maximumZoomDistance')
+              if max_zoom < 100_000_000:
+                  raise AssertionError(f'Orbital zoom range not applied: {max_zoom}')
               loader = driver.find_element(By.ID, 'loading-screen').text
               if 'RHKEARTH' not in loader:
                   raise AssertionError('Startup cover is not RHKEARTH branded')
@@ -262,7 +270,7 @@ jobs:
                       serious.append(msg)
               if serious:
                   raise AssertionError('Runtime JavaScript errors: ' + ' | '.join(serious[:5]))
-              print('PASS: RHKEARTH Experimental boots, reveals the HUD, and renders a live Cesium canvas')
+              print('PASS: RHKEARTH Experimental boots, renders Cesium, and supports orbital zoom')
           finally:
               driver.quit()
           PY
@@ -274,7 +282,7 @@ jobs:
           cp -a _gev/dist/. experimental/
           test -f experimental/cesium/Cesium.js
           test -f experimental/index.html
-          printf '%s\n' "Native static build of bilawalsidhu/gods-eye-view pinned at $UPSTREAM_COMMIT, adapted as RHKEARTH Experimental with nonblocking satellite startup." > experimental/RHKEARTH_BUILD.txt
+          printf '%s\n' "Native static build of bilawalsidhu/gods-eye-view pinned at $UPSTREAM_COMMIT, adapted as RHKEARTH Experimental with keyless data adapters and orbital navigation." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit native bundle
         run: |
@@ -285,5 +293,5 @@ jobs:
             echo "No Experimental build changes to commit."
             exit 0
           fi
-          git commit -m "Verify native Experimental browser boot [skip ci]"
+          git commit -m "Build RHKEARTH Experimental keyless layers [skip ci]"
           git push
