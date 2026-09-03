@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 # -----------------------------------------------------------------------------
 # Chicago / Chicagoland operating area
@@ -31,6 +32,41 @@ if "  chicago: {" not in locations_text:
     locations.write_text(locations_text, encoding='utf-8')
 
 # -----------------------------------------------------------------------------
+# RHKEARTH full-frame globe: remove the upstream circular scope mask entirely.
+# This both increases usable map area and creates a more distinct visual identity.
+# -----------------------------------------------------------------------------
+main = Path('src/main.js')
+main_text = main.read_text(encoding='utf-8')
+scope_import = "import { installScopeMask } from './scopeMask.js';\n"
+if scope_import in main_text:
+    main_text = main_text.replace(scope_import, '', 1)
+
+scope_install = """    // The explicit scope mask replaces the emergent six-pass artifact —
+    // see src/scopeMask.js. Installed before the UI so the DISPLAY-rail
+    // toggle finds it live.
+    installScopeMask(viewer);
+
+"""
+if scope_install in main_text:
+    main_text = main_text.replace(
+        scope_install,
+        "    // RHKEARTH intentionally uses the full rectangular viewport; no circular scope mask.\n\n",
+        1,
+    )
+main.write_text(main_text, encoding='utf-8')
+
+index = Path('index.html')
+index_text = index.read_text(encoding='utf-8')
+scope_button_pattern = re.compile(
+    r'\s*<button class="pp-toggle-btn active" id="scope-toggle".*?</button>',
+    re.S,
+)
+index_text, removed_scope_buttons = scope_button_pattern.subn('', index_text, count=1)
+if removed_scope_buttons != 1 and 'id="scope-toggle"' in index_text:
+    raise SystemExit('RHKEARTH scope toggle removal failed')
+index.write_text(index_text, encoding='utf-8')
+
+# -----------------------------------------------------------------------------
 # CCTV refresh cadence
 # -----------------------------------------------------------------------------
 cctv = Path('src/data/cctv.js')
@@ -47,4 +83,4 @@ for old, new in replacements.items():
     text = text.replace(old, new, 1)
 
 cctv.write_text(text, encoding='utf-8')
-print('RHKEARTH Chicago/Chicagoland operating area added; active CCTV frame cadence set to 4 seconds')
+print('RHKEARTH Chicago/Chicagoland operating area added; circular scope removed; active CCTV frame cadence set to 4 seconds')
