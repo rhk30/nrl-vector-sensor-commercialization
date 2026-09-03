@@ -1,0 +1,50 @@
+name: Sync Experimental live data
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - experimental-data/**
+      - .github/workflows/sync-experimental-live-data.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-experimental-live-data-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out RHKEARTH
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync refreshed snapshots into deployed app
+        run: |
+          test -d experimental-data
+          test -d experimental
+          rm -rf experimental/live-data
+          mkdir -p experimental/live-data
+          cp -a experimental-data/. experimental/live-data/
+          test -s experimental/live-data/military.json
+          test -s experimental/live-data/cctv.json
+          test -s experimental/live-data/launches.json
+          test -s experimental/live-data/celestrak/stations
+
+      - name: Commit live-data refresh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add experimental/live-data
+          if git diff --cached --quiet; then
+            echo "Deployed snapshots are already current."
+            exit 0
+          fi
+          git commit -m "Sync RHKEARTH Experimental live data [skip ci]"
+          git push
