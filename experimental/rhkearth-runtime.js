@@ -12,9 +12,13 @@
     // below is the second line of defense.
   }
 
-  const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), {
+  const jsonResponse = (data, status = 200, extraHeaders = {}) => new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
+      ...extraHeaders,
+    },
   });
 
   async function readJson(path) {
@@ -33,6 +37,111 @@
     if (fromQuery) return fromQuery.toLowerCase();
     const tail = url.pathname.split('/').filter(Boolean).pop();
     return tail && tail !== 'celestrak' ? tail.toLowerCase() : 'active';
+  }
+
+  const finiteNumber = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  };
+
+  const emitterCategory = (value) => {
+    const category = String(value || '').trim().toUpperCase();
+    return ({
+      A1: 2,
+      A2: 3,
+      A3: 4,
+      A4: 5,
+      A5: 6,
+      A6: 7,
+      A7: 8,
+      B1: 9,
+      B2: 10,
+      B3: 11,
+      B4: 12,
+      B6: 14,
+      B7: 15,
+    })[category] || 0;
+  };
+
+  function normalizeAdsbLolAircraftState(aircraft, nowSeconds) {
+    const hex = String(aircraft?.hex || '').trim().toLowerCase();
+    const latitude = finiteNumber(aircraft?.lat);
+    const longitude = finiteNumber(aircraft?.lon);
+    if (!hex || latitude === null || longitude === null) return null;
+
+    const seenPosition = Math.max(0, finiteNumber(aircraft?.seen_pos) ?? finiteNumber(aircraft?.seen) ?? 0);
+    const seen = Math.max(0, finiteNumber(aircraft?.seen) ?? seenPosition);
+    const onGround = aircraft?.alt_baro === 'ground';
+    const barometricFeet = onGround ? null : finiteNumber(aircraft?.alt_baro);
+    const geometricFeet = finiteNumber(aircraft?.alt_geom);
+    const groundSpeedKnots = finiteNumber(aircraft?.gs);
+    const verticalRateFpm = finiteNumber(aircraft?.baro_rate) ?? finiteNumber(aircraft?.geom_rate);
+    const track = finiteNumber(aircraft?.track);
+
+    return [
+      hex,
+      String(aircraft?.flight || aircraft?.r || '').trim() || null,
+      null,
+      Math.max(0, nowSeconds - seenPosition),
+      Math.max(0, nowSeconds - seen),
+      longitude,
+      latitude,
+      barometricFeet === null ? null : barometricFeet * 0.3048,
+      onGround,
+      groundSpeedKnots === null ? null : groundSpeedKnots * 0.514444,
+      track,
+      verticalRateFpm === null ? null : verticalRateFpm * 0.00508,
+      null,
+      geometricFeet === null ? null : geometricFeet * 0.3048,
+      aircraft?.squawk || null,
+      aircraft?.spi === 1,
+      0,
+      emitterCategory(aircraft?.category),
+    ];
+  }
+
+  function normalizeAdsbLolPointResponse(payload) {
+    const responseNow = finiteNumber(payload?.now);
+    const nowSeconds = responseNow === null
+      ? Math.floor(Date.now() / 1000)
+      : Math.floor(responseNow > 10_000_000_000 ? responseNow / 1000 : responseNow);
+    const states = (Array.isArray(payload?.ac) ? payload.ac : [])
+      .map((aircraft) => normalizeAdsbLolAircraftState(aircraft, nowSeconds))
+      .filter(Boolean);
+    return { time: nowSeconds, states };
+  }
+
+  async function civilianFlightsResponse(url, init = {}, input = null) {
+    const latitude = finiteNumber(url.searchParams.get('lat')) ?? 41.8781;
+    const longitude = finiteNumber(url.searchParams.get('lon')) ?? -87.6298;
+    const lat = Math.max(-90, Math.min(90, latitude));
+    const lon = Math.max(-180, Math.min(180, longitude));
+    const signal = init?.signal || (typeof input === 'object' ? input?.signal : undefined);
+    const endpoint = `https://api.adsb.lol/v2/point/${lat.toFixed(4)}/${lon.toFixed(4)}/250`;
+
+    const response = await nativeFetch(endpoint, {
+      cache: 'no-store',
+      mode: 'cors',
+      signal,
+    });
+    if (!response.ok) {
+      throw new Error(`adsb.lol HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const normalized = Array.isArray(payload?.ac)
+      ? normalizeAdsbLolPointResponse(payload)
+      : payload;
+
+    if (!normalized || !Array.isArray(normalized.states)) {
+      throw new Error('Malformed adsb.lol response');
+    }
+
+    return jsonResponse(normalized, 200, {
+      'x-flight-source': 'adsb.lol',
+      'x-flight-coverage': 'viewport · up to 250 nm',
+    });
   }
 
   function localSummary(init) {
@@ -60,6 +169,14 @@
     const path = url.pathname;
 
     try {
+      // Backward-compatible repair for older integrated bundles. The old client
+      // calls a Vite-only /api/opensky proxy, which cannot exist on GitHub Pages.
+      // Route that request to the same browser-CORS adsb.lol feed used by the
+      // current build patch and return the OpenSky-shaped payload the renderer
+      // already understands.
+      if (path === '/api/opensky') {
+        return await civilianFlightsResponse(url, init, input);
+      }
       if (path === '/api/adsblol/mil' || path === '/api/adsblol/military') {
         return nativeFetch(`${DATA_ROOT}/military.json`, { cache: 'no-store' });
       }
@@ -100,6 +217,12 @@
       }
     } catch (error) {
       console.warn('[RHKEARTH] Compatibility route failed:', path, error);
+      if (path === '/api/opensky') {
+        return jsonResponse({ error: 'Aircraft feed temporarily unavailable' }, 503, {
+          'x-flight-source': 'adsb.lol',
+          'x-flight-coverage': 'viewport · up to 250 nm',
+        });
+      }
     }
 
     return nativeFetch(input, init);
@@ -167,6 +290,21 @@
     });
   };
 
+  const cleanFlightStatus = () => {
+    const row = document.querySelector('[data-layer-id="flights"]');
+    if (!row) return;
+    const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    let node;
+    while ((node = walker.nextNode())) nodes.push(node);
+    nodes.forEach((textNode) => {
+      const current = textNode.nodeValue || '';
+      let next = current.replace(/OpenSky Network/gi, 'adsb.lol');
+      next = next.replace(/OpenSky/gi, 'adsb.lol');
+      if (next !== current) textNode.nodeValue = next;
+    });
+  };
+
   const removeVoiceControls = () => {
     const controller = window.__godsEyeView?.voiceCommands || window.__gevVoiceCommands;
     if (controller && typeof controller.stop === 'function') {
@@ -220,6 +358,7 @@
     document.getElementById('first-run-launcher')?.remove();
     removeVoiceControls();
     removeClassificationLabel();
+    cleanFlightStatus();
   };
 
   const ensureClearViewEmblem = () => {
@@ -251,4 +390,4 @@
   });
 })();
 
-// RHKEARTH shell revision 6: inherited fake-classification chrome is removed regardless of nested markup.
+// RHKEARTH shell revision 7: legacy OpenSky requests are repaired through the live browser-CORS adsb.lol aircraft feed.
