@@ -1,1 +1,1 @@
-Native static build of bilawalsidhu/gods-eye-view pinned at 9dfb5369e8bed1531a4bb7e95e247ae9bcaf3961, branded for RHKEARTH Experimental.
+Native static build of bilawalsidhu/gods-eye-view pinned at 9dfb5369e8bed1531a4bb7e95e247ae9bcaf3961, adapted as RHKEARTH Experimental with nonblocking satellite startup.
