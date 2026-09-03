@@ -111,7 +111,6 @@
     satellites: 'satellite_alt',
     earthquakes: 'vibration',
     cctv: 'videocam',
-    'chicago-live-cameras': 'videocam',
     traffic: 'traffic',
     fires: 'local_fire_department',
     'local-firms': 'local_fire_department',
@@ -146,16 +145,6 @@
   const cleanLayerIcons = () => {
     document.querySelectorAll('[data-layer-id]').forEach((row) => {
       const id = row.dataset.layerId || '';
-
-      // RHKEARTH reserves the visible CCTV surface for genuine continuous
-      // streams. The inherited TfL/JPEG layer remains registered internally for
-      // compatibility/tests but is not presented as LIVE CCTV to users.
-      if (id === 'cctv') {
-        if (row.style.display !== 'none') row.style.display = 'none';
-        if (row.getAttribute('aria-hidden') !== 'true') row.setAttribute('aria-hidden', 'true');
-        return;
-      }
-
       const icon = row.querySelector('.data-icon');
       if (icon) {
         const symbol = symbolForLayer(id);
@@ -228,4 +217,4 @@
   });
 })();
 
-// RHKEARTH shell revision 5: continuous-live CCTV surface; legacy still-camera row hidden.
+// RHKEARTH shell revision 4: voice-free console and top-left Clear View branding.
