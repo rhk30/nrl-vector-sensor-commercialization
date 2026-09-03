@@ -43,9 +43,8 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import json, re, shutil
+          import json, re
 
-          # Build under /experimental/ so Vite-generated asset URLs are correct.
           p = Path('vite.config.js')
           s = p.read_text()
           needle = "  return {\n    plugins: ["
@@ -54,7 +53,6 @@ jobs:
           s = s.replace(needle, "  return {\n    base: '/experimental/',\n    plugins: [", 1)
           p.write_text(s)
 
-          # RHKEARTH branding at source level, including the startup cover.
           index = Path('index.html')
           html = index.read_text()
           html = html.replace("<title>God's Eye View</title>", '<title>RHKEARTH // Experimental</title>')
@@ -69,24 +67,37 @@ jobs:
               raise SystemExit('RHKEARTH logo not found')
           Path('public/logo.svg').write_text(brand.read_text())
 
-          # Static startup should never block on remote terrain metadata.
           stack = Path('src/mapStackController.js')
           stack_text = stack.read_text()
-          old_esri = """provider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(ESRI_WORLD_IMAGERY_URL, {
-          credit: ESRI_IMAGERY_CREDIT,
-          enablePickFeatures: false,
-        });"""
-          new_esri = """provider = new Cesium.UrlTemplateImageryProvider({
-          url: `${ESRI_WORLD_IMAGERY_URL}/tile/{z}/{y}/{x}`,
-          credit: ESRI_IMAGERY_CREDIT,
-          maximumLevel: 19,
-        });"""
+          old_esri = "\n".join([
+              "provider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(ESRI_WORLD_IMAGERY_URL, {",
+              "          credit: ESRI_IMAGERY_CREDIT,",
+              "          enablePickFeatures: false,",
+              "        });",
+          ])
+          new_esri = "\n".join([
+              "provider = new Cesium.UrlTemplateImageryProvider({",
+              "          url: `${ESRI_WORLD_IMAGERY_URL}/tile/{z}/{y}/{x}`,",
+              "          credit: ESRI_IMAGERY_CREDIT,",
+              "          maximumLevel: 19,",
+              "        });",
+          ])
           if old_esri not in stack_text:
               raise SystemExit('Could not locate Esri startup provider block')
           stack_text = stack_text.replace(old_esri, new_esri, 1)
+          terrain_replacement = "\n".join([
+              "  async _getKeylessTerrainProvider() {",
+              "    if (!this._reearthTerrainProvider) {",
+              "      this._reearthTerrainProvider = new Cesium.EllipsoidTerrainProvider();",
+              "    }",
+              "    return this._reearthTerrainProvider;",
+              "  }",
+              "",
+              "  _emitChange",
+          ])
           stack_text, count = re.subn(
               r"  async _getKeylessTerrainProvider\(\) \{.*?\n  \}\n\n  _emitChange",
-              "  async _getKeylessTerrainProvider() {\n    if (!this._reearthTerrainProvider) {\n      this._reearthTerrainProvider = new Cesium.EllipsoidTerrainProvider();\n    }\n    return this._reearthTerrainProvider;\n  }\n\n  _emitChange",
+              terrain_replacement,
               stack_text,
               count=1,
               flags=re.S,
@@ -95,25 +106,27 @@ jobs:
               raise SystemExit('Could not replace keyless terrain startup block')
           stack.write_text(stack_text)
 
-          # Never let restore state hold the loading screen indefinitely.
           main = Path('src/main.js')
           main_text = main.read_text()
-          old_restore = """    void Promise.all([
-      styleManager.initialRestorePromise,
-      new Promise((resolve) => setTimeout(resolve, 1000)),
-    ]).finally(() => {"""
-          new_restore = """    void Promise.all([
-      Promise.race([
-        styleManager.initialRestorePromise,
-        new Promise((resolve) => setTimeout(resolve, 1500)),
-      ]),
-      new Promise((resolve) => setTimeout(resolve, 500)),
-    ]).finally(() => {"""
+          old_restore = "\n".join([
+              "    void Promise.all([",
+              "      styleManager.initialRestorePromise,",
+              "      new Promise((resolve) => setTimeout(resolve, 1000)),",
+              "    ]).finally(() => {",
+          ])
+          new_restore = "\n".join([
+              "    void Promise.all([",
+              "      Promise.race([",
+              "        styleManager.initialRestorePromise,",
+              "        new Promise((resolve) => setTimeout(resolve, 1500)),",
+              "      ]),",
+              "      new Promise((resolve) => setTimeout(resolve, 500)),",
+              "    ]).finally(() => {",
+          ])
           if old_restore not in main_text:
               raise SystemExit('Could not locate startup reveal block')
           main.write_text(main_text.replace(old_restore, new_restore, 1))
 
-          # Remove the bundled noncommercial TeleGeography layer from this RHKEARTH copy.
           blank = {'type': 'FeatureCollection', 'features': []}
           cable_dir = Path('src/data/local_data/telegeography_submarine_cables')
           for name in ('cable-geo.json', 'landing-point-geo.json'):
@@ -136,9 +149,6 @@ jobs:
           import shutil
 
           dist = Path('dist')
-
-          # vite-plugin-cesium nests this directory when Vite base is /experimental/.
-          # Flatten it so /experimental/cesium/* resolves on GitHub Pages.
           nested_cesium = dist / 'experimental' / 'cesium'
           target_cesium = dist / 'cesium'
           if nested_cesium.exists():
