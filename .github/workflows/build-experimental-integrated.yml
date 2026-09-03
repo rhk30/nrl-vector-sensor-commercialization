@@ -8,6 +8,7 @@ on:
       - .github/workflows/build-experimental-integrated.yml
       - scripts/patch-experimental-source.py
       - scripts/remove-experimental-voice.py
+      - scripts/tune-experimental-cctv.py
       - scripts/finalize-experimental-ui.py
       - rhkearth-logo.svg
 
@@ -48,6 +49,7 @@ jobs:
         run: |
           python ../scripts/patch-experimental-source.py
           python ../scripts/remove-experimental-voice.py
+          python ../scripts/tune-experimental-cctv.py
 
       - name: Install dependencies
         working-directory: _gev
@@ -272,7 +274,7 @@ jobs:
           test -s experimental/live-data/military.json
           test -f experimental/rhkearth-runtime.js
           test -f experimental/rhkearth-theme.css
-          printf '%s\n' "Native RHKEARTH Experimental build with keyless military, satellites, space missions, vessels, earthquakes, traffic fallback, wildfire events and TfL CCTV integration. Upstream voice control removed." > experimental/RHKEARTH_BUILD.txt
+          printf '%s\n' "Native RHKEARTH Experimental build with keyless military, satellites, space missions, vessels, earthquakes, traffic fallback, wildfire events and TfL CCTV integration. Upstream voice control removed; active CCTV frames refresh every 4 seconds." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit integrated bundle
         run: |
