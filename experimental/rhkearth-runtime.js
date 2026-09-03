@@ -133,21 +133,30 @@
     return 'adjust';
   }
 
+  // IMPORTANT: this routine must be idempotent. A MutationObserver watches for
+  // upstream rows being created; rewriting text that is already correct would
+  // itself create another childList mutation and can lock the browser in a
+  // self-triggering observer loop.
   const cleanLayerIcons = () => {
     document.querySelectorAll('[data-layer-id]').forEach((row) => {
       const id = row.dataset.layerId || '';
       const icon = row.querySelector('.data-icon');
       if (icon) {
-        icon.textContent = symbolForLayer(id);
-        icon.className = 'data-icon material-symbols-outlined rhk-layer-symbol';
-        icon.setAttribute('aria-hidden', 'true');
+        const symbol = symbolForLayer(id);
+        if ((icon.textContent || '').trim() !== symbol) icon.textContent = symbol;
+        if (!icon.classList.contains('material-symbols-outlined')) icon.classList.add('material-symbols-outlined');
+        if (!icon.classList.contains('rhk-layer-symbol')) icon.classList.add('rhk-layer-symbol');
+        if (icon.getAttribute('aria-hidden') !== 'true') icon.setAttribute('aria-hidden', 'true');
       }
 
       if (id === 'satellites') {
         const starlink = row.querySelector('.data-toggle-chip[data-chip-id="catalog"]');
         if (starlink && /DENSE/i.test(starlink.textContent || '')) {
-          starlink.textContent = (starlink.textContent || '').replace(/DENSE/g, 'STARLINK');
-          starlink.title = 'Show the CelesTrak Starlink constellation shell';
+          const label = (starlink.textContent || '').replace(/DENSE/g, 'STARLINK');
+          if (starlink.textContent !== label) starlink.textContent = label;
+          if (starlink.title !== 'Show the CelesTrak Starlink constellation shell') {
+            starlink.title = 'Show the CelesTrak Starlink constellation shell';
+          }
         }
       }
     });
@@ -168,16 +177,23 @@
     document.body.appendChild(emblem);
   };
 
+  let refreshScheduled = false;
   const refreshChrome = () => {
-    removeSetupPrompts();
-    cleanLayerIcons();
+    if (refreshScheduled) return;
+    refreshScheduled = true;
+    requestAnimationFrame(() => {
+      refreshScheduled = false;
+      removeSetupPrompts();
+      cleanLayerIcons();
+    });
   };
 
   new MutationObserver(refreshChrome).observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener('DOMContentLoaded', () => {
-    refreshChrome();
+    removeSetupPrompts();
+    cleanLayerIcons();
     ensureClearViewEmblem();
   });
 })();
 
-// RHKEARTH shell revision 2: login-free direct-entry console.
+// RHKEARTH shell revision 3: idempotent UI cleanup, login-free direct entry.
