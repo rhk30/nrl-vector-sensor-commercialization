@@ -1,0 +1,69 @@
+name: aircraft motion integrity
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/aircraft-motion-integrity.yml
+      - scripts/patch-aircraft-motion.py
+      - scripts/patch-live-runtime.py
+      - scripts/patch-experimental-source.py
+      - scripts/fix-chicago-street-duplicates.py
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+      UPSTREAM_COMMIT: 9dfb5369e8bed1531a4bb7e95e247ae9bcaf3961
+
+    steps:
+      - name: Check out RHKEARTH
+        uses: actions/checkout@v4
+
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+
+      - name: Fetch pinned upstream source
+        run: |
+          rm -rf _gev
+          git clone --filter=blob:none --no-checkout https://github.com/bilawalsidhu/gods-eye-view.git _gev
+          cd _gev
+          git checkout "$UPSTREAM_COMMIT"
+
+      - name: Apply aircraft data and motion patches
+        working-directory: _gev
+        run: |
+          python ../scripts/patch-experimental-source.py
+          python ../scripts/patch-live-runtime.py
+          python ../scripts/patch-aircraft-motion.py
+
+          grep -q "const RENDER_DELAY_SEC = 30;" src/data/flights.js
+          grep -q "updateInterval: 30000," src/data/flights.js
+          grep -q "function _deadReckon(icao24, result)" src/data/flights.js
+          grep -q "RHKEARTH_MILITARY_LIVE_PRIMARY" src/data/militaryFlights.js
+          grep -q "https://api.adsb.lol/v2/mil" src/data/militaryFlights.js
+          grep -q "FALLBACK_API_URL = '/experimental/live-data/military.json'" src/data/militaryFlights.js
+          grep -q "const payloadNow = _toFiniteNumber(data?.now);" src/data/militaryFlights.js
+          grep -q "_lastUpdate = receiptNowMs;" src/data/militaryFlights.js
+          grep -q "updateInterval: 15000," src/data/militaryFlights.js
+          grep -q "function _deadReckon(icao24, result)" src/data/militaryFlights.js
+
+      - name: Install dependencies
+        working-directory: _gev
+        run: npm ci --no-audit --no-fund
+
+      - name: Run motion and ADS-B normalization tests
+        working-directory: _gev
+        run: node --test src/data/motionModel.test.mjs src/data/adsbLolFallback.test.mjs
+
+      - name: Build patched production source
+        working-directory: _gev
+        run: npm run build
