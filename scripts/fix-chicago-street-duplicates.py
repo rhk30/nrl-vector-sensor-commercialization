@@ -1,6 +1,17 @@
 from pathlib import Path
 
 ROOT = Path.cwd()
+
+# This script is already part of every integrated Experimental source pass via
+# tune-experimental-cctv.py. Apply the independent aircraft-motion integrity
+# patch first so it survives every rebuild even if the Chicago module below is
+# already patched/no-op. Keeping the call here avoids another fragile duplicate
+# source-rewrite stage in the workflow.
+motion_patch = ROOT.parent / 'scripts' / 'patch-aircraft-motion.py'
+if not motion_patch.exists():
+    raise SystemExit('RHKEARTH aircraft motion integrity patch script missing')
+exec(compile(motion_patch.read_text(encoding='utf-8'), str(motion_patch), 'exec'))
+
 target = ROOT / 'src/data/chicagoStreetActivity.js'
 
 # The Chicago CDOT feed can contain repeated activity IDs and, in some cases,
