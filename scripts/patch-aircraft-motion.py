@@ -231,7 +231,40 @@ if PERF_MARKER not in main_text:
     if anchor not in main_text:
         raise SystemExit('RHKEARTH desktop performance anchor missing: viewer.targetFrameRate')
     main_text = main_text.replace(anchor, perf, 1)
-    MAIN.write_text(main_text, encoding='utf-8')
+
+# -----------------------------------------------------------------------------
+# Globe-centered keyboard orbit
+# -----------------------------------------------------------------------------
+# The upstream RHKEARTH arrow-key patch translated the camera left/right in a
+# flat local plane. That feels awkward on a globe because the camera can slide
+# sideways rather than naturally travelling around Earth. Replace only the
+# lateral keys with Cesium's reference-frame orbit controls. Up/down remain the
+# existing forward/back zoom movement, while left/right now arc around the
+# Earth-center at a speed derived from the same altitude-scaled travel distance.
+KEYBOARD_ORBIT_MARKER = 'RHKEARTH_GLOBE_CENTERED_ARROW_ORBIT_V1'
+if KEYBOARD_ORBIT_MARKER not in main_text:
+    old_lateral = """        if (pressed.has('ArrowUp')) viewer.camera.moveForward(distance);
+        if (pressed.has('ArrowDown')) viewer.camera.moveBackward(distance);
+        if (pressed.has('ArrowLeft')) viewer.camera.moveLeft(distance);
+        if (pressed.has('ArrowRight')) viewer.camera.moveRight(distance);"""
+    new_lateral = """        if (pressed.has('ArrowUp')) viewer.camera.moveForward(distance);
+        if (pressed.has('ArrowDown')) viewer.camera.moveBackward(distance);
+
+        // RHKEARTH_GLOBE_CENTERED_ARROW_ORBIT_V1
+        // Orbit around Cesium's Earth-centered reference-frame origin instead
+        // of translating sideways in the local camera plane. Converting the
+        // existing linear travel speed into an angular step keeps the controls
+        // gentle near the surface and progressively faster from high altitude.
+        const earthRadius = 6378137;
+        const orbitRadius = Math.max(earthRadius, earthRadius + height);
+        const orbitAngle = distance / orbitRadius;
+        if (pressed.has('ArrowLeft')) viewer.camera.rotateLeft(orbitAngle);
+        if (pressed.has('ArrowRight')) viewer.camera.rotateRight(orbitAngle);"""
+    if old_lateral not in main_text:
+        raise SystemExit('RHKEARTH globe-centered keyboard orbit anchor missing')
+    main_text = main_text.replace(old_lateral, new_lateral, 1)
+
+MAIN.write_text(main_text, encoding='utf-8')
 
 main_check = MAIN.read_text(encoding='utf-8')
 for needle in [
@@ -240,8 +273,11 @@ for needle in [
     'viewer.camera.moveEnd.addEventListener(restoreQuality)',
     'primitive.maximumScreenSpaceError',
     'viewer.resolutionScale = movingScale',
+    KEYBOARD_ORBIT_MARKER,
+    'viewer.camera.rotateLeft(orbitAngle)',
+    'viewer.camera.rotateRight(orbitAngle)',
 ]:
     if needle not in main_check:
-        raise SystemExit('Desktop interaction performance contract missing: ' + needle)
+        raise SystemExit('RHKEARTH interaction contract missing: ' + needle)
 
-print('RHKEARTH aircraft motion integrity + desktop interaction performance applied: live military ADS-B primary, honest fallback epochs, movement-time adaptive render quality')
+print('RHKEARTH aircraft motion integrity + desktop interaction performance + globe-centered keyboard orbit applied')
