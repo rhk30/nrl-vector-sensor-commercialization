@@ -8,119 +8,88 @@ index = ROOT / 'index.html'
 
 ui_text = ui.read_text(encoding='utf-8')
 
-# RHKEARTH should be born in Noir, not initialize as Normal and then switch
-# after the StyleManager/share machinery has already started. This makes Noir
-# the actual factory baseline while later share-link restoration remains free
-# to replace it with any explicitly encoded style.
-old_active = "    this.activeStyle = 'normal';"
-new_active = "    this.activeStyle = 'noir';"
-if old_active not in ui_text:
-    if new_active not in ui_text:
-        raise SystemExit('Could not locate StyleManager activeStyle factory baseline')
-else:
-    ui_text = ui_text.replace(old_active, new_active, 1)
+# RHKEARTH factory state is Noir. Keep that state from the first paint, but do
+# NOT render the full-screen shader while the loading cover is still masking
+# the globe; Cesium/data startup is most expensive during that interval.
+ui_text = ui_text.replace("    this.activeStyle = 'normal';", "    this.activeStyle = 'noir';", 1)
 
-# Every post-process stage is created at intensity 0 upstream. Because Noir is
-# now the factory activeStyle, light that stage immediately during construction
-# so the first rendered frame and the visible UI agree before any async restore.
-old_stage_init = "    this._initStages();\n    this._initBloomSharpen();"
-new_stage_init = """    this._initStages();
+# Remove the earlier eager-shader patch if present. Stages should exist but stay
+# dormant until the app is about to become visible.
+eager = """    this._initStages();
     if (this.stages[this.activeStyle]) {
       this._setStageIntensity(this.stages[this.activeStyle], 1);
     }
     this._initBloomSharpen();"""
-if old_stage_init not in ui_text:
-    if "this._setStageIntensity(this.stages[this.activeStyle], 1);" not in ui_text:
-        raise SystemExit('Could not locate StyleManager stage initialization')
-else:
-    ui_text = ui_text.replace(old_stage_init, new_stage_init, 1)
-
+ui_text = ui_text.replace(eager, "    this._initStages();\n    this._initBloomSharpen();", 1)
 ui.write_text(ui_text, encoding='utf-8')
 
-# Secondary runtime guard only: the real baseline is above in StyleManager.
-# This keeps the deployment integrity assertion explicit and protects against a
-# future upstream constructor regression without causing the old late-switch
-# behavior during normal operation.
 main_text = main.read_text(encoding='utf-8')
-main_anchor = "    const styleManager = new StyleManager(viewer, { mapStackController });\n"
-main_guard = """    const styleManager = new StyleManager(viewer, { mapStackController });
+# Keep a harmless invariant guard: ordinary sessions should leave construction
+# already set to Noir; shared links remain authoritative.
+anchor = "    const styleManager = new StyleManager(viewer, { mapStackController });\n"
+guarded = """    const styleManager = new StyleManager(viewer, { mapStackController });
     if (!styleManager.hasShareState && styleManager.activeStyle !== 'noir') {
-      styleManager.setStyle('noir');
+      styleManager.activeStyle = 'noir';
+      document.documentElement.dataset.gevStyle = 'noir';
     }
 """
-if main_anchor in main_text:
-    main_text = main_text.replace(main_anchor, main_guard, 1)
-elif "styleManager.setStyle('noir')" not in main_text:
-    raise SystemExit('Could not install Noir runtime fallback guard')
+if anchor in main_text:
+    main_text = main_text.replace(anchor, guarded, 1)
+
+# Turn on the selected visual stage at the last possible moment before the
+# loading screen disappears. If a share link restored Normal there is no stage;
+# if it restored another preset, that preset is the one activated.
+handoff = """    ]).finally(() => {
+      loadingScreen.classList.add('hidden');"""
+handoff_repl = """    ]).finally(() => {
+      // RHKEARTH startup-performance handoff: expensive post-FX stays dormant
+      // under the loading cover, then becomes visible exactly as the UI opens.
+      const startupStage = styleManager.stages?.[styleManager.activeStyle];
+      if (startupStage && Number(startupStage.uniforms?.intensity || 0) < 0.999) {
+        styleManager._setStageIntensity(startupStage, 1);
+      }
+      loadingScreen.classList.add('hidden');"""
+if handoff in main_text:
+    main_text = main_text.replace(handoff, handoff_repl, 1)
+elif 'RHKEARTH startup-performance handoff' not in main_text:
+    raise SystemExit('Could not locate startup loading-cover handoff')
 main.write_text(main_text, encoding='utf-8')
 
-# The inherited HUD changes cyan/green/amber with the visual preset. RHKEARTH's
-# chrome is intentionally neutral; data geometry can retain semantic colors,
-# but the instrument/readout chrome should not look like a different product in
-# each mode.
+# Neutral instrument chrome. Asset/data colors are handled separately so the
+# menus remain calm while contacts on the globe can use tactical color coding.
 hud_text = hud.read_text(encoding='utf-8')
-old_hud_colors = """const HUD_COLORS = {
-  surveillance: { main: 'rgba(51, 255, 51, 0.8)',  glow: 'rgba(51, 255, 51, 0.5)',  border: 'rgba(51, 255, 51, 0.2)' },
-  thermal:      { main: 'rgba(255, 255, 255, 0.7)', glow: 'rgba(255, 255, 255, 0.4)', border: 'rgba(255, 255, 255, 0.15)' },
-  retro:        { main: 'rgba(255, 170, 0, 0.8)',   glow: 'rgba(255, 170, 0, 0.5)',   border: 'rgba(255, 170, 0, 0.2)' },
-  _default:     { main: 'rgba(0, 255, 255, 0.6)',   glow: 'rgba(0, 255, 255, 0.4)',   border: 'rgba(0, 255, 255, 0.15)' },
-};"""
-new_hud_colors = """const HUD_COLORS = {
+start = hud_text.find('const HUD_COLORS = {')
+end = hud_text.find('\n};', start)
+if start < 0 or end < 0:
+    raise SystemExit('Could not locate HUD_COLORS')
+end += 3
+neutral_hud = """const HUD_COLORS = {
   surveillance: { main: 'rgba(239, 239, 233, 0.82)', glow: 'rgba(239, 239, 233, 0.12)', border: 'rgba(169, 181, 155, 0.24)' },
   thermal:      { main: 'rgba(239, 239, 233, 0.82)', glow: 'rgba(239, 239, 233, 0.12)', border: 'rgba(169, 181, 155, 0.24)' },
   retro:        { main: 'rgba(239, 239, 233, 0.82)', glow: 'rgba(239, 239, 233, 0.12)', border: 'rgba(169, 181, 155, 0.24)' },
   noir:         { main: 'rgba(239, 239, 233, 0.82)', glow: 'rgba(239, 239, 233, 0.12)', border: 'rgba(169, 181, 155, 0.24)' },
   _default:     { main: 'rgba(239, 239, 233, 0.82)', glow: 'rgba(239, 239, 233, 0.12)', border: 'rgba(169, 181, 155, 0.24)' },
 };"""
-if old_hud_colors not in hud_text:
-    if "rgba(239, 239, 233, 0.82)" not in hud_text:
-        raise SystemExit('Could not locate HUD_COLORS palette')
-else:
-    hud_text = hud_text.replace(old_hud_colors, new_hud_colors, 1)
+hud_text = hud_text[:start] + neutral_hud + hud_text[end:]
 hud.write_text(hud_text, encoding='utf-8')
 
 html = index.read_text(encoding='utf-8')
-# Make first-paint chrome truthful too; JS will keep it synchronized afterward.
-html = html.replace(
-    '<span class="indicator-value" id="active-style-name">NORMAL</span>',
-    '<span class="indicator-value" id="active-style-name">NOIR</span>',
-    1,
-)
-html = html.replace(
-    '<button class="style-btn active" data-style="normal">',
-    '<button class="style-btn" data-style="normal">',
-    1,
-)
-html = html.replace(
-    '<button class="style-btn" data-style="noir">',
-    '<button class="style-btn active" data-style="noir">',
-    1,
-)
+html = html.replace('<span class="indicator-value" id="active-style-name">NORMAL</span>', '<span class="indicator-value" id="active-style-name">NOIR</span>', 1)
+html = html.replace('<button class="style-btn active" data-style="normal">', '<button class="style-btn" data-style="normal">', 1)
+html = html.replace('<button class="style-btn" data-style="noir">', '<button class="style-btn active" data-style="noir">', 1)
 
-# Explicit shell overrides for the areas called out in the RHKEARTH screenshot:
-# HUD corners/readouts, Display/detection controls, segmented controls, sliders
-# and muted data-panel metadata. This is chrome-only; it does not desaturate map
-# objects, radar, alert polygons, traffic severity, or other semantic data.
-palette_marker = 'RHKEARTH neutral instrument chrome v2'
+palette_marker = 'RHKEARTH neutral instrument chrome v3'
 palette_css = r'''
 <style id="rhkearth-neutral-instrument-chrome">
-/* RHKEARTH neutral instrument chrome v2 */
+/* RHKEARTH neutral instrument chrome v3 */
 #intel-hud {
   --hud-color: rgba(239,239,233,.82) !important;
-  --hud-glow: rgba(239,239,233,.12) !important;
+  --hud-glow: rgba(239,239,233,.10) !important;
   --hud-border: rgba(169,181,155,.24) !important;
   color: #efefe9 !important;
   text-shadow: none !important;
 }
-#intel-hud *,
-#style-indicator,
-#style-indicator *,
-#pp-toggles,
-#pp-toggles *,
-#param-slider-panel,
-#param-slider-panel * {
-  text-shadow: none !important;
-}
+#intel-hud *, #style-indicator *, #pp-toggles *, #param-slider-panel * { text-shadow: none !important; }
 #intel-hud .hud-system,
 #intel-hud .hud-mode,
 #intel-hud .hud-rec,
@@ -131,21 +100,10 @@ palette_css = r'''
 #intel-hud .hud-right-edge,
 #intel-hud .hud-bottom-bar,
 #intel-hud .hud-top-bar,
-#intel-hud [id^="hud-"] {
-  color: rgba(239,239,233,.82) !important;
-}
-#intel-hud .hud-bracket,
-#intel-hud .hud-corner,
-#intel-hud .hud-edge,
-#intel-hud .hud-top-bar,
-#intel-hud .hud-bottom-bar {
-  border-color: rgba(169,181,155,.24) !important;
-}
+#intel-hud [id^="hud-"] { color: rgba(239,239,233,.82) !important; }
 #style-indicator .indicator-label { color: rgba(143,151,143,.76) !important; }
 #style-indicator .indicator-value { color: #efefe9 !important; }
-
-#pp-toggles,
-#param-slider-panel {
+#pp-toggles, #param-slider-panel {
   --accent: #efefe9 !important;
   color: #efefe9 !important;
   background: rgba(8,10,9,.92) !important;
@@ -183,42 +141,32 @@ palette_css = r'''
 #pp-toggles .pp-slider-mini-label,
 #pp-toggles .pp-slider-value,
 #param-slider-panel .pp-slider-mini-label,
-#param-slider-panel .pp-slider-value {
-  color: inherit !important;
-}
-#pp-toggles input[type="range"],
-#param-slider-panel input[type="range"] {
-  accent-color: #efefe9 !important;
-}
-#pp-toggles input[type="range"]::-webkit-slider-thumb,
-#param-slider-panel input[type="range"]::-webkit-slider-thumb {
-  background: #efefe9 !important;
-  box-shadow: none !important;
-}
-#data-panel .data-toggle-meta,
-#data-panel .data-count,
-#data-panel .data-toggle-legend-item {
-  color: rgba(143,151,143,.72) !important;
-}
+#param-slider-panel .pp-slider-value { color: inherit !important; }
+#pp-toggles input[type="range"], #param-slider-panel input[type="range"] { accent-color: #efefe9 !important; }
+#data-panel .data-toggle-meta, #data-panel .data-count, #data-panel .data-toggle-legend-item { color: rgba(143,151,143,.72) !important; }
 </style>
 '''
-if palette_marker not in html:
+# Replace an earlier injected version rather than stacking duplicate CSS.
+old_start = html.find('<style id="rhkearth-neutral-instrument-chrome">')
+if old_start >= 0:
+    old_end = html.find('</style>', old_start)
+    if old_end >= 0:
+        html = html[:old_start] + palette_css + html[old_end + len('</style>'):]
+else:
     html = html.replace('</head>', palette_css + '\n</head>', 1)
-
 index.write_text(html, encoding='utf-8')
 
 checks = {
-    'StyleManager baseline': "this.activeStyle = 'noir';" in ui_text,
-    'Noir stage lit at construction': "this._setStageIntensity(this.stages[this.activeStyle], 1);" in ui_text,
-    'Noir fallback guard': "styleManager.setStyle('noir')" in main_text,
-    'neutral HUD source palette': "rgba(239, 239, 233, 0.82)" in hud_text,
-    'first-paint indicator': 'id="active-style-name">NOIR<' in html,
+    'Noir factory baseline': "this.activeStyle = 'noir';" in ui_text,
+    'No eager full-screen Noir': "this._setStageIntensity(this.stages[this.activeStyle], 1);" not in ui_text,
+    'Deferred startup shader': 'RHKEARTH startup-performance handoff' in main_text,
+    'Neutral HUD': "rgba(239, 239, 233, 0.82)" in hud_text,
+    'Noir first-paint indicator': 'id="active-style-name">NOIR<' in html,
     'Noir button active': 'class="style-btn active" data-style="noir"' in html,
-    'Normal button inactive': 'class="style-btn active" data-style="normal"' not in html,
-    'neutral chrome CSS': palette_marker in html,
+    'Neutral chrome': palette_marker in html,
 }
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
-    raise SystemExit('RHKEARTH Noir/palette baseline validation failed: ' + ', '.join(failed))
+    raise SystemExit('RHKEARTH Noir/palette validation failed: ' + ', '.join(failed))
 
-print('RHKEARTH Noir factory baseline + neutral instrument chrome installed')
+print('RHKEARTH Noir default retained, startup shader deferred, chrome neutralized')
