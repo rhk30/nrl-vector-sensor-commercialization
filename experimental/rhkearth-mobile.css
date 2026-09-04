@@ -1,0 +1,279 @@
+/* RHKEARTH automatic mobile UI v1
+   Activated only by scripts/rhkearth-mobile.js when the session is both
+   touch-oriented and phone-sized. Desktop selectors are intentionally untouched. */
+
+html.rhk-mobile-ui {
+  --rhk-mobile-edge: max(10px, env(safe-area-inset-left));
+  --rhk-mobile-edge-r: max(10px, env(safe-area-inset-right));
+  --rhk-mobile-top: max(8px, env(safe-area-inset-top));
+  --rhk-mobile-bottom: max(10px, env(safe-area-inset-bottom));
+}
+
+html.rhk-mobile-ui body {
+  overscroll-behavior: none;
+}
+
+/* Compact identity block; preserve the RHKEARTH mark and subtitle without
+   consuming a desktop-sized corner of the phone viewport. */
+html.rhk-mobile-ui #title-bar {
+  left: var(--rhk-mobile-edge) !important;
+  top: var(--rhk-mobile-top) !important;
+  width: min(58vw, 250px) !important;
+  max-width: min(58vw, 250px) !important;
+  padding: 6px 8px !important;
+  transform: none !important;
+}
+
+html.rhk-mobile-ui #title-bar h1 {
+  gap: 7px !important;
+  font-size: clamp(18px, 5.6vw, 25px) !important;
+  line-height: 1 !important;
+  letter-spacing: .075em !important;
+}
+
+html.rhk-mobile-ui #title-bar .title-logo,
+html.rhk-mobile-ui #title-bar .title-logo > img,
+html.rhk-mobile-ui #title-bar .title-logo > svg {
+  width: 31px !important;
+  height: 31px !important;
+  flex-basis: 31px !important;
+}
+
+html.rhk-mobile-ui #title-bar .subtitle {
+  margin-top: 5px !important;
+  font-size: 7px !important;
+  line-height: 1.2 !important;
+  letter-spacing: .13em !important;
+  white-space: nowrap !important;
+}
+
+/* Style state remains visible but becomes a tiny status readout. */
+html.rhk-mobile-ui #style-indicator {
+  top: var(--rhk-mobile-top) !important;
+  right: var(--rhk-mobile-edge-r) !important;
+  left: auto !important;
+  padding: 5px 6px !important;
+  min-width: 64px !important;
+  text-align: right !important;
+  transform: none !important;
+}
+
+html.rhk-mobile-ui #style-indicator .indicator-label {
+  display: none !important;
+}
+
+html.rhk-mobile-ui #style-indicator .indicator-value {
+  font-size: 9px !important;
+  letter-spacing: .16em !important;
+}
+
+/* Globe actions stay one-tap reachable and no longer float across the center
+   of the map. */
+html.rhk-mobile-ui #top-center-actions {
+  top: calc(var(--rhk-mobile-top) + 48px) !important;
+  left: auto !important;
+  right: var(--rhk-mobile-edge-r) !important;
+  transform: none !important;
+  gap: 5px !important;
+}
+
+html.rhk-mobile-ui #top-center-actions button {
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 !important;
+}
+
+html.rhk-mobile-ui #top-center-actions .material-symbols-outlined {
+  font-size: 19px !important;
+}
+
+/* One concise loading chip is enough on a phone. Provider-specific secondary
+   progress chips are still present on desktop and still run in the background. */
+html.rhk-mobile-ui #global-loading-status {
+  top: calc(var(--rhk-mobile-top) + 94px) !important;
+  left: 50% !important;
+  right: auto !important;
+  max-width: 72vw !important;
+  padding: 6px 9px !important;
+  transform: translateX(-50%) !important;
+  font-size: 8px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+html.rhk-mobile-ui #global-loading-detail {
+  max-width: 34vw !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+html.rhk-mobile-ui #traffic-sync-chip,
+html.rhk-mobile-ui #cctv-sync-chip {
+  display: none !important;
+}
+
+/* The desktop intelligence frame is useful on a large monitor but competes
+   with the actual map on a phone. Keep only the truthful compact context block;
+   suppress edge telemetry and duplicate corner instrumentation. */
+html.rhk-mobile-ui #intel-hud .hud-top-bar,
+html.rhk-mobile-ui #intel-hud .hud-top-right,
+html.rhk-mobile-ui #intel-hud .hud-bottom-left,
+html.rhk-mobile-ui #intel-hud .hud-bottom-right,
+html.rhk-mobile-ui #intel-hud .hud-left-edge,
+html.rhk-mobile-ui #intel-hud .hud-right-edge,
+html.rhk-mobile-ui #intel-hud .hud-bottom-bar {
+  display: none !important;
+}
+
+html.rhk-mobile-ui #intel-hud .hud-top-left {
+  top: calc(var(--rhk-mobile-top) + 92px) !important;
+  left: var(--rhk-mobile-edge) !important;
+  right: auto !important;
+  width: min(54vw, 245px) !important;
+  max-width: min(54vw, 245px) !important;
+  transform: none !important;
+}
+
+html.rhk-mobile-ui #intel-hud .hud-top-left .hud-bracket,
+html.rhk-mobile-ui #intel-hud .hud-top-left .hud-system,
+html.rhk-mobile-ui #intel-hud .hud-top-left .hud-mode,
+html.rhk-mobile-ui #intel-hud .hud-top-left .hud-summary-label {
+  display: none !important;
+}
+
+html.rhk-mobile-ui #intel-hud .hud-top-left .hud-content {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html.rhk-mobile-ui #intel-hud .hud-summary-wrap {
+  padding: 6px 8px !important;
+  margin: 0 !important;
+  border: 1px solid rgba(169,181,155,.15) !important;
+  background: rgba(7,9,8,.62) !important;
+  backdrop-filter: blur(9px) saturate(.78) !important;
+}
+
+html.rhk-mobile-ui #intel-hud .hud-summary {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  font-size: 8px !important;
+  line-height: 1.35 !important;
+  letter-spacing: .035em !important;
+}
+
+/* Convert the data-layer rail into a compact bottom sheet. It uses the same DOM
+   and controls as desktop; only geometry and touch target size change. */
+html.rhk-mobile-ui #data-panel {
+  position: fixed !important;
+  left: var(--rhk-mobile-edge) !important;
+  right: var(--rhk-mobile-edge-r) !important;
+  bottom: var(--rhk-mobile-bottom) !important;
+  top: auto !important;
+  width: auto !important;
+  max-width: none !important;
+  max-height: min(46svh, 430px) !important;
+  border-radius: 9px !important;
+  overflow: hidden !important;
+  transform: none !important;
+  backdrop-filter: blur(15px) saturate(.72) !important;
+}
+
+html.rhk-mobile-ui #data-panel .data-panel-header,
+html.rhk-mobile-ui #data-panel .panel-header {
+  min-height: 44px !important;
+  padding: 8px 10px !important;
+}
+
+html.rhk-mobile-ui #data-panel .data-toggle-list {
+  max-height: calc(min(46svh, 430px) - 46px) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: max(4px, env(safe-area-inset-bottom)) !important;
+}
+
+html.rhk-mobile-ui #data-panel .data-toggle-row {
+  min-height: 50px !important;
+  padding: 10px 10px 9px !important;
+}
+
+html.rhk-mobile-ui #data-panel .data-name {
+  font-size: 10px !important;
+  max-width: 44vw !important;
+}
+
+html.rhk-mobile-ui #data-panel .data-toggle-btn {
+  min-width: 58px !important;
+  min-height: 34px !important;
+  padding: 6px 8px !important;
+  font-size: 8px !important;
+}
+
+html.rhk-mobile-ui #data-panel .data-toggle-chip {
+  min-height: 30px !important;
+  padding: 6px 8px !important;
+}
+
+html.rhk-mobile-ui #data-panel .data-toggle-meta,
+html.rhk-mobile-ui #data-panel .data-toggle-controls {
+  margin-left: 30px !important;
+}
+
+/* Display controls use the same mobile bottom-sheet geometry when opened. */
+html.rhk-mobile-ui #pp-toggles,
+html.rhk-mobile-ui #param-slider-panel {
+  position: fixed !important;
+  left: var(--rhk-mobile-edge) !important;
+  right: var(--rhk-mobile-edge-r) !important;
+  bottom: var(--rhk-mobile-bottom) !important;
+  top: auto !important;
+  width: auto !important;
+  max-width: none !important;
+  max-height: 52svh !important;
+  overflow-y: auto !important;
+  border-radius: 9px !important;
+  transform: none !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+html.rhk-mobile-ui #pp-toggles button,
+html.rhk-mobile-ui #param-slider-panel button,
+html.rhk-mobile-ui #pp-toggles select,
+html.rhk-mobile-ui #param-slider-panel select {
+  min-height: 36px !important;
+}
+
+/* Keep transient cards within the phone safe area rather than letting desktop
+   widths extend off-screen. */
+html.rhk-mobile-ui #toast,
+html.rhk-mobile-ui [class*="readout"],
+html.rhk-mobile-ui [class*="detail-card"],
+html.rhk-mobile-ui [class*="selected-card"] {
+  max-width: calc(100vw - var(--rhk-mobile-edge) - var(--rhk-mobile-edge-r)) !important;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  html.rhk-mobile-ui #title-bar .subtitle,
+  html.rhk-mobile-ui #intel-hud .hud-top-left {
+    display: none !important;
+  }
+
+  html.rhk-mobile-ui #data-panel {
+    left: var(--rhk-mobile-edge) !important;
+    right: auto !important;
+    width: min(360px, 46vw) !important;
+    max-height: calc(100svh - var(--rhk-mobile-top) - var(--rhk-mobile-bottom) - 8px) !important;
+  }
+
+  html.rhk-mobile-ui #data-panel .data-toggle-list {
+    max-height: calc(100svh - var(--rhk-mobile-top) - var(--rhk-mobile-bottom) - 58px) !important;
+  }
+}
