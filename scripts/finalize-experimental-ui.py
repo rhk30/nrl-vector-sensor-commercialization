@@ -118,7 +118,7 @@ html = re.sub(r'\s*<script[^>]*src=["\']https://js\.puter\.com/v2/?["\'][^>]*></
 runtime_tag = '<script src="/experimental/rhkearth-runtime.js?v=9"></script>'
 theme_tag = '<link rel="stylesheet" href="/experimental/rhkearth-theme.css?v=5">'
 mobile_script_tag = '<script src="/experimental/rhkearth-mobile.js?v=1"></script>'
-mobile_style_tag = '<link rel="stylesheet" href="/experimental/rhkearth-mobile.css?v=1">'
+mobile_style_tag = '<link rel="stylesheet" href="/experimental/rhkearth-mobile.css?v=2">'
 weather_fallback_tag = '<script src="/experimental/rhkearth-weather-fallback.js?v=1"></script>'
 weather_script_tag = '<script src="/experimental/rhkearth-weather.js?v=1" defer></script>'
 weather_world_tag = '<script src="/experimental/rhkearth-weather-worldwide.js?v=1" defer></script>'
@@ -154,7 +154,7 @@ else:
     html = html.replace('</head>', f'  {theme_tag}\n</head>', 1)
 
 if '/experimental/rhkearth-mobile.css' in html:
-    html = re.sub(r'/experimental/rhkearth-mobile\.css(?:\?v=\d+)?', '/experimental/rhkearth-mobile.css?v=1', html)
+    html = re.sub(r'/experimental/rhkearth-mobile\.css(?:\?v=\d+)?', '/experimental/rhkearth-mobile.css?v=2', html)
 else:
     # Mobile CSS is inert unless rhkearth-mobile.js adds .rhk-mobile-ui, so it
     # is safe to load universally and cannot alter desktop geometry.
@@ -221,7 +221,7 @@ checks = {
     'runtime v9': '/experimental/rhkearth-runtime.js?v=9' in html,
     'theme v5': '/experimental/rhkearth-theme.css?v=5' in html,
     'mobile runtime v1': '/experimental/rhkearth-mobile.js?v=1' in html,
-    'mobile style v1': '/experimental/rhkearth-mobile.css?v=1' in html,
+    'mobile style v2': '/experimental/rhkearth-mobile.css?v=2' in html,
     'weather fallback v1': '/experimental/rhkearth-weather-fallback.js?v=1' in html,
     'weather runtime v1': '/experimental/rhkearth-weather.js?v=1' in html,
     'weather worldwide v1': '/experimental/rhkearth-weather-worldwide.js?v=1' in html,
