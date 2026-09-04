@@ -11,6 +11,7 @@ on:
       - scripts/patch-flight-trails-models.py
       - scripts/patch-entity-details.py
       - scripts/patch-noir-default.py
+      - scripts/patch-tactical-map-palette.py
       - scripts/clean-experimental-ui-source.py
       - scripts/remove-experimental-voice.py
       - scripts/tune-experimental-cctv.py
@@ -64,6 +65,7 @@ jobs:
           python ../scripts/patch-flight-trails-models.py
           python ../scripts/patch-entity-details.py
           python ../scripts/patch-noir-default.py
+          python ../scripts/patch-tactical-map-palette.py
           python ../scripts/clean-experimental-ui-source.py
           python ../scripts/remove-experimental-voice.py
           python ../scripts/tune-experimental-cctv.py
@@ -82,7 +84,13 @@ jobs:
           grep -q "overpass.kumi.systems" src/data/traffic.js
           grep -q "directMediaUrl" src/data/cctv.js
           grep -q "mediaRefreshTimer" src/data/cctv.js
-          grep -q "styleManager.setStyle('noir')" src/main.js
+          grep -q "this.activeStyle = 'noir'" src/ui.js
+          grep -q "RHKEARTH startup-performance handoff" src/main.js
+          grep -q "tacticalAccent = smoothstep" src/styles/noir.js
+          grep -q "#72C9D8" src/data/flights.js
+          grep -q "#D8A84E" src/data/militaryFlights.js
+          grep -q "#63C5D0" src/data/vesselLabels.js
+          grep -q "  noir: {" src/overlays/worldOverlayTokens.js
           grep -q "rhkearth-chrome-cleanup" index.html
 
       - name: Install dependencies
@@ -194,7 +202,10 @@ jobs:
           grep -R -q "overpass.kumi.systems" dist/assets
           grep -R -q "overpass.private.coffee" dist/assets
           grep -R -q "rhkLive" dist/assets
-          grep -R -q "setStyle(\"noir\")\|setStyle('noir')" dist/assets
+          grep -R -q "#72C9D8\|#72c9d8" dist/assets
+          grep -R -q "#D8A84E\|#d8a84e" dist/assets
+          grep -R -q "#63C5D0\|#63c5d0" dist/assets
+          grep -q "id=\"active-style-name\">NOIR\|id=\"active-style-name\">NOIR<" dist/index.html
           grep -q "rhkearth-chrome-cleanup" dist/index.html
 
           python - <<'PY'
@@ -212,6 +223,8 @@ jobs:
           index = Path('dist/index.html').read_text()
           if 'RHKEARTH' not in index.upper():
               raise SystemExit('RHKEARTH branding missing from built index')
+          if 'NOIR' not in index:
+              raise SystemExit('Noir first-paint state missing from built index')
           print(f'PASS static native gate: {len(video_rows)} London video cameras in catalog')
           PY
 
@@ -240,7 +253,7 @@ jobs:
           test -f experimental/rhkearth-weather-worldwide.js
           grep -q "rhkearth-weather-worldwide.js?v=1" experimental/index.html
           grep -q "rhkearth-chrome-cleanup" experimental/index.html
-          printf '%s\n' "Native RHKEARTH Experimental build. Noir is the default visual baseline for ordinary sessions while shared links retain their encoded visual state. Weather mode adds worldwide map-center conditions from Open-Meteo and global severe-storm event context from NASA EONET; U.S. NEXRAD/NWS and NHC products remain clearly labeled regional official feeds. Civilian Live Flights use browser-CORS ADS-B with same-origin OpenSky fallback, selected aircraft draw observed/historical flight trails when trace providers permit, use type-aware 3D models, and expose expanded identifiers and motion details. Selected AIS vessels expose available type, speed, heading/course, destination, MMSI/IMO/callsign, dimensions/draught, coordinates and last-position freshness without fabricating missing fields. Space Missions and Satellites remain visible concurrently. Military Flights retain RHKEARTH-refreshed adsb.lol military source; London CCTV uses TfL rolling video where provided; Street Traffic uses multi-mirror OSM Overpass failover. Chicago continuous-live cameras are owned by CCTV and Chicago CDOT street activity is owned by Traffic. Scope, Scenes, TSC chrome, residual emoji chrome and voice control removed." > experimental/RHKEARTH_BUILD.txt
+          printf '%s\n' "Native RHKEARTH Experimental build. Noir is the true default visual baseline for ordinary sessions while its expensive full-screen shader is deferred until the loading cover yields; shared links retain their encoded visual state. RHKEARTH chrome stays neutral graphite/off-white while map assets use a restrained tactical palette: civilian air cyan, military air amber, AIS sea teal/type variants, and satellite classes in readable space hues; the Noir shader preserves high-chroma source symbology rather than washing contacts to gray. Weather mode adds worldwide map-center conditions from Open-Meteo and global severe-storm event context from NASA EONET; U.S. NEXRAD/NWS and NHC products remain clearly labeled regional official feeds. Civilian Live Flights use browser-CORS ADS-B with same-origin OpenSky fallback, selected aircraft draw observed/historical flight trails when trace providers permit, use type-aware 3D models, and expose expanded identifiers and motion details. Selected AIS vessels expose available type, speed, heading/course, destination, MMSI/IMO/callsign, dimensions/draught, coordinates and last-position freshness without fabricating missing fields. Space Missions and Satellites remain visible concurrently. Military Flights retain RHKEARTH-refreshed adsb.lol military source; London CCTV uses TfL rolling video where provided; Street Traffic uses multi-mirror OSM Overpass failover. Chicago continuous-live cameras are owned by CCTV and Chicago CDOT street activity is owned by Traffic. Scope, Scenes, TSC chrome, residual emoji chrome and voice control removed." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit integrated bundle
         run: |
