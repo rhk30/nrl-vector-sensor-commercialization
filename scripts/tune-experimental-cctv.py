@@ -123,6 +123,14 @@ if not street_patch.exists():
     raise SystemExit('RHKEARTH Chicago street-activity patch script missing')
 exec(compile(street_patch.read_text(encoding='utf-8'), str(street_patch), 'exec'))
 
+# The Chicago source can repeat activity IDs. Cesium EntityCollection requires
+# unique IDs, so qualify geometry IDs and collapse exact duplicates before the
+# first render. A bad provider row must never stop the entire globe renderer.
+duplicate_guard_patch = Path('../scripts/fix-chicago-street-duplicates.py')
+if not duplicate_guard_patch.exists():
+    raise SystemExit('RHKEARTH Chicago duplicate-entity guard script missing')
+exec(compile(duplicate_guard_patch.read_text(encoding='utf-8'), str(duplicate_guard_patch), 'exec'))
+
 # Repair the three core live-source paths in the static/native build:
 # civilian adsb.lol flights, TfL rolling-video CCTV, and Overpass mirror failover.
 live_runtime_patch = Path('../scripts/patch-live-runtime.py')
