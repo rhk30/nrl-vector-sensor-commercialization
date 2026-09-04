@@ -76,19 +76,33 @@ if logo_fix_marker not in css:
     css += logo_fix
 theme.write_text(css, encoding='utf-8')
 
-# Install the separate, source-locked Weather operating surface from durable
-# source files. The build deletes/replaces experimental/, so these copies happen
-# after every native bundle publish rather than relying on generated files.
+# Install the separate, source-locked Weather operating surface and automatic
+# mobile UI from durable source files. The build deletes/replaces experimental/,
+# so these copies happen after every native bundle publish rather than relying
+# on generated files that would disappear on the next rebuild.
 weather_js_src = Path('scripts/rhkearth-weather.js')
 weather_css_src = Path('scripts/rhkearth-weather.css')
 weather_fallback_src = Path('scripts/rhkearth-weather-fallback.js')
 weather_world_src = Path('scripts/rhkearth-weather-worldwide.js')
-if not weather_js_src.exists() or not weather_css_src.exists() or not weather_fallback_src.exists() or not weather_world_src.exists():
-    raise SystemExit('RHKEARTH Weather source files are missing')
+mobile_js_src = Path('scripts/rhkearth-mobile.js')
+mobile_css_src = Path('scripts/rhkearth-mobile.css')
+required_sources = [
+    weather_js_src,
+    weather_css_src,
+    weather_fallback_src,
+    weather_world_src,
+    mobile_js_src,
+    mobile_css_src,
+]
+if not all(path.exists() for path in required_sources):
+    missing = [str(path) for path in required_sources if not path.exists()]
+    raise SystemExit('RHKEARTH durable source files are missing: ' + ', '.join(missing))
 Path('experimental/rhkearth-weather.js').write_text(weather_js_src.read_text(encoding='utf-8'), encoding='utf-8')
 Path('experimental/rhkearth-weather.css').write_text(weather_css_src.read_text(encoding='utf-8'), encoding='utf-8')
 Path('experimental/rhkearth-weather-fallback.js').write_text(weather_fallback_src.read_text(encoding='utf-8'), encoding='utf-8')
 Path('experimental/rhkearth-weather-worldwide.js').write_text(weather_world_src.read_text(encoding='utf-8'), encoding='utf-8')
+Path('experimental/rhkearth-mobile.js').write_text(mobile_js_src.read_text(encoding='utf-8'), encoding='utf-8')
+Path('experimental/rhkearth-mobile.css').write_text(mobile_css_src.read_text(encoding='utf-8'), encoding='utf-8')
 
 html = html.replace('<title>RHKEARTH // Experimental</title>', '<title>RHKEARTH // Intelligence Console</title>')
 html = html.replace('<span>RHKEARTH <span class="title-accent">EXPERIMENTAL</span></span>', '<span>RHKEARTH</span>')
@@ -103,10 +117,27 @@ html = re.sub(r'\s*<script[^>]*src=["\']https://js\.puter\.com/v2/?["\'][^>]*></
 # changes so browsers/CDNs cannot retain a visually or functionally stale copy.
 runtime_tag = '<script src="/experimental/rhkearth-runtime.js?v=9"></script>'
 theme_tag = '<link rel="stylesheet" href="/experimental/rhkearth-theme.css?v=5">'
+mobile_script_tag = '<script src="/experimental/rhkearth-mobile.js?v=1"></script>'
+mobile_style_tag = '<link rel="stylesheet" href="/experimental/rhkearth-mobile.css?v=1">'
 weather_fallback_tag = '<script src="/experimental/rhkearth-weather-fallback.js?v=1"></script>'
 weather_script_tag = '<script src="/experimental/rhkearth-weather.js?v=1" defer></script>'
 weather_world_tag = '<script src="/experimental/rhkearth-weather-worldwide.js?v=1" defer></script>'
 weather_style_tag = '<link rel="stylesheet" href="/experimental/rhkearth-weather.css?v=1">'
+
+if '/experimental/rhkearth-mobile.js' in html:
+    html = re.sub(r'/experimental/rhkearth-mobile\.js(?:\?v=\d+)?', '/experimental/rhkearth-mobile.js?v=1', html)
+else:
+    # Load before the main runtime/module so the phone class exists before the
+    # application becomes visible; desktop sessions simply receive no class.
+    runtime_match = re.search(r'<script[^>]+src="/experimental/rhkearth-runtime\.js(?:\?v=\d+)?"[^>]*></script>', html)
+    if runtime_match:
+        html = html[:runtime_match.start()] + mobile_script_tag + '\n  ' + html[runtime_match.start():]
+    else:
+        module_match = re.search(r'<script type="module"[^>]+src="/experimental/assets/[^"]+\.js"></script>', html)
+        if module_match:
+            html = html[:module_match.start()] + mobile_script_tag + '\n  ' + html[module_match.start():]
+        else:
+            html = html.replace('</head>', f'  {mobile_script_tag}\n</head>', 1)
 
 if '/experimental/rhkearth-runtime.js' in html:
     html = re.sub(r'/experimental/rhkearth-runtime\.js(?:\?v=\d+)?', '/experimental/rhkearth-runtime.js?v=9', html)
@@ -121,6 +152,13 @@ if '/experimental/rhkearth-theme.css' in html:
     html = re.sub(r'/experimental/rhkearth-theme\.css(?:\?v=\d+)?', '/experimental/rhkearth-theme.css?v=5', html)
 else:
     html = html.replace('</head>', f'  {theme_tag}\n</head>', 1)
+
+if '/experimental/rhkearth-mobile.css' in html:
+    html = re.sub(r'/experimental/rhkearth-mobile\.css(?:\?v=\d+)?', '/experimental/rhkearth-mobile.css?v=1', html)
+else:
+    # Mobile CSS is inert unless rhkearth-mobile.js adds .rhk-mobile-ui, so it
+    # is safe to load universally and cannot alter desktop geometry.
+    html = html.replace('</head>', f'  {mobile_style_tag}\n</head>', 1)
 
 if '/experimental/rhkearth-weather-fallback.js' in html:
     html = re.sub(r'/experimental/rhkearth-weather-fallback\.js(?:\?v=\d+)?', '/experimental/rhkearth-weather-fallback.js?v=1', html)
@@ -179,13 +217,17 @@ index.write_text(html, encoding='utf-8')
 
 checks = {
     'RHKEARTH title': 'RHKEARTH // Intelligence Console' in html,
-    'RHKEARTH subtitle': 'INTELLIGENCE CONSOLE' in html,
+    'RHKEARTH subtitle': 'INTELLIGENCE CONSOLE' in html or 'MULTI-DOMAIN AWARENESS' in html,
     'runtime v9': '/experimental/rhkearth-runtime.js?v=9' in html,
     'theme v5': '/experimental/rhkearth-theme.css?v=5' in html,
+    'mobile runtime v1': '/experimental/rhkearth-mobile.js?v=1' in html,
+    'mobile style v1': '/experimental/rhkearth-mobile.css?v=1' in html,
     'weather fallback v1': '/experimental/rhkearth-weather-fallback.js?v=1' in html,
     'weather runtime v1': '/experimental/rhkearth-weather.js?v=1' in html,
     'weather worldwide v1': '/experimental/rhkearth-weather-worldwide.js?v=1' in html,
     'weather style v1': '/experimental/rhkearth-weather.css?v=1' in html,
+    'mobile runtime installed': Path('experimental/rhkearth-mobile.js').exists(),
+    'mobile style installed': Path('experimental/rhkearth-mobile.css').exists(),
     'weather fallback installed': Path('experimental/rhkearth-weather-fallback.js').exists(),
     'weather runtime installed': Path('experimental/rhkearth-weather.js').exists(),
     'weather worldwide installed': Path('experimental/rhkearth-weather-worldwide.js').exists(),
@@ -199,4 +241,4 @@ failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit('Experimental finalizer validation failed: ' + ', '.join(failed))
 
-print('PASS: RHKEARTH Experimental shell finalized with source-locked worldwide Weather mode')
+print('PASS: RHKEARTH Experimental shell finalized with automatic mobile UI and source-locked worldwide Weather mode')
