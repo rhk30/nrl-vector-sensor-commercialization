@@ -38,6 +38,13 @@ cleanup_script = r'''<script id="rhkearth-chrome-cleanup">
 
   function scrub() {
     queued = false;
+
+    // RHKEARTH identity: keep the main console subtitle concise and domain-led.
+    const subtitle = document.querySelector('#title-bar .subtitle');
+    if (subtitle && subtitle.textContent.trim() !== 'MULTI-DOMAIN AWARENESS') {
+      subtitle.textContent = 'MULTI-DOMAIN AWARENESS';
+    }
+
     const selectors = [
       '#title-bar', '#style-indicator', '#global-loading-status',
       '#traffic-sync-chip', '#cctv-sync-chip', 'nav', 'aside',
