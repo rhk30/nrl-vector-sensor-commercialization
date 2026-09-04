@@ -16,23 +16,15 @@
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
 
 <style id="rhkearth-neutral-instrument-chrome">
-/* RHKEARTH neutral instrument chrome v2 */
+/* RHKEARTH neutral instrument chrome v3 */
 #intel-hud {
   --hud-color: rgba(239,239,233,.82) !important;
-  --hud-glow: rgba(239,239,233,.12) !important;
+  --hud-glow: rgba(239,239,233,.10) !important;
   --hud-border: rgba(169,181,155,.24) !important;
   color: #efefe9 !important;
   text-shadow: none !important;
 }
-#intel-hud *,
-#style-indicator,
-#style-indicator *,
-#pp-toggles,
-#pp-toggles *,
-#param-slider-panel,
-#param-slider-panel * {
-  text-shadow: none !important;
-}
+#intel-hud *, #style-indicator *, #pp-toggles *, #param-slider-panel * { text-shadow: none !important; }
 #intel-hud .hud-system,
 #intel-hud .hud-mode,
 #intel-hud .hud-rec,
@@ -43,21 +35,10 @@
 #intel-hud .hud-right-edge,
 #intel-hud .hud-bottom-bar,
 #intel-hud .hud-top-bar,
-#intel-hud [id^="hud-"] {
-  color: rgba(239,239,233,.82) !important;
-}
-#intel-hud .hud-bracket,
-#intel-hud .hud-corner,
-#intel-hud .hud-edge,
-#intel-hud .hud-top-bar,
-#intel-hud .hud-bottom-bar {
-  border-color: rgba(169,181,155,.24) !important;
-}
+#intel-hud [id^="hud-"] { color: rgba(239,239,233,.82) !important; }
 #style-indicator .indicator-label { color: rgba(143,151,143,.76) !important; }
 #style-indicator .indicator-value { color: #efefe9 !important; }
-
-#pp-toggles,
-#param-slider-panel {
+#pp-toggles, #param-slider-panel {
   --accent: #efefe9 !important;
   color: #efefe9 !important;
   background: rgba(8,10,9,.92) !important;
@@ -95,30 +76,16 @@
 #pp-toggles .pp-slider-mini-label,
 #pp-toggles .pp-slider-value,
 #param-slider-panel .pp-slider-mini-label,
-#param-slider-panel .pp-slider-value {
-  color: inherit !important;
-}
-#pp-toggles input[type="range"],
-#param-slider-panel input[type="range"] {
-  accent-color: #efefe9 !important;
-}
-#pp-toggles input[type="range"]::-webkit-slider-thumb,
-#param-slider-panel input[type="range"]::-webkit-slider-thumb {
-  background: #efefe9 !important;
-  box-shadow: none !important;
-}
-#data-panel .data-toggle-meta,
-#data-panel .data-count,
-#data-panel .data-toggle-legend-item {
-  color: rgba(143,151,143,.72) !important;
-}
+#param-slider-panel .pp-slider-value { color: inherit !important; }
+#pp-toggles input[type="range"], #param-slider-panel input[type="range"] { accent-color: #efefe9 !important; }
+#data-panel .data-toggle-meta, #data-panel .data-count, #data-panel .data-toggle-legend-item { color: rgba(143,151,143,.72) !important; }
 </style>
 
   <script src="/experimental/rhkearth-runtime.js?v=9"></script>
   <script src="/experimental/rhkearth-weather-fallback.js?v=1"></script>
   <script src="/experimental/rhkearth-weather.js?v=1" defer></script>
   <script src="/experimental/rhkearth-weather-worldwide.js?v=1" defer></script>
-  <script type="module" crossorigin src="/experimental/assets/index-DmIoZRY-.js"></script>
+  <script type="module" crossorigin src="/experimental/assets/index-Cr0sWSSk.js"></script>
   <link rel="stylesheet" crossorigin href="/experimental/assets/index-BoTC94b6.css">
   <link rel="stylesheet" href="/experimental/rhkearth-theme.css?v=5">
   <link rel="stylesheet" href="/experimental/rhkearth-weather.css?v=1">
