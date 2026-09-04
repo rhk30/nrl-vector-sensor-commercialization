@@ -43,4 +43,4 @@
   noHover?.addEventListener?.('change', schedule);
 })();
 
-// Rebuild marker: aircraft motion integrity deployment 2026-09-04.
+// Rebuild marker: desktop interaction performance deployment 2026-09-04.
