@@ -43,4 +43,4 @@
   noHover?.addEventListener?.('change', schedule);
 })();
 
-// Rebuild marker: desktop interaction performance deployment 2026-09-04.
+// Rebuild marker: globe-centered desktop arrow navigation deployment 2026-09-04.
