@@ -138,13 +138,8 @@ if not live_runtime_patch.exists():
     raise SystemExit('RHKEARTH live runtime repair patch missing')
 exec(compile(live_runtime_patch.read_text(encoding='utf-8'), str(live_runtime_patch), 'exec'))
 
-# Open Waters AIS is browser-CORS and real-time, but the unbounded global
-# GeoJSON snapshot is too large for a reliable public dashboard request. Apply
-# the persistent viewport-bounded transport repair after the base source patch.
-ais_patch = Path('../scripts/patch-ais-openwaters.py')
-if not ais_patch.exists():
-    raise SystemExit('RHKEARTH Open Waters AIS repair patch missing')
-exec(compile(ais_patch.read_text(encoding='utf-8'), str(ais_patch), 'exec'))
+# AIS viewport transport repair is owned by patch-entity-details.py, which runs
+# earlier in the integrated build. Do not apply a second patch here.
 
 # Rebuild marker: 2026-09-04 live AIS viewport + live flights / London video / traffic repair.
 print('RHKEARTH Chicago/Chicagoland operating area added; circular scope and Scenes removed; AIS/flights/CCTV/traffic runtime repaired')
