@@ -139,4 +139,109 @@ missing = [needle for needle in required_military if needle not in text]
 if missing:
     raise SystemExit('Military motion contract missing: ' + ', '.join(missing))
 
-print('RHKEARTH aircraft motion integrity applied: live military ADS-B primary, honest fallback epochs, civilian/military smoothing guards')
+# -----------------------------------------------------------------------------
+# Desktop interaction performance governor
+# -----------------------------------------------------------------------------
+# The static RHKEARTH build combines Google Photorealistic 3D Tiles, a full-
+# screen Noir post-process stage and live overlays. Rendering every camera-move
+# frame at native desktop pixel density while the 3D tileset aggressively
+# refines can make wheel/pan navigation feel much slower than the configured
+# 60-fps target. During active camera movement only, reduce the shaded pixel
+# count and loosen 3D-tile refinement. Restore full quality immediately after
+# movement settles. This is intentionally desktop/fine-pointer only.
+MAIN = ROOT / 'src/main.js'
+main_text = MAIN.read_text(encoding='utf-8')
+PERF_MARKER = 'RHKEARTH_DESKTOP_INTERACTION_PERF_V1'
+if PERF_MARKER not in main_text:
+    anchor = '    viewer.targetFrameRate = 60;\n'
+    perf = r'''    viewer.targetFrameRate = 60;
+
+    // RHKEARTH_DESKTOP_INTERACTION_PERF_V1
+    // Preserve full visual quality at rest, but spend fewer GPU cycles while
+    // the user is actively panning/zooming. High-DPI desktop displays benefit
+    // the most because Noir is a full-screen post-process pass.
+    (() => {
+      const finePointer = window.matchMedia?.('(pointer: fine)');
+      const desktopInteraction = (finePointer?.matches ?? true) && window.innerWidth >= 900;
+      if (!desktopInteraction) return;
+
+      const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
+      const restingScale = Math.max(0.5, Number(viewer.resolutionScale) || 1);
+      const movingScale = Math.min(
+        restingScale,
+        dpr >= 2 ? 0.70 : dpr >= 1.5 ? 0.76 : dpr >= 1.2 ? 0.80 : 0.84,
+      );
+      let restoreTimer = 0;
+      let tileset = null;
+      let restingSse = null;
+
+      const findPhotorealisticTileset = () => {
+        const primitives = viewer.scene?.primitives;
+        if (!primitives) return null;
+        for (let i = 0; i < primitives.length; i += 1) {
+          const primitive = primitives.get(i);
+          if (!primitive) continue;
+          if (typeof primitive.maximumScreenSpaceError === 'number' && primitive.root) {
+            return primitive;
+          }
+        }
+        return null;
+      };
+
+      const beginInteraction = () => {
+        if (restoreTimer) {
+          clearTimeout(restoreTimer);
+          restoreTimer = 0;
+        }
+        if (viewer.resolutionScale !== movingScale) viewer.resolutionScale = movingScale;
+
+        tileset ||= findPhotorealisticTileset();
+        if (tileset) {
+          if (!Number.isFinite(restingSse)) restingSse = Number(tileset.maximumScreenSpaceError) || 16;
+          const movingSse = Math.max(restingSse, 24);
+          if (tileset.maximumScreenSpaceError !== movingSse) {
+            tileset.maximumScreenSpaceError = movingSse;
+          }
+        }
+        viewer.scene?.requestRender?.();
+      };
+
+      const restoreQuality = () => {
+        if (restoreTimer) clearTimeout(restoreTimer);
+        restoreTimer = window.setTimeout(() => {
+          restoreTimer = 0;
+          if (viewer.resolutionScale !== restingScale) viewer.resolutionScale = restingScale;
+          if (tileset && Number.isFinite(restingSse) && tileset.maximumScreenSpaceError !== restingSse) {
+            tileset.maximumScreenSpaceError = restingSse;
+          }
+          viewer.scene?.requestRender?.();
+        }, 160);
+      };
+
+      viewer.camera.moveStart.addEventListener(beginInteraction);
+      viewer.camera.moveEnd.addEventListener(restoreQuality);
+      window.addEventListener('blur', restoreQuality, { passive: true });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) restoreQuality();
+      }, { passive: true });
+
+      console.log(`[RHKEARTH] Desktop movement governor active · ${movingScale.toFixed(2)} render scale while moving`);
+    })();
+'''
+    if anchor not in main_text:
+        raise SystemExit('RHKEARTH desktop performance anchor missing: viewer.targetFrameRate')
+    main_text = main_text.replace(anchor, perf, 1)
+    MAIN.write_text(main_text, encoding='utf-8')
+
+main_check = MAIN.read_text(encoding='utf-8')
+for needle in [
+    PERF_MARKER,
+    'viewer.camera.moveStart.addEventListener(beginInteraction)',
+    'viewer.camera.moveEnd.addEventListener(restoreQuality)',
+    'primitive.maximumScreenSpaceError',
+    'viewer.resolutionScale = movingScale',
+]:
+    if needle not in main_check:
+        raise SystemExit('Desktop interaction performance contract missing: ' + needle)
+
+print('RHKEARTH aircraft motion integrity + desktop interaction performance applied: live military ADS-B primary, honest fallback epochs, movement-time adaptive render quality')
