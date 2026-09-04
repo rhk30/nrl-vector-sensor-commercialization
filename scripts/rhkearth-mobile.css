@@ -277,3 +277,227 @@ html.rhk-mobile-ui [class*="selected-card"] {
     max-height: calc(100svh - var(--rhk-mobile-top) - var(--rhk-mobile-bottom) - 58px) !important;
   }
 }
+
+/* -------------------------------------------------------------------------
+   RHKEARTH automatic mobile UI v2 refinement
+   Keep the phone focused on the map: compress attribution into a legal,
+   readable rail; eliminate redundant desktop telemetry; and reserve separate
+   safe zones so panels no longer pile on top of the title/actions/credits.
+   Every selector remains gated behind .rhk-mobile-ui — desktop is untouched.
+   ------------------------------------------------------------------------- */
+
+html.rhk-mobile-ui {
+  --rhk-mobile-credit-rail: 18px;
+  --rhk-mobile-sheet-gap: 6px;
+}
+
+/* Noir is already the default and the Display sheet exposes styles when needed;
+   the permanent desktop-style indicator is redundant on a phone. */
+html.rhk-mobile-ui #style-indicator {
+  display: none !important;
+}
+
+html.rhk-mobile-ui #title-bar {
+  width: min(52vw, 218px) !important;
+  max-width: min(52vw, 218px) !important;
+  padding: 4px 6px !important;
+}
+
+html.rhk-mobile-ui #title-bar h1 {
+  gap: 6px !important;
+  font-size: clamp(16px, 5.0vw, 22px) !important;
+}
+
+html.rhk-mobile-ui #title-bar .title-logo,
+html.rhk-mobile-ui #title-bar .title-logo > img,
+html.rhk-mobile-ui #title-bar .title-logo > svg {
+  width: 28px !important;
+  height: 28px !important;
+  flex-basis: 28px !important;
+}
+
+html.rhk-mobile-ui #title-bar .subtitle {
+  margin-top: 3px !important;
+  font-size: 6.5px !important;
+  letter-spacing: .11em !important;
+}
+
+/* Put the three globe actions on the same top rail as the compact brand. */
+html.rhk-mobile-ui #top-center-actions {
+  top: var(--rhk-mobile-top) !important;
+  right: var(--rhk-mobile-edge-r) !important;
+  gap: 4px !important;
+}
+
+html.rhk-mobile-ui #top-center-actions button {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+}
+
+html.rhk-mobile-ui #top-center-actions .material-symbols-outlined {
+  font-size: 17px !important;
+}
+
+/* Desktop HUD telemetry duplicates information available in selected-contact
+   cards and data panels. Removing it on phones prevents the top-left collision
+   without deleting any underlying live data. */
+html.rhk-mobile-ui #intel-hud {
+  display: none !important;
+}
+
+html.rhk-mobile-ui #global-loading-status {
+  top: calc(var(--rhk-mobile-top) + 42px) !important;
+  left: var(--rhk-mobile-edge) !important;
+  right: var(--rhk-mobile-edge-r) !important;
+  width: auto !important;
+  max-width: none !important;
+  transform: none !important;
+  padding: 4px 7px !important;
+  font-size: 7px !important;
+  text-align: center !important;
+}
+
+html.rhk-mobile-ui #global-loading-detail {
+  max-width: 48vw !important;
+}
+
+/* Cesium/Google attribution must remain visible. On a phone it becomes one
+   thin horizontally-scrollable rail instead of a multi-line block consuming
+   map space. Nothing is removed or hidden. */
+html.rhk-mobile-ui #cesium-credits {
+  position: fixed !important;
+  left: var(--rhk-mobile-edge) !important;
+  right: var(--rhk-mobile-edge-r) !important;
+  bottom: var(--rhk-mobile-bottom) !important;
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: 14px !important;
+  padding: 1px 4px !important;
+  margin: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  white-space: nowrap !important;
+  background: rgba(5,7,6,.58) !important;
+  border: 1px solid rgba(169,181,155,.12) !important;
+  border-radius: 3px !important;
+  box-shadow: none !important;
+  opacity: .78 !important;
+  z-index: 1700 !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+}
+
+html.rhk-mobile-ui #cesium-credits::-webkit-scrollbar {
+  display: none !important;
+}
+
+html.rhk-mobile-ui #cesium-credits,
+html.rhk-mobile-ui #cesium-credits a,
+html.rhk-mobile-ui #cesium-credits span,
+html.rhk-mobile-ui #cesium-credits div,
+html.rhk-mobile-ui #cesium-credits .cesium-widget-credits,
+html.rhk-mobile-ui #cesium-credits .cesium-credit-textContainer {
+  font-size: 5.5px !important;
+  line-height: 10px !important;
+  letter-spacing: 0 !important;
+}
+
+html.rhk-mobile-ui #cesium-credits .cesium-widget-credits,
+html.rhk-mobile-ui #cesium-credits .cesium-credit-textContainer,
+html.rhk-mobile-ui #cesium-credits .cesium-credit-logoContainer {
+  display: inline-flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: 3px !important;
+  white-space: nowrap !important;
+  vertical-align: middle !important;
+}
+
+html.rhk-mobile-ui #cesium-credits img,
+html.rhk-mobile-ui #cesium-credits svg {
+  max-height: 8px !important;
+  width: auto !important;
+  vertical-align: middle !important;
+}
+
+/* Reserve the attribution rail underneath every mobile bottom sheet. */
+html.rhk-mobile-ui #data-panel,
+html.rhk-mobile-ui #pp-toggles,
+html.rhk-mobile-ui #param-slider-panel,
+html.rhk-mobile-ui #rhk-weather-panel {
+  bottom: calc(var(--rhk-mobile-bottom) + var(--rhk-mobile-credit-rail) + var(--rhk-mobile-sheet-gap)) !important;
+  z-index: 1550 !important;
+}
+
+html.rhk-mobile-ui #data-panel {
+  max-height: min(40svh, 380px) !important;
+}
+
+html.rhk-mobile-ui #data-panel .data-toggle-list {
+  max-height: calc(min(40svh, 380px) - 44px) !important;
+}
+
+html.rhk-mobile-ui #pp-toggles,
+html.rhk-mobile-ui #param-slider-panel {
+  max-height: 44svh !important;
+}
+
+/* Weather uses the exact same bottom-sheet footprint rather than retaining its
+   desktop left-rail geometry and colliding with the rest of the phone UI. */
+html.rhk-mobile-ui body.rhk-weather-mode #rhk-weather-panel {
+  position: fixed !important;
+  left: var(--rhk-mobile-edge) !important;
+  right: var(--rhk-mobile-edge-r) !important;
+  top: auto !important;
+  width: auto !important;
+  max-width: none !important;
+  max-height: 44svh !important;
+  overflow-y: auto !important;
+  border-radius: 9px !important;
+  transform: none !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+html.rhk-mobile-ui body.rhk-weather-mode #rhk-weather-panel .rhk-weather-panel-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 2 !important;
+  min-height: 40px !important;
+  padding: 7px 9px !important;
+  background: rgba(8,10,9,.96) !important;
+}
+
+html.rhk-mobile-ui body.rhk-weather-mode #rhk-weather-panel .rhk-weather-layer {
+  padding: 7px 9px !important;
+}
+
+/* Floating detail/readout cards should never occupy more than the upper half
+   of the phone; scroll their contents instead of letting them overlap sheets. */
+html.rhk-mobile-ui [class*="detail-card"],
+html.rhk-mobile-ui [class*="selected-card"],
+html.rhk-mobile-ui [class*="readout"] {
+  max-height: 36svh !important;
+  overflow: auto !important;
+  overscroll-behavior: contain !important;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  html.rhk-mobile-ui {
+    --rhk-mobile-credit-rail: 16px;
+  }
+
+  html.rhk-mobile-ui #title-bar .subtitle {
+    display: none !important;
+  }
+
+  html.rhk-mobile-ui #data-panel,
+  html.rhk-mobile-ui #pp-toggles,
+  html.rhk-mobile-ui #param-slider-panel,
+  html.rhk-mobile-ui body.rhk-weather-mode #rhk-weather-panel {
+    max-height: calc(100svh - var(--rhk-mobile-top) - var(--rhk-mobile-bottom) - var(--rhk-mobile-credit-rail) - 12px) !important;
+  }
+}
