@@ -197,4 +197,118 @@ replace(
 """,
 )
 
-print('RHKEARTH selected aircraft/vessel details expanded')
+
+# -----------------------------------------------------------------------------
+# LIVE AIS TRANSPORT REPAIR
+# The earlier static-host adapter requested Open Waters' entire worldwide vessel
+# cache in one browser fetch. That is unnecessarily large and can exceed the
+# layer's 10-second request timeout. Query the current map window instead, while
+# retaining worldwide availability as the operator pans around the globe.
+# Open Waters documents GET /v1/vessels?bbox=minLat,minLon,maxLat,maxLon and
+# exposes it with browser CORS enabled. No synthetic vessel positions are used.
+# -----------------------------------------------------------------------------
+replace(
+    'src/data/aisLiveVessels.js',
+    "const REFRESH_MS = 60000;",
+    "const REFRESH_MS = 20000;",
+)
+
+replace(
+    'src/data/aisLiveVessels.js',
+    "  source: 'AISStream',",
+    "  source: 'Open Waters AIS · LIVE',",
+)
+
+replace(
+    'src/data/aisLiveVessels.js',
+    """function liveApiUrl() {
+  const base = import.meta.env?.VITE_AIS_LIVE_API_URL || DEFAULT_API_URL;
+  if (String(base).startsWith('https://ais.openwaters.io/')) return String(base);
+  const url = new URL(base, window.location.origin);
+  url.searchParams.set('maxRows', String(renderRowLimit()));
+  return url.toString();
+}""",
+    """function currentAisViewportBbox() {
+  const viewer = state.viewer;
+  const camera = viewer?.camera;
+  const ellipsoid = viewer?.scene?.globe?.ellipsoid;
+  const rect = camera?.computeViewRectangle?.(ellipsoid);
+
+  if (rect) {
+    let minLat = Cesium.Math.toDegrees(rect.south);
+    let maxLat = Cesium.Math.toDegrees(rect.north);
+    let minLon = Cesium.Math.toDegrees(rect.west);
+    let maxLon = Cesium.Math.toDegrees(rect.east);
+    const latSpan = maxLat - minLat;
+    let lonSpan = maxLon - minLon;
+    if (lonSpan < 0) lonSpan += 360;
+
+    // A near-global rectangle defeats the purpose of bounded live loading.
+    // Use the camera center with a generous regional window instead. The feed
+    // remains worldwide because this window follows the operator around Earth.
+    if (Number.isFinite(latSpan) && Number.isFinite(lonSpan)
+        && latSpan > 0 && latSpan <= 80 && lonSpan > 0 && lonSpan <= 140
+        && minLon <= maxLon) {
+      return [
+        Math.max(-90, minLat),
+        Math.max(-180, minLon),
+        Math.min(90, maxLat),
+        Math.min(180, maxLon),
+      ];
+    }
+  }
+
+  const carto = camera?.positionCartographic;
+  const lat = carto ? Cesium.Math.toDegrees(carto.latitude) : 39.5;
+  const lon = carto ? Cesium.Math.toDegrees(carto.longitude) : -98.35;
+  const safeLat = Number.isFinite(lat) ? lat : 39.5;
+  const safeLon = Number.isFinite(lon) ? lon : -98.35;
+  return [
+    Math.max(-90, safeLat - 32),
+    Math.max(-180, safeLon - 55),
+    Math.min(90, safeLat + 32),
+    Math.min(180, safeLon + 55),
+  ];
+}
+
+function liveApiUrl() {
+  const base = import.meta.env?.VITE_AIS_LIVE_API_URL || DEFAULT_API_URL;
+  if (String(base).startsWith('https://ais.openwaters.io/')) {
+    const url = new URL(String(base));
+    url.searchParams.set('bbox', currentAisViewportBbox().map((n) => n.toFixed(4)).join(','));
+    return url.toString();
+  }
+  const url = new URL(base, window.location.origin);
+  url.searchParams.set('maxRows', String(renderRowLimit()));
+  return url.toString();
+}""",
+)
+
+# Preserve the provider's real position freshness. /v1/vessels contains ships
+# seen within the last 30 minutes; stamping Date.now() made old-but-valid fixes
+# look instantaneous. Use the newest actual `seen` value in the returned box.
+replace(
+    'src/data/aisLiveVessels.js',
+    """      payload = {
+        status: 'live',
+        rows,
+        lastMessageAt: Date.now(),
+        newestPositionAt: Date.now(),
+        refreshing: false,
+        source: 'Open Waters AIS',
+      };""",
+    """      const newestSeenAt = rows.reduce((latest, row) => {
+        const ms = Number(row.last_position_epoch) * 1000;
+        return Number.isFinite(ms) && ms > latest ? ms : latest;
+      }, 0);
+      payload = {
+        status: 'live',
+        rows,
+        lastMessageAt: newestSeenAt || null,
+        newestPositionAt: newestSeenAt || null,
+        refreshing: false,
+        source: 'Open Waters AIS',
+      };""",
+)
+
+print('RHKEARTH selected aircraft/vessel details expanded; live AIS viewport loading repaired')
