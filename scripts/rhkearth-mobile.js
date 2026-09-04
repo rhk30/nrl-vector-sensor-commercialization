@@ -42,3 +42,5 @@
   coarsePointer?.addEventListener?.('change', schedule);
   noHover?.addEventListener?.('change', schedule);
 })();
+
+// Rebuild marker: aircraft motion integrity deployment 2026-09-04.
