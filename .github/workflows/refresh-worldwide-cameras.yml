@@ -1,0 +1,302 @@
+name: Refresh Worldwide public cameras
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7,37 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/refresh-worldwide-cameras.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-worldwide-cameras
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out RHKEARTH
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build worldwide public-camera catalog
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          from urllib.parse import urljoin
+          import json
+          import re
+          import time
+          import urllib.request
+          import xml.etree.ElementTree as ET
+
+          OUT = Path('experimental-data/worldwide-cameras.json')
+          UA = 'RHKEARTH/1.0 (+https://rhkearth.com/experimental/; public-camera catalog)'
+          now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+          try:
+              previous = json.loads(OUT.read_text(encoding='utf-8')) if OUT.exists() else {}
+          except Exception:
+              previous = {}
+          previous_rows = previous.get('sources') if isinstance(previous, dict) else []
+          previous_rows = previous_rows if isinstance(previous_rows, list) else []
+          previous_by_provider = {}
+          for row in previous_rows:
+              previous_by_provider.setdefault(str(row.get('provider') or ''), []).append(row)
+
+          def request(url, *, accept='*/*', headers=None, timeout=25, attempts=2):
+              last = None
+              merged = {'User-Agent': UA, 'Accept': accept}
+              if headers:
+                  merged.update(headers)
+              for attempt in range(attempts):
+                  try:
+                      req = urllib.request.Request(url, headers=merged)
+                      with urllib.request.urlopen(req, timeout=timeout) as response:
+                          if response.status < 200 or response.status >= 300:
+                              raise RuntimeError(f'HTTP {response.status}')
+                          return response.read()
+                  except Exception as exc:
+                      last = exc
+                      if attempt + 1 < attempts:
+                          time.sleep(1.5 * (attempt + 1))
+              raise RuntimeError(f'{url}: {last}')
+
+          def get_json(url, **kwargs):
+              return json.loads(request(url, accept='application/json,*/*', **kwargs).decode('utf-8'))
+
+          def get_text(url, **kwargs):
+              return request(url, accept='application/xml,text/xml,text/plain,*/*', **kwargs).decode('utf-8', errors='replace')
+
+          sources = []
+          provider_counts = {}
+
+          def add(provider, camera_id, lat, lon, name, url, *, city='', country='', refresh_ms=20000, source_kind='official-public-camera'):
+              try:
+                  lat = float(lat)
+                  lon = float(lon)
+              except (TypeError, ValueError):
+                  return
+              url = str(url or '').strip()
+              if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                  return
+              if not url.startswith('https://'):
+                  return
+              camera_id = re.sub(r'[^A-Za-z0-9_.:-]+', '-', str(camera_id or f'{lat:.5f}-{lon:.5f}'))[:180]
+              sources.append({
+                  'id': camera_id,
+                  'name': str(name or 'Public camera')[:180],
+                  'city': str(city or '')[:100],
+                  'country': str(country or '')[:80],
+                  'provider': provider,
+                  'lat': lat,
+                  'lon': lon,
+                  'feedType': 'image',
+                  'url': url,
+                  'snapshotUrl': url,
+                  'mediaUrl': url,
+                  'refreshMs': int(refresh_ms),
+                  'sourceKind': source_kind,
+                  'liveSemantics': 'near-real-time provider-refreshed image',
+              })
+
+          def run_provider(provider, loader):
+              before = len(sources)
+              try:
+                  loader()
+                  count = len(sources) - before
+                  if count <= 0:
+                      raise RuntimeError('no usable cameras returned')
+                  provider_counts[provider] = count
+                  print(f'{provider}: {count}')
+              except Exception as exc:
+                  fallback = previous_by_provider.get(provider) or []
+                  if fallback:
+                      sources.extend(fallback)
+                      provider_counts[provider] = len(fallback)
+                      print(f'{provider}: refresh failed, retained {len(fallback)} previous rows: {exc}')
+                  else:
+                      provider_counts[provider] = 0
+                      print(f'{provider}: unavailable, no prior rows: {exc}')
+
+          def load_idot():
+              data = get_json('https://www.travelmidwest.com/lmiga/cameraReport.json', timeout=20)
+              rows = data.get('cameraReports') if isinstance(data, dict) else data
+              rows = rows if isinstance(rows, list) else []
+              for i, cam in enumerate(rows[:1200]):
+                  add('Illinois DOT / TravelMidwest', f'idot-{cam.get("id") or i}', cam.get('latitude'), cam.get('longitude'), cam.get('cameraName') or cam.get('description') or 'Illinois traffic camera', cam.get('imageUrl') or cam.get('url'), city='Illinois', country='US', refresh_ms=15000)
+
+          def load_wsdot():
+              data = get_json('https://data.wsdot.wa.gov/log/public/cameras.json', timeout=25)
+              for cam in data if isinstance(data, list) else []:
+                  loc = cam.get('CameraLocation') or {}
+                  add('WSDOT', f'wsdot-{cam.get("CameraID")}', loc.get('Latitude'), loc.get('Longitude'), cam.get('Title') or 'Washington traffic camera', cam.get('ImageURL'), city='Washington', country='US', refresh_ms=15000)
+
+          def load_caltrans():
+              url = 'https://caltrans-gis.dot.ca.gov/arcgis/rest/services/CHhighway/CCTV/FeatureServer/0/query?where=1%3D1&outFields=OBJECTID%2Clatitude%2Clongitude%2CcurrentImageURL%2ClocationName%2CnearbyPlace%2Ccounty&returnGeometry=false&resultRecordCount=5000&f=json'
+              data = get_json(url, timeout=35)
+              for feature in data.get('features') or []:
+                  p = feature.get('attributes') or {}
+                  add('Caltrans', f'caltrans-{p.get("OBJECTID")}', p.get('latitude'), p.get('longitude'), p.get('locationName') or 'Caltrans camera', p.get('currentImageURL'), city=p.get('nearbyPlace') or p.get('county') or 'California', country='US', refresh_ms=15000)
+
+          def load_ontario():
+              data = get_json('https://511on.ca/api/v2/get/cameras', timeout=25)
+              for cam in data if isinstance(data, list) else []:
+                  views = cam.get('Views') or []
+                  view = next((v for v in views if str(v.get('Status') or '').lower() == 'enabled' and v.get('Url')), None)
+                  view = view or next((v for v in views if v.get('Url')), None)
+                  if not view:
+                      continue
+                  add('511 Ontario', f'on-{cam.get("Id")}', cam.get('Latitude'), cam.get('Longitude'), cam.get('Location') or cam.get('Roadway') or 'Ontario traffic camera', view.get('Url'), city='Ontario', country='Canada', refresh_ms=20000)
+
+          def load_drivebc():
+              data = get_json('https://drivebc.ca/api/webcams', timeout=25)
+              for cam in data if isinstance(data, list) else []:
+                  coords = ((cam.get('location') or {}).get('coordinates') or [])
+                  links = cam.get('links') or {}
+                  if len(coords) < 2:
+                      continue
+                  image = links.get('imageDisplay') or ''
+                  if image and not str(image).startswith('http'):
+                      image = urljoin('https://drivebc.ca', str(image))
+                  add('DriveBC', f'bc-{cam.get("id")}', coords[1], coords[0], cam.get('name') or cam.get('caption') or 'BC highway camera', image, city='British Columbia', country='Canada', refresh_ms=20000)
+
+          def load_hongkong():
+              xml = get_text('https://static.data.gov.hk/td/traffic-snapshot-images/code/Traffic_Camera_Locations_En.xml', timeout=30)
+              root = ET.fromstring(xml)
+              for image in root.iter('image'):
+                  def val(tag):
+                      node = image.find(tag)
+                      return (node.text or '').strip() if node is not None else ''
+                  key = val('key')
+                  add('HK Transport Dept', f'hk-{key}', val('latitude'), val('longitude'), re.sub(r'\s*\[[^\]]*\]\s*$', '', val('description')) or f'HK camera {key}', val('url'), city=val('district') or val('region') or 'Hong Kong', country='Hong Kong', refresh_ms=10000)
+
+          def load_newzealand():
+              xml = get_text('https://trafficnz.info/service/traffic/rest/4/cameras/all', timeout=30)
+              root = ET.fromstring(xml)
+              for cam in root.iter('camera'):
+                  def val(path):
+                      node = cam.find(path)
+                      return (node.text or '').strip() if node is not None else ''
+                  if val('offline').lower() == 'true' or val('underMaintenance').lower() == 'true':
+                      continue
+                  image = val('imageUrl')
+                  if image and not image.startswith('http'):
+                      image = urljoin('https://trafficnz.info', image)
+                  cid = val('id')
+                  add('NZTA', f'nz-{cid}', val('latitude'), val('longitude'), val('name') or val('description') or f'NZTA camera {cid}', image, city=val('region/name') or 'New Zealand', country='New Zealand', refresh_ms=20000)
+
+          def load_finland():
+              data = get_json('https://tie.digitraffic.fi/api/weathercam/v1/stations', headers={'Digitraffic-User': 'RHKEARTH/1.0'}, timeout=30)
+              for feature in data.get('features') or []:
+                  coords = (feature.get('geometry') or {}).get('coordinates') or []
+                  p = feature.get('properties') or {}
+                  presets = p.get('presets') or []
+                  if len(coords) < 2 or not presets:
+                      continue
+                  preset = presets[0] or {}
+                  image = preset.get('imageUrl') or (f'https://weathercam.digitraffic.fi/{preset.get("id")}.jpg' if preset.get('id') else '')
+                  add('Fintraffic', f'fin-{feature.get("id") or p.get("id")}', coords[1], coords[0], p.get('name') or (p.get('names') or {}).get('fi') or 'Finland weathercam', image, city=p.get('municipality') or 'Finland', country='Finland', refresh_ms=20000)
+
+          def load_taiwan():
+              data = get_json('https://thbapp.thb.gov.tw/services/cctv/thb', timeout=35)
+              for cam in data if isinstance(data, list) else []:
+                  base = str(cam.get('html') or '').rstrip('/')
+                  if not base:
+                      continue
+                  cid = cam.get('id') or cam.get('stakenumber') or len(sources)
+                  add('Taiwan Highway Bureau', f'tw-{cid}', cam.get('gisy'), cam.get('gisx'), cam.get('stakenumber') or str(cid), base + '/snapshot', city='Taiwan', country='Taiwan', refresh_ms=15000)
+
+          def load_singapore():
+              data = get_json('https://api.data.gov.sg/v1/transport/traffic-images', timeout=25)
+              items = data.get('items') or []
+              cameras = (items[0].get('cameras') or []) if items else []
+              for cam in cameras:
+                  loc = cam.get('location') or {}
+                  add('LTA Singapore / data.gov.sg', f'sg-{cam.get("camera_id")}', loc.get('latitude'), loc.get('longitude'), f'Camera {cam.get("camera_id")}', cam.get('image'), city='Singapore', country='Singapore', refresh_ms=15000)
+
+          for provider, loader in [
+              ('Illinois DOT / TravelMidwest', load_idot),
+              ('WSDOT', load_wsdot),
+              ('Caltrans', load_caltrans),
+              ('511 Ontario', load_ontario),
+              ('DriveBC', load_drivebc),
+              ('HK Transport Dept', load_hongkong),
+              ('NZTA', load_newzealand),
+              ('Fintraffic', load_finland),
+              ('Taiwan Highway Bureau', load_taiwan),
+              ('LTA Singapore / data.gov.sg', load_singapore),
+          ]:
+              run_provider(provider, loader)
+
+          # Exact-id dedupe. A source that repeats an ID should not crash Cesium.
+          dedup = {}
+          for row in sources:
+              dedup[str(row.get('id'))] = row
+          sources = list(dedup.values())
+
+          if len(sources) < 100 and previous_rows:
+              raise SystemExit(f'Worldwide camera refresh collapsed to {len(sources)} rows; preserving prior catalog')
+          if not sources:
+              raise SystemExit('Worldwide camera refresh produced no usable public cameras')
+
+          OUT.parent.mkdir(exist_ok=True)
+          OUT.write_text(json.dumps({
+              'sources': sources,
+              'fetchedAt': now_ms,
+              'source': 'Official/public transportation camera networks',
+              'feedSemantics': 'near-real-time provider-refreshed images; continuous video remains explicitly labeled separately',
+              'providers': provider_counts,
+              'architectureNote': 'Provider selection and failure-isolation approach adapted from simplifaisoul/osiris (MIT); RHKEARTH queries original public sources directly.',
+          }, separators=(',', ':'), ensure_ascii=False) + '\n')
+          print('worldwide camera total:', len(sources), provider_counts)
+          PY
+
+      - name: Validate worldwide catalog
+        run: |
+          test -s experimental-data/worldwide-cameras.json
+          python - <<'PY'
+          import json
+          data = json.load(open('experimental-data/worldwide-cameras.json'))
+          rows = data.get('sources') or []
+          assert len(rows) >= 100, f'only {len(rows)} worldwide cameras'
+          assert all(str(r.get('url','')).startswith('https://') for r in rows)
+          assert all(-90 <= float(r['lat']) <= 90 and -180 <= float(r['lon']) <= 180 for r in rows)
+          providers = {r.get('provider') for r in rows}
+          assert len(providers) >= 3, providers
+          print('validated', len(rows), 'cameras from', len(providers), 'providers')
+          PY
+
+      - name: Publish worldwide camera catalog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp experimental-data/worldwide-cameras.json /tmp/worldwide-cameras.json
+
+          for attempt in 1 2 3; do
+            echo "Worldwide camera publish attempt $attempt"
+            git fetch origin main
+            git reset --hard origin/main
+            mkdir -p experimental-data experimental/live-data
+            cp /tmp/worldwide-cameras.json experimental-data/worldwide-cameras.json
+            cp /tmp/worldwide-cameras.json experimental/live-data/worldwide-cameras.json
+            git add experimental-data/worldwide-cameras.json experimental/live-data/worldwide-cameras.json
+            if git diff --cached --quiet; then
+              echo "Worldwide camera catalog already current."
+              exit 0
+            fi
+            git commit -m "Refresh RHKEARTH worldwide public cameras [skip ci]"
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Remote advanced; retrying worldwide camera publish."
+          done
+          exit 1
