@@ -194,11 +194,21 @@ jobs:
           print(f"earthquakes={len(earthquakes['features'])} fires={len(fire_rows or [])} kp={kp_value} flares={len(compact_flares)}")
           PY
 
+      - name: Publish same-origin Experimental snapshot copies
+        run: |
+          mkdir -p experimental/live-data
+          cp experimental-data/earthquakes.json experimental/live-data/earthquakes.json
+          cp experimental-data/fires.json experimental/live-data/fires.json
+          cp experimental-data/space-weather.json experimental/live-data/space-weather.json
+
       - name: Validate stream snapshots
         run: |
           test -s experimental-data/earthquakes.json
           test -s experimental-data/space-weather.json
           test -s experimental-data/fires.json
+          test -s experimental/live-data/earthquakes.json
+          test -s experimental/live-data/space-weather.json
+          test -s experimental/live-data/fires.json
           python - <<'PY'
           import json
           from pathlib import Path
@@ -208,14 +218,22 @@ jobs:
           assert isinstance(eq.get('features'), list)
           assert 'kp_index' in sw
           assert isinstance(fires.get('fires'), list)
-          print('PASS: OSIRIS-derived stream snapshots validated')
+          for name in ('earthquakes.json', 'space-weather.json', 'fires.json'):
+              assert Path('experimental-data', name).read_bytes() == Path('experimental/live-data', name).read_bytes()
+          print('PASS: OSIRIS-derived stream snapshots validated and published')
           PY
 
       - name: Commit refreshed stream snapshots
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add experimental-data/earthquakes.json experimental-data/space-weather.json experimental-data/fires.json
+          git add \
+            experimental-data/earthquakes.json \
+            experimental-data/space-weather.json \
+            experimental-data/fires.json \
+            experimental/live-data/earthquakes.json \
+            experimental/live-data/space-weather.json \
+            experimental/live-data/fires.json
           if git diff --cached --quiet; then
             echo "Stream snapshots already current."
             exit 0
