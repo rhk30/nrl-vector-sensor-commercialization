@@ -141,7 +141,7 @@ jobs:
           # X-ray flares. This is a same-origin fallback for browsers where
           # provider CORS/network policy blocks the direct live request.
           kp = get_json('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json')
-          alerts = get_json('https://services.swpc.noaa.gov/json/alerts.json')
+          alerts = get_json('https://services.swpc.noaa.gov/products/alerts.json')
           flares = get_json('https://services.swpc.noaa.gov/json/goes/primary/xray-flares-latest.json')
 
           latest = kp[-1] if isinstance(kp, list) and kp else {}
