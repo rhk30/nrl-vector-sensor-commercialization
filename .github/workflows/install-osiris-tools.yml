@@ -8,6 +8,9 @@ on:
       - .github/workflows/install-osiris-tools.yml
       - scripts/rhkearth-osiris-tools.js
       - scripts/rhkearth-osiris-tools.css
+      - scripts/rhkearth-osiris-streams.js
+      - scripts/rhkearth-osiris-streams.css
+      - scripts/osiris-live-news.json
       - scripts/OSIRIS_LICENSE.txt
   workflow_run:
     workflows: ["Build Experimental integrated"]
@@ -32,7 +35,7 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Install source-locked analysis tools
+      - name: Install source-locked OSIRIS-derived tools
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -46,6 +49,9 @@ jobs:
           sources = {
               Path('scripts/rhkearth-osiris-tools.js'): Path('experimental/rhkearth-osiris-tools.js'),
               Path('scripts/rhkearth-osiris-tools.css'): Path('experimental/rhkearth-osiris-tools.css'),
+              Path('scripts/rhkearth-osiris-streams.js'): Path('experimental/rhkearth-osiris-streams.js'),
+              Path('scripts/rhkearth-osiris-streams.css'): Path('experimental/rhkearth-osiris-streams.css'),
+              Path('scripts/osiris-live-news.json'): Path('experimental/osiris-live-news.json'),
               Path('scripts/OSIRIS_LICENSE.txt'): Path('experimental/OSIRIS_LICENSE.txt'),
           }
           for src, dst in sources.items():
@@ -57,43 +63,63 @@ jobs:
 
           # Idempotent install: remove old cache-versioned tags, then insert one
           # source-locked copy of each. CSS is inert outside its own IDs/classes.
-          html = re.sub(r'\s*<link[^>]+href="/experimental/rhkearth-osiris-tools\.css(?:\?v=\d+)?"[^>]*>\s*', '\n', html)
-          html = re.sub(r'\s*<script[^>]+src="/experimental/rhkearth-osiris-tools\.js(?:\?v=\d+)?"[^>]*></script>\s*', '\n', html)
+          for stem in ('rhkearth-osiris-tools', 'rhkearth-osiris-streams'):
+              html = re.sub(rf'\s*<link[^>]+href="/experimental/{stem}\.css(?:\?v=\d+)?"[^>]*>\s*', '\n', html)
+              html = re.sub(rf'\s*<script[^>]+src="/experimental/{stem}\.js(?:\?v=\d+)?"[^>]*></script>\s*', '\n', html)
 
-          css_tag = '  <link rel="stylesheet" href="/experimental/rhkearth-osiris-tools.css?v=1">\n'
-          js_tag = '  <script src="/experimental/rhkearth-osiris-tools.js?v=1" defer></script>\n'
+          css_tags = (
+              '  <link rel="stylesheet" href="/experimental/rhkearth-osiris-tools.css?v=1">\n'
+              '  <link rel="stylesheet" href="/experimental/rhkearth-osiris-streams.css?v=1">\n'
+          )
+          js_tags = (
+              '  <script src="/experimental/rhkearth-osiris-tools.js?v=1" defer></script>\n'
+              '  <script src="/experimental/rhkearth-osiris-streams.js?v=1" defer></script>\n'
+          )
           if '</head>' not in html or '</body>' not in html:
               raise SystemExit('Experimental shell is malformed')
-          html = html.replace('</head>', css_tag + '</head>', 1)
-          html = html.replace('</body>', js_tag + '</body>', 1)
+          html = html.replace('</head>', css_tags + '</head>', 1)
+          html = html.replace('</body>', js_tags + '</body>', 1)
           index.write_text(html, encoding='utf-8')
 
           checks = {
               'analysis JS installed': Path('experimental/rhkearth-osiris-tools.js').stat().st_size > 5000,
               'analysis CSS installed': Path('experimental/rhkearth-osiris-tools.css').stat().st_size > 2000,
+              'streams JS installed': Path('experimental/rhkearth-osiris-streams.js').stat().st_size > 8000,
+              'streams CSS installed': Path('experimental/rhkearth-osiris-streams.css').stat().st_size > 3000,
+              'live-news catalog installed': 'OSIRIS live-news v3' in Path('experimental/osiris-live-news.json').read_text(),
               'OSIRIS MIT license installed': 'Copyright (c) 2026 simplifaisoul' in Path('experimental/OSIRIS_LICENSE.txt').read_text(),
               'analysis JS linked once': html.count('/experimental/rhkearth-osiris-tools.js?v=1') == 1,
               'analysis CSS linked once': html.count('/experimental/rhkearth-osiris-tools.css?v=1') == 1,
+              'streams JS linked once': html.count('/experimental/rhkearth-osiris-streams.js?v=1') == 1,
+              'streams CSS linked once': html.count('/experimental/rhkearth-osiris-streams.css?v=1') == 1,
           }
           failed = [name for name, ok in checks.items() if not ok]
           if failed:
-              raise SystemExit('Analysis-tool install validation failed: ' + ', '.join(failed))
-          print('PASS: OSIRIS-derived RHKEARTH analysis tools installed')
+              raise SystemExit('OSIRIS-derived install validation failed: ' + ', '.join(failed))
+          print('PASS: OSIRIS-derived RHKEARTH analysis + live-stream packs installed')
           PY
 
       - name: JavaScript syntax gate
-        run: node --check experimental/rhkearth-osiris-tools.js
+        run: |
+          node --check experimental/rhkearth-osiris-tools.js
+          node --check experimental/rhkearth-osiris-streams.js
 
       - name: Commit installed Experimental tools
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add experimental/index.html experimental/rhkearth-osiris-tools.js experimental/rhkearth-osiris-tools.css experimental/OSIRIS_LICENSE.txt
+          git add experimental/index.html \
+            experimental/rhkearth-osiris-tools.js \
+            experimental/rhkearth-osiris-tools.css \
+            experimental/rhkearth-osiris-streams.js \
+            experimental/rhkearth-osiris-streams.css \
+            experimental/osiris-live-news.json \
+            experimental/OSIRIS_LICENSE.txt
           if git diff --cached --quiet; then
-            echo "Analysis tools already current."
+            echo "OSIRIS-derived Experimental tools already current."
             exit 0
           fi
-          git commit -m "Install OSIRIS-derived RHKEARTH analysis tools [skip ci]"
+          git commit -m "Install OSIRIS-derived RHKEARTH tools and streams [skip ci]"
           for attempt in 1 2 3; do
             if git push origin main; then
               exit 0
@@ -102,5 +128,5 @@ jobs:
             git fetch origin main
             git rebase origin/main
           done
-          echo "Could not publish analysis tools after retries."
+          echo "Could not publish OSIRIS-derived tools after retries."
           exit 1
