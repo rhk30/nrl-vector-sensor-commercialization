@@ -8,15 +8,10 @@ text = TARGET.read_text(encoding='utf-8')
 marker = 'RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4'
 
 bbox_pattern = re.compile(
-    r"// RHKEARTH_AIS_ANON_AREA_LIMIT_V3.*?\nfunction currentAisViewportBbox\(\) \{.*?\n\}\n\nfunction liveApiUrl\(\) \{.*?\n\}",
+    r"function currentAisViewportBbox\(\) \{.*?\n\}\n\nfunction liveApiUrl\(\) \{.*?\n\}",
     re.S,
 )
 replacement = r'''// RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4
-// Open Waters anonymous requests are capped at 100 square degrees. Build a
-// deterministic worldwide grid of 9°×9° cells (81 sq° each), fetch them in
-// batches, and merge vessel state by MMSI. The active viewport is prioritized,
-// but vessels from already fetched cells remain rendered instead of disappearing
-// when the operator pans away.
 const AIS_TILE_DEG = 9;
 const AIS_TILE_BATCH = 6;
 const AIS_GLOBAL_REFRESH_MS = 180000;
@@ -60,7 +55,7 @@ function currentAisViewportCenter() {
       const lon = Cesium.Math.toDegrees(carto.longitude);
       if (Number.isFinite(lat) && Number.isFinite(lon)) return [lat, lon];
     }
-  } catch { /* fall through */ }
+  } catch { }
   return [39.5, -98.35];
 }
 
@@ -68,11 +63,7 @@ function orderedAisTiles() {
   const [lat, lon] = currentAisViewportCenter();
   const local = AIS_WORLD_TILES.findIndex((tile) => tileContains(tile, lat, lon));
   if (local < 0) return AIS_WORLD_TILES;
-  return [
-    AIS_WORLD_TILES[local],
-    ...AIS_WORLD_TILES.slice(local + 1),
-    ...AIS_WORLD_TILES.slice(0, local),
-  ];
+  return [AIS_WORLD_TILES[local], ...AIS_WORLD_TILES.slice(local + 1), ...AIS_WORLD_TILES.slice(0, local)];
 }
 
 function aisUrlForTile(tile) {
@@ -148,44 +139,34 @@ async function fetchGlobalAisBatch(signal) {
 }
 
 function liveApiUrl() {
-  const ordered = orderedAisTiles();
-  return aisUrlForTile(ordered[0]);
+  return aisUrlForTile(orderedAisTiles()[0]);
 }'''
 text, count = bbox_pattern.subn(replacement, text, count=1)
 if count != 1:
-    raise SystemExit('RHKEARTH AIS V3 helper block not found')
+    raise SystemExit('RHKEARTH AIS helper block not found')
 
-# Replace the single-request Open Waters fetch path with progressive worldwide batches.
 fetch_pattern = re.compile(
-    r"const response = await fetch\(liveApiUrl\(\), \{.*?payload = \{\n        status: 'live',\n        rows,",
+    r"const response = await fetch\(liveApiUrl\(\), \{.*?const geo = await response\.json\(\);.*?const rows = \(geo\?\.features \|\| \[\]\)\.map\(.*?\)\.filter\(.*?\);",
     re.S,
 )
-fetch_replacement = r'''const rows = await fetchGlobalAisBatch(AbortSignal.timeout(15000));
-      const newestSeenAt = rows.reduce((latest, row) => {
-        const ms = Number(row.last_position_epoch) * 1000;
-        return Number.isFinite(ms) && ms > latest ? ms : latest;
-      }, 0);
-      payload = {
-        status: 'live',
-        rows,'''
-text, fetch_count = fetch_pattern.subn(fetch_replacement, text, count=1)
+text, fetch_count = fetch_pattern.subn("const rows = await fetchGlobalAisBatch(AbortSignal.timeout(15000));", text, count=1)
 if fetch_count != 1:
     raise SystemExit('RHKEARTH AIS single-fetch block not found')
 
-# Remove duplicate newestSeenAt declaration left by the previous V3 patch if present.
-text = re.sub(
-    r"\n      const newestSeenAt = rows\.reduce\(\(latest, row\) => \{\n        const ms = Number\(row\.last_position_epoch\) \* 1000;\n        return Number\.isFinite\(ms\) && ms > latest \? ms : latest;\n      \}, 0\);\n      payload = \{\n        status: 'live',\n        rows,\n      const newestSeenAt = rows\.reduce.*?\n      payload = \{\n        status: 'live',\n        rows,",
-    "\n      const newestSeenAt = rows.reduce((latest, row) => {\n        const ms = Number(row.last_position_epoch) * 1000;\n        return Number.isFinite(ms) && ms > latest ? ms : latest;\n      }, 0);\n      payload = {\n        status: 'live',\n        rows,",
-    text,
-    flags=re.S,
-)
+source_line = "  source: 'Open Waters AIS · LIVE',"
+old_build = "  buildTag: 'RHKEARTH_AIS_ANON_AREA_LIMIT_V3',"
+new_build = "  buildTag: 'RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4',"
+if old_build in text:
+    text = text.replace(old_build, new_build, 1)
+elif new_build not in text:
+    if source_line not in text:
+        raise SystemExit('RHKEARTH AIS layer source field missing')
+    text = text.replace(source_line, source_line + "\n" + new_build, 1)
 
-text = text.replace("buildTag: 'RHKEARTH_AIS_ANON_AREA_LIMIT_V3',", "buildTag: 'RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4',")
 TARGET.write_text(text, encoding='utf-8')
 
 patched = TARGET.read_text(encoding='utf-8')
-checks = [marker, 'AIS_WORLD_TILES', 'AIS_TILE_BATCH', 'fetchGlobalAisBatch', 'mergeGlobalAisRows', "buildTag: 'RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4'"]
-for needle in checks:
+for needle in [marker, 'AIS_WORLD_TILES', 'fetchGlobalAisBatch', 'mergeGlobalAisRows', new_build]:
     if needle not in patched:
         raise SystemExit('AIS global tile contract missing: ' + needle)
 
