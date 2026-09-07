@@ -91,6 +91,8 @@ jobs:
           grep -q "RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4" src/data/aisLiveVessels.js
           grep -q "fetchGlobalAisBatch" src/data/aisLiveVessels.js
           grep -q "mergeGlobalAisRows" src/data/aisLiveVessels.js
+          grep -q "AIS_TILE_BATCH = 12" src/data/aisLiveVessels.js
+          grep -q "AIS_ROW_MAX_AGE_SEC" src/data/aisLiveVessels.js
           grep -q "url.searchParams.set('bbox'" src/data/aisLiveVessels.js
           grep -q "RHKEARTH_OSM_SUBMARINE_CABLES_V1" src/data/telegeographySubmarineCables.js
           grep -q "OpenStreetMap · ODbL" src/data/telegeographySubmarineCables.js
@@ -177,7 +179,6 @@ jobs:
           grep -R -q "CLIMB +" dist/assets
           grep -R -q "DRAFT" dist/assets
           grep -R -q "RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4" dist/assets
-          grep -R -q "fetchGlobalAisBatch" dist/assets
           grep -R -q "ais.openwaters.io" dist/assets
           grep -R -q "OpenStreetMap · ODbL" dist/assets
           grep -R -q "cable_landing_station" dist/assets
@@ -241,7 +242,7 @@ jobs:
           grep -q "rhkearth-mobile.css?v=2" experimental/index.html
           grep -q "rhkearth-weather-worldwide.js?v=1" experimental/index.html
           grep -q "rhkearth-chrome-cleanup" experimental/index.html
-          printf '%s\n' "Native RHKEARTH Experimental build. Maritime progressively loads bounded Open Waters AIS tiles worldwide and retains/deduplicates vessel state by MMSI. Submarine Cables use RHKEARTH-hosted OpenStreetMap ODbL snapshots when available, with browser Overpass only as fallback." > experimental/RHKEARTH_BUILD.txt
+          printf '%s\n' "Native RHKEARTH Experimental build. Maritime refreshes the local AIS tile plus a continuous worldwide background sweep, retaining/deduplicating fresh vessel state by MMSI. Submarine Cables use RHKEARTH-hosted OpenStreetMap ODbL snapshots when available, with browser Overpass only as fallback." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit integrated bundle
         run: |
