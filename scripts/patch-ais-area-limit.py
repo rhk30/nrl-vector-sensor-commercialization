@@ -7,22 +7,23 @@ text = TARGET.read_text(encoding='utf-8')
 
 marker = 'RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4'
 
-# Replace the generated viewport helper + live URL function with global tile helpers.
 helper_pattern = re.compile(
     r"function currentAisViewportBbox\(\) \{.*?\n\}\n\nfunction liveApiUrl\(\) \{.*?\n\}",
     re.S,
 )
 helper = r'''// RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4
+// Anonymous Open Waters snapshots are limited to 100 square degrees per bbox.
+// Always refresh the operator's local tile, while a separate cursor walks the
+// entire globe in background tiles. Retain fresh vessels by MMSI between tiles.
 const AIS_TILE_DEG = 9;
-const AIS_TILE_BATCH = 6;
-const AIS_GLOBAL_REFRESH_MS = 180000;
+const AIS_TILE_BATCH = 12;
+const AIS_ROW_MAX_AGE_SEC = 45 * 60;
 const aisGlobalRows = new Map();
 let aisTileCursor = 0;
-let aisLastGlobalSweepAt = 0;
 
 function aisWorldTiles() {
   const tiles = [];
-  for (let south = -81; south < 90; south += AIS_TILE_DEG) {
+  for (let south = -90; south < 90; south += AIS_TILE_DEG) {
     const north = Math.min(90, south + AIS_TILE_DEG);
     for (let west = -180; west < 180; west += AIS_TILE_DEG) {
       const east = Math.min(180, west + AIS_TILE_DEG);
@@ -39,7 +40,9 @@ function currentAisViewportCenter() {
   const ellipsoid = viewer?.scene?.globe?.ellipsoid || Cesium.Ellipsoid.WGS84;
   try {
     const canvas = viewer?.scene?.canvas;
-    const center = canvas ? camera?.pickEllipsoid?.(new Cesium.Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2), ellipsoid) : null;
+    const center = canvas
+      ? camera?.pickEllipsoid?.(new Cesium.Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2), ellipsoid)
+      : null;
     const carto = center ? ellipsoid.cartesianToCartographic(center) : camera?.positionCartographic;
     if (carto) {
       const lat = Cesium.Math.toDegrees(carto.latitude);
@@ -50,11 +53,10 @@ function currentAisViewportCenter() {
   return [39.5, -98.35];
 }
 
-function orderedAisTiles() {
+function localAisTile() {
   const [lat, lon] = currentAisViewportCenter();
-  const local = AIS_WORLD_TILES.findIndex((tile) => lat >= tile[0] && lat <= tile[2] && lon >= tile[1] && lon <= tile[3]);
-  if (local < 0) return AIS_WORLD_TILES;
-  return [AIS_WORLD_TILES[local], ...AIS_WORLD_TILES.slice(local + 1), ...AIS_WORLD_TILES.slice(0, local)];
+  return AIS_WORLD_TILES.find((tile) => lat >= tile[0] && lat <= tile[2] && lon >= tile[1] && lon <= tile[3])
+    || AIS_WORLD_TILES[0];
 }
 
 function aisUrlForTile(tile) {
@@ -76,6 +78,11 @@ function mergeGlobalAisRows(rows) {
     const nextSeen = Number(row?.last_position_epoch || 0);
     const prevSeen = Number(previous?.last_position_epoch || 0);
     if (!previous || nextSeen >= prevSeen) aisGlobalRows.set(key, row);
+  }
+  const cutoff = (Date.now() / 1000) - AIS_ROW_MAX_AGE_SEC;
+  for (const [key, row] of aisGlobalRows) {
+    const seen = Number(row?.last_position_epoch || 0);
+    if (seen > 0 && seen < cutoff) aisGlobalRows.delete(key);
   }
   return Array.from(aisGlobalRows.values());
 }
@@ -109,15 +116,15 @@ async function fetchAisTile(tile, signal) {
 }
 
 async function fetchGlobalAisBatch(signal) {
-  const ordered = orderedAisTiles();
-  const now = Date.now();
-  if (now - aisLastGlobalSweepAt > AIS_GLOBAL_REFRESH_MS) {
-    aisTileCursor = 0;
-    aisLastGlobalSweepAt = now;
+  const local = localAisTile();
+  const tiles = [local];
+  let scanned = 0;
+  while (tiles.length < AIS_TILE_BATCH && scanned < AIS_WORLD_TILES.length) {
+    const tile = AIS_WORLD_TILES[aisTileCursor % AIS_WORLD_TILES.length];
+    aisTileCursor = (aisTileCursor + 1) % AIS_WORLD_TILES.length;
+    scanned += 1;
+    if (tile !== local) tiles.push(tile);
   }
-  const tiles = [];
-  for (let i = 0; i < AIS_TILE_BATCH; i += 1) tiles.push(ordered[(aisTileCursor + i) % ordered.length]);
-  aisTileCursor = (aisTileCursor + AIS_TILE_BATCH) % ordered.length;
   const settled = await Promise.allSettled(tiles.map((tile) => fetchAisTile(tile, signal)));
   const fresh = [];
   for (const result of settled) {
@@ -128,13 +135,12 @@ async function fetchGlobalAisBatch(signal) {
 }
 
 function liveApiUrl() {
-  return aisUrlForTile(orderedAisTiles()[0]);
+  return aisUrlForTile(localAisTile());
 }'''
 text, helper_count = helper_pattern.subn(helper, text, count=1)
 if helper_count != 1:
     raise SystemExit('RHKEARTH AIS helper block not found')
 
-# Patch the stable loadLivePositions fetch seam. Keep lifecycle/error handling intact.
 load_pattern = re.compile(
     r"(async function loadLivePositions\(viewer\) \{.*?try \{\n)(.*?)(\n\s*if \(!ownsAisRequest\(requestController, requestSessionId\)\) return;\n\s*applyAisFeedSnapshot\(viewer, payload\);)",
     re.S,
@@ -172,7 +178,7 @@ elif new_build not in text:
 
 TARGET.write_text(text, encoding='utf-8')
 patched = TARGET.read_text(encoding='utf-8')
-for needle in [marker, 'AIS_WORLD_TILES', 'fetchGlobalAisBatch', 'mergeGlobalAisRows', new_build]:
+for needle in [marker, 'AIS_WORLD_TILES', 'AIS_TILE_BATCH = 12', 'fetchGlobalAisBatch', 'mergeGlobalAisRows', 'AIS_ROW_MAX_AGE_SEC', new_build]:
     if needle not in patched:
         raise SystemExit('AIS global tile contract missing: ' + needle)
-print('RHKEARTH AIS repaired: progressive global tiles retained and deduped by MMSI')
+print('RHKEARTH AIS repaired: local tile plus continuous worldwide background sweep retained by MMSI')
