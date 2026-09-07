@@ -88,7 +88,9 @@ jobs:
           grep -q "fastjet:    { url: '/models/jet.glb'" src/data/aircraftClass.js
           grep -q "CALL .*callsign" src/data/aisLiveVessels.js || grep -q "record.callsign" src/data/aisLiveVessels.js
           grep -q "DRAFT" src/data/aisLiveVessels.js
-          grep -q "RHKEARTH_AIS_ANON_AREA_LIMIT_V3" src/data/aisLiveVessels.js
+          grep -q "RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4" src/data/aisLiveVessels.js
+          grep -q "fetchGlobalAisBatch" src/data/aisLiveVessels.js
+          grep -q "mergeGlobalAisRows" src/data/aisLiveVessels.js
           grep -q "url.searchParams.set('bbox'" src/data/aisLiveVessels.js
           grep -q "RHKEARTH_OSM_SUBMARINE_CABLES_V1" src/data/telegeographySubmarineCables.js
           grep -q "OpenStreetMap · ODbL" src/data/telegeographySubmarineCables.js
@@ -120,72 +122,41 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import shutil
-
           dist = Path('dist')
           nested_cesium = dist / 'experimental' / 'cesium'
           target_cesium = dist / 'cesium'
           if nested_cesium.exists():
-              if target_cesium.exists():
-                  shutil.rmtree(target_cesium)
+              if target_cesium.exists(): shutil.rmtree(target_cesium)
               shutil.move(str(nested_cesium), str(target_cesium))
-              try:
-                  (dist / 'experimental').rmdir()
-              except OSError:
-                  pass
-          if not (target_cesium / 'Cesium.js').exists():
-              raise SystemExit('Cesium runtime missing from dist/cesium')
-
+              try: (dist / 'experimental').rmdir()
+              except OSError: pass
+          if not (target_cesium / 'Cesium.js').exists(): raise SystemExit('Cesium runtime missing from dist/cesium')
           text_ext = {'.html', '.js', '.css', '.json', '.svg', '.txt', '.md'}
           replacements = {
-              '/models/': '/experimental/models/',
-              '"/logo.svg"': '"/experimental/logo.svg"',
-              "'/logo.svg'": "'/experimental/logo.svg'",
-              '"/pin.svg"': '"/experimental/pin.svg"',
-              "'/pin.svg'": "'/experimental/pin.svg'",
-              '"/location.svg"': '"/experimental/location.svg"',
-              "'/location.svg'": "'/experimental/location.svg'",
-              '"/visual-presets.svg"': '"/experimental/visual-presets.svg"',
+              '/models/': '/experimental/models/', '"/logo.svg"': '"/experimental/logo.svg"', "'/logo.svg'": "'/experimental/logo.svg'",
+              '"/pin.svg"': '"/experimental/pin.svg"', "'/pin.svg'": "'/experimental/pin.svg'", '"/location.svg"': '"/experimental/location.svg"',
+              "'/location.svg'": "'/experimental/location.svg'", '"/visual-presets.svg"': '"/experimental/visual-presets.svg"',
               "'/visual-presets.svg'": "'/experimental/visual-presets.svg'",
           }
           for path in dist.rglob('*'):
-              if not path.is_file() or path.suffix.lower() not in text_ext:
-                  continue
-              try:
-                  text = path.read_text()
-              except UnicodeDecodeError:
-                  continue
+              if not path.is_file() or path.suffix.lower() not in text_ext: continue
+              try: text = path.read_text()
+              except UnicodeDecodeError: continue
               new = text
-              for old, repl in replacements.items():
-                  new = new.replace(old, repl)
-              new = new.replace("GOD'S EYE VIEW", 'RHKEARTH EXPERIMENTAL')
-              new = new.replace("God's Eye View", 'RHKEARTH Experimental')
-              if new != text:
-                  path.write_text(new)
-
+              for old, repl in replacements.items(): new = new.replace(old, repl)
+              new = new.replace("GOD'S EYE VIEW", 'RHKEARTH EXPERIMENTAL').replace("God's Eye View", 'RHKEARTH Experimental')
+              if new != text: path.write_text(new)
           index = dist / 'index.html'
           html = index.read_text()
-          if 'name="robots"' not in html:
-              html = html.replace('<head>', '<head>\n<meta name="robots" content="noindex,nofollow,noarchive">', 1)
+          if 'name="robots"' not in html: html = html.replace('<head>', '<head>\n<meta name="robots" content="noindex,nofollow,noarchive">', 1)
           index.write_text(html)
-
-          brand = Path('../rhkearth-logo.svg')
-          (dist / 'logo.svg').write_text(brand.read_text())
-
-          for source, target in [
-              ('LICENSE', 'UPSTREAM_LICENSE.txt'),
-              ('DATA_SOURCES.md', 'DATA_SOURCES.md'),
-              ('public/models/README.md', 'MODEL_ATTRIBUTIONS.md'),
-          ]:
+          (dist / 'logo.svg').write_text(Path('../rhkearth-logo.svg').read_text())
+          for source, target in [('LICENSE','UPSTREAM_LICENSE.txt'),('DATA_SOURCES.md','DATA_SOURCES.md'),('public/models/README.md','MODEL_ATTRIBUTIONS.md')]:
               src = Path(source)
-              if src.exists():
-                  (dist / target).write_text(src.read_text())
-
-          live_src = Path('../experimental-data')
-          live_dst = dist / 'live-data'
-          if live_dst.exists():
-              shutil.rmtree(live_dst)
-          if not live_src.exists():
-              raise SystemExit('experimental-data directory is missing')
+              if src.exists(): (dist / target).write_text(src.read_text())
+          live_src = Path('../experimental-data'); live_dst = dist / 'live-data'
+          if live_dst.exists(): shutil.rmtree(live_dst)
+          if not live_src.exists(): raise SystemExit('experimental-data directory is missing')
           shutil.copytree(live_src, live_dst)
           PY
 
@@ -201,12 +172,12 @@ jobs:
           test -s dist/live-data/chicago-street-activity.json
           test -s dist/live-data/celestrak/stations
           test -s dist/live-data/launches.json
-
           grep -R -q "api.adsb.lol/v2/point" dist/assets
           grep -R -q "trace_full_" dist/assets
           grep -R -q "CLIMB +" dist/assets
           grep -R -q "DRAFT" dist/assets
-          grep -R -q "RHKEARTH_AIS_ANON_AREA_LIMIT_V3" dist/assets
+          grep -R -q "RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4" dist/assets
+          grep -R -q "fetchGlobalAisBatch" dist/assets
           grep -R -q "ais.openwaters.io" dist/assets
           grep -R -q "OpenStreetMap · ODbL" dist/assets
           grep -R -q "cable_landing_station" dist/assets
@@ -224,31 +195,21 @@ jobs:
           grep -R -q "#63C5D0\|#63c5d0" dist/assets
           grep -q "id=\"active-style-name\">NOIR\|id=\"active-style-name\">NOIR<" dist/index.html
           grep -q "rhkearth-chrome-cleanup" dist/index.html
-
           python - <<'PY'
           import json
           from pathlib import Path
-
           cctv = json.loads(Path('dist/live-data/cctv.json').read_text())
           rows = cctv.get('sources') or []
-          if not rows:
-              raise SystemExit('London CCTV catalog empty')
+          if not rows: raise SystemExit('London CCTV catalog empty')
           video_rows = [r for r in rows if str(r.get('feedType', '')).lower() in {'mp4','hls','webm'}]
-          if not video_rows:
-              raise SystemExit('London CCTV catalog contains no rolling video feeds')
-
+          if not video_rows: raise SystemExit('London CCTV catalog contains no rolling video feeds')
           world_path = Path('dist/live-data/worldwide-cameras.json')
           if world_path.exists() and world_path.stat().st_size > 0:
-              world = json.loads(world_path.read_text())
-              world_rows = world.get('sources') or []
-              if world_rows and len({r.get('provider') for r in world_rows}) < 3:
-                  raise SystemExit('Worldwide CCTV catalog lacks provider diversity')
-
+              world = json.loads(world_path.read_text()); world_rows = world.get('sources') or []
+              if world_rows and len({r.get('provider') for r in world_rows}) < 3: raise SystemExit('Worldwide CCTV catalog lacks provider diversity')
           index = Path('dist/index.html').read_text()
-          if 'RHKEARTH' not in index.upper():
-              raise SystemExit('RHKEARTH branding missing from built index')
-          if 'NOIR' not in index:
-              raise SystemExit('Noir first-paint state missing from built index')
+          if 'RHKEARTH' not in index.upper(): raise SystemExit('RHKEARTH branding missing from built index')
+          if 'NOIR' not in index: raise SystemExit('Noir first-paint state missing from built index')
           print(f'PASS static native gate: {len(video_rows)} London video cameras in catalog')
           PY
 
@@ -257,14 +218,12 @@ jobs:
           mkdir -p /tmp/rhkearth-shell
           cp experimental/rhkearth-runtime.js /tmp/rhkearth-shell/rhkearth-runtime.js
           cp experimental/rhkearth-theme.css /tmp/rhkearth-shell/rhkearth-theme.css
-
           rm -rf experimental
           mkdir -p experimental
           cp -a _gev/dist/. experimental/
           cp /tmp/rhkearth-shell/rhkearth-runtime.js experimental/rhkearth-runtime.js
           cp /tmp/rhkearth-shell/rhkearth-theme.css experimental/rhkearth-theme.css
           python scripts/finalize-experimental-ui.py
-
           test -f experimental/index.html
           test -f experimental/cesium/Cesium.js
           test -s experimental/live-data/military.json
@@ -282,7 +241,7 @@ jobs:
           grep -q "rhkearth-mobile.css?v=2" experimental/index.html
           grep -q "rhkearth-weather-worldwide.js?v=1" experimental/index.html
           grep -q "rhkearth-chrome-cleanup" experimental/index.html
-          printf '%s\n' "Native RHKEARTH Experimental build. Maritime uses bounded Open Waters AIS viewport queries. Submarine Cables use RHKEARTH-hosted OpenStreetMap ODbL snapshots when available, with browser Overpass only as fallback." > experimental/RHKEARTH_BUILD.txt
+          printf '%s\n' "Native RHKEARTH Experimental build. Maritime progressively loads bounded Open Waters AIS tiles worldwide and retains/deduplicates vessel state by MMSI. Submarine Cables use RHKEARTH-hosted OpenStreetMap ODbL snapshots when available, with browser Overpass only as fallback." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit integrated bundle
         run: |
@@ -290,7 +249,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           rm -rf /tmp/rhkearth-experimental-built
           cp -a experimental /tmp/rhkearth-experimental-built
-
           for attempt in 1 2 3; do
             echo "Publish attempt $attempt"
             git fetch origin main
@@ -298,14 +256,9 @@ jobs:
             rm -rf experimental
             cp -a /tmp/rhkearth-experimental-built experimental
             git add experimental
-            if git diff --cached --quiet; then
-              echo "No Experimental bundle changes."
-              exit 0
-            fi
+            if git diff --cached --quiet; then echo "No Experimental bundle changes."; exit 0; fi
             git commit -m "Publish RHKEARTH Experimental native build [skip ci]"
-            if git push origin main; then
-              exit 0
-            fi
+            if git push origin main; then exit 0; fi
             echo "Remote advanced during publish; retrying against latest main."
           done
           echo "Could not publish Experimental bundle after three attempts."
