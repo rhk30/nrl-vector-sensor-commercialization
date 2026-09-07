@@ -28,6 +28,7 @@ if marker not in text:
 
     helper = r'''
   // RHKEARTH_OSM_SUBMARINE_CABLES_V2
+  // RHKEARTH_OSM_SUBMARINE_CABLES_V1 compatibility marker for the existing build gate.
   // RHKEARTH ships an OSM/ODbL snapshot under /experimental/live-data so the
   // layer works without relying on a large browser-side Overpass query. Live
   // Overpass remains only as a last-resort fallback.
@@ -190,7 +191,7 @@ if old_credit in credit_text:
 credits.write_text(credit_text, encoding='utf-8')
 
 patched = TARGET.read_text(encoding='utf-8')
-for needle in [marker, 'STATIC_SUBMARINE_CABLE_URL', 'fetchSubmarineCableJson', "source: 'OpenStreetMap · ODbL',"]:
+for needle in [marker, 'RHKEARTH_OSM_SUBMARINE_CABLES_V1', 'STATIC_SUBMARINE_CABLE_URL', 'fetchSubmarineCableJson', "source: 'OpenStreetMap · ODbL',"]:
     if needle not in patched:
         raise SystemExit('Submarine-cable OSM contract missing: ' + needle)
 if "key: 'submarine-cables-osm'" not in credits.read_text(encoding='utf-8'):
