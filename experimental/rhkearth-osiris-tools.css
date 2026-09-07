@@ -1,0 +1,307 @@
+/* RHKEARTH analysis tools — interaction patterns adapted from OSIRIS (MIT).
+   OSIRIS copyright (c) 2026 simplifaisoul. See OSIRIS_LICENSE.txt. */
+
+#rhk-analysis-tools-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#rhk-analysis-tools-btn[aria-expanded="true"] {
+  background: rgba(231,227,214,.13) !important;
+  border-color: rgba(231,227,214,.42) !important;
+}
+
+#rhk-analysis-tools-panel {
+  position: fixed;
+  z-index: 9550;
+  top: 74px;
+  left: 50%;
+  width: min(360px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  padding: 0;
+  color: rgba(239,239,233,.94);
+  background: rgba(12,13,13,.92);
+  border: 1px solid rgba(231,227,214,.18);
+  border-radius: 8px;
+  box-shadow: 0 18px 52px rgba(0,0,0,.42);
+  backdrop-filter: blur(18px) saturate(.8);
+  -webkit-backdrop-filter: blur(18px) saturate(.8);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+#rhk-analysis-tools-panel[hidden],
+#rhk-asset-search[hidden],
+#rhk-shortcuts-overlay[hidden] { display: none !important; }
+
+.rhk-tools-header,
+.rhk-shortcuts-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 9px 10px 9px 13px;
+  border-bottom: 1px solid rgba(231,227,214,.10);
+}
+
+.rhk-tools-header > div,
+.rhk-shortcuts-card > header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rhk-tools-header small,
+.rhk-shortcuts-card header small {
+  font-size: 8px;
+  letter-spacing: .20em;
+  color: rgba(231,227,214,.44);
+}
+
+.rhk-tools-header strong,
+.rhk-shortcuts-card header strong {
+  font-size: 12px;
+  letter-spacing: .16em;
+  font-weight: 650;
+}
+
+.rhk-tools-header button,
+.rhk-shortcuts-card header button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(231,227,214,.62);
+  cursor: pointer;
+}
+
+.rhk-tools-header button:hover,
+.rhk-shortcuts-card header button:hover { background: rgba(255,255,255,.06); color: #efefe9; }
+.rhk-tools-header .material-symbols-outlined,
+.rhk-shortcuts-card .material-symbols-outlined { font-size: 18px; }
+
+.rhk-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 10px;
+}
+
+.rhk-tools-grid > button {
+  min-width: 0;
+  min-height: 72px;
+  padding: 9px 4px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid rgba(231,227,214,.11);
+  border-radius: 6px;
+  background: rgba(255,255,255,.025);
+  color: rgba(239,239,233,.74);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.rhk-tools-grid > button:hover { background: rgba(255,255,255,.055); border-color: rgba(231,227,214,.24); }
+.rhk-tools-grid > button.active {
+  background: rgba(114,201,216,.10);
+  border-color: rgba(114,201,216,.48);
+  color: rgba(239,239,233,.96);
+}
+.rhk-tools-grid .material-symbols-outlined { font-size: 20px; }
+.rhk-tools-grid b { font-size: 9px; letter-spacing: .12em; font-weight: 650; }
+.rhk-tools-grid small { font-size: 7px; letter-spacing: .10em; color: rgba(231,227,214,.40); }
+
+.rhk-tools-instruction {
+  min-height: 42px;
+  padding: 9px 12px;
+  border-top: 1px solid rgba(231,227,214,.07);
+  border-bottom: 1px solid rgba(231,227,214,.07);
+  font-size: 8px;
+  line-height: 1.45;
+  letter-spacing: .08em;
+  color: rgba(231,227,214,.54);
+}
+
+.rhk-tools-footer {
+  display: grid;
+  grid-template-columns: 1fr 70px 32px;
+  gap: 6px;
+  padding: 9px 10px 10px;
+}
+.rhk-tools-footer button {
+  height: 30px;
+  border: 1px solid rgba(231,227,214,.12);
+  border-radius: 5px;
+  background: rgba(255,255,255,.025);
+  color: rgba(239,239,233,.66);
+  font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: .10em;
+  cursor: pointer;
+}
+.rhk-tools-footer button:hover { background: rgba(255,255,255,.06); color: #efefe9; }
+
+#rhk-asset-search,
+#rhk-shortcuts-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: min(18vh, 150px) 18px 30px;
+  background: rgba(0,0,0,.46);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.rhk-search-shell,
+.rhk-shortcuts-card {
+  width: min(620px, calc(100vw - 28px));
+  max-height: min(620px, 72vh);
+  overflow: hidden;
+  border: 1px solid rgba(231,227,214,.20);
+  border-radius: 9px;
+  background: rgba(10,11,11,.96);
+  box-shadow: 0 28px 80px rgba(0,0,0,.55);
+  color: #efefe9;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.rhk-search-row {
+  height: 54px;
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(231,227,214,.10);
+}
+.rhk-search-row .material-symbols-outlined { color: rgba(231,227,214,.52); font-size: 20px; }
+.rhk-search-row input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #efefe9;
+  font: 500 13px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.rhk-search-row input::placeholder { color: rgba(231,227,214,.30); }
+.rhk-search-row kbd,
+.rhk-shortcut-list kbd {
+  min-width: 24px;
+  padding: 4px 6px;
+  border: 1px solid rgba(231,227,214,.15);
+  border-bottom-color: rgba(231,227,214,.28);
+  border-radius: 4px;
+  background: rgba(255,255,255,.035);
+  color: rgba(231,227,214,.62);
+  font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  text-align: center;
+}
+
+#rhk-asset-search-meta {
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(231,227,214,.07);
+  color: rgba(231,227,214,.38);
+  font-size: 8px;
+  letter-spacing: .12em;
+}
+
+#rhk-asset-search-results {
+  max-height: min(430px, 55vh);
+  overflow-y: auto;
+  padding: 5px;
+}
+.rhk-search-result {
+  width: 100%;
+  min-height: 50px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #efefe9;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+.rhk-search-result:hover,
+.rhk-search-result:focus-visible { background: rgba(255,255,255,.05); border-color: rgba(231,227,214,.09); outline: 0; }
+.rhk-search-result b { font-size: 10px; letter-spacing: .08em; font-weight: 650; }
+.rhk-search-result span { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; color: rgba(231,227,214,.43); }
+.rhk-search-empty { padding: 28px 14px; text-align: center; color: rgba(231,227,214,.35); font-size: 8px; letter-spacing: .10em; }
+
+.rhk-shortcuts-card { width: min(460px, calc(100vw - 28px)); }
+.rhk-shortcut-list { padding: 6px 12px 12px; }
+.rhk-shortcut-list > div {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid rgba(231,227,214,.055);
+}
+.rhk-shortcut-list > div:last-child { border-bottom: 0; }
+.rhk-shortcut-list span { margin-left: 7px; font-size: 9px; letter-spacing: .04em; color: rgba(231,227,214,.60); }
+.rhk-shortcuts-card > footer { padding: 9px 12px; border-top: 1px solid rgba(231,227,214,.08); color: rgba(231,227,214,.34); font-size: 7px; letter-spacing: .10em; }
+
+body.rhk-analysis-drawing #cesiumContainer canvas { cursor: crosshair !important; }
+
+#rhk-tools-toast {
+  position: fixed;
+  z-index: 13000;
+  left: 50%;
+  bottom: 44px;
+  transform: translate(-50%, 10px);
+  opacity: 0;
+  pointer-events: none;
+  padding: 7px 10px;
+  border: 1px solid rgba(231,227,214,.14);
+  border-radius: 5px;
+  background: rgba(8,9,9,.90);
+  color: rgba(239,239,233,.82);
+  font: 600 8px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: .10em;
+  transition: opacity .15s ease, transform .15s ease;
+}
+#rhk-tools-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* Phone layout is automatic. Nothing here activates the mobile mode itself;
+   it merely respects the class installed by rhkearth-mobile.js. */
+.rhk-mobile-ui #rhk-analysis-tools-panel {
+  top: auto;
+  left: max(10px, env(safe-area-inset-left));
+  right: max(10px, env(safe-area-inset-right));
+  bottom: calc(36px + env(safe-area-inset-bottom));
+  width: auto;
+  transform: none;
+  max-height: min(54vh, 430px);
+  overflow-y: auto;
+}
+.rhk-mobile-ui .rhk-tools-grid { grid-template-columns: repeat(2, 1fr); }
+.rhk-mobile-ui .rhk-tools-grid > button { min-height: 58px; }
+.rhk-mobile-ui #rhk-asset-search,
+.rhk-mobile-ui #rhk-shortcuts-overlay {
+  padding-top: calc(70px + env(safe-area-inset-top));
+  padding-left: max(10px, env(safe-area-inset-left));
+  padding-right: max(10px, env(safe-area-inset-right));
+}
+.rhk-mobile-ui .rhk-search-shell,
+.rhk-mobile-ui .rhk-shortcuts-card { width: 100%; max-height: 72vh; }
+
+@media (max-width: 520px) {
+  #rhk-analysis-tools-panel { width: calc(100vw - 20px); }
+  .rhk-tools-footer { grid-template-columns: 1fr 64px 32px; }
+}
