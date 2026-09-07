@@ -1,0 +1,231 @@
+name: Refresh OSIRIS-derived stream data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/refresh-osiris-stream-data.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-osiris-stream-data
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out latest RHKEARTH main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Refresh USGS, NASA FIRMS and NOAA snapshots
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          import csv
+          import io
+          import json
+          import time
+          import urllib.request
+
+          ROOT = Path('experimental-data')
+          ROOT.mkdir(exist_ok=True)
+          UA = 'RHKEARTH-Experimental/1.0 (+https://rhkearth.com/experimental/)'
+          now = datetime.now(timezone.utc)
+          now_ms = int(now.timestamp() * 1000)
+
+          def get_bytes(url, timeout=25, attempts=3):
+              last = None
+              for attempt in range(attempts):
+                  try:
+                      req = urllib.request.Request(url, headers={
+                          'User-Agent': UA,
+                          'Accept': '*/*',
+                      })
+                      with urllib.request.urlopen(req, timeout=timeout) as response:
+                          if response.status < 200 or response.status >= 300:
+                              raise RuntimeError(f'HTTP {response.status} for {url}')
+                          return response.read()
+                  except Exception as exc:
+                      last = exc
+                      if attempt + 1 < attempts:
+                          time.sleep(2 ** attempt)
+              raise RuntimeError(f'Failed to fetch {url}: {last}')
+
+          def get_json(url):
+              return json.loads(get_bytes(url).decode('utf-8'))
+
+          def write_json(path, payload):
+              Path(path).write_text(json.dumps(payload, separators=(',', ':'), ensure_ascii=False) + '\n', encoding='utf-8')
+
+          # OSIRIS seismic stream: USGS M2.5+ events from the last 24 hours.
+          earthquakes = get_json('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson')
+          if not isinstance(earthquakes.get('features'), list):
+              raise RuntimeError('USGS payload missing features')
+          earthquakes['rhkFetchedAt'] = now_ms
+          earthquakes['rhkSource'] = 'USGS Earthquake Hazards Program'
+          write_json(ROOT / 'earthquakes.json', earthquakes)
+
+          # OSIRIS active-fire stream: prefer NASA FIRMS VIIRS global 24h CSV,
+          # then MODIS. If both are temporarily unavailable, retain the existing
+          # RHKEARTH fire snapshot rather than replacing it with empty data.
+          firms_sources = [
+              ('NASA FIRMS VIIRS', 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_24h.csv'),
+              ('NASA FIRMS MODIS', 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_24h.csv'),
+          ]
+          fire_rows = None
+          fire_source = None
+          for source_name, url in firms_sources:
+              try:
+                  raw = get_bytes(url, timeout=35).decode('utf-8-sig')
+                  reader = csv.DictReader(io.StringIO(raw))
+                  all_rows = list(reader)
+                  if not all_rows:
+                      continue
+                  step = max(1, (len(all_rows) + 1799) // 1800)
+                  parsed = []
+                  for row in all_rows[::step]:
+                      try:
+                          lat = float(row.get('latitude', ''))
+                          lon = float(row.get('longitude', ''))
+                      except (TypeError, ValueError):
+                          continue
+                      brightness = row.get('bright_ti4') or row.get('brightness') or 0
+                      try:
+                          brightness = float(brightness)
+                      except (TypeError, ValueError):
+                          brightness = 0
+                      try:
+                          frp = float(row.get('frp') or 0)
+                      except (TypeError, ValueError):
+                          frp = 0
+                      parsed.append({
+                          'lat': round(lat, 4),
+                          'lon': round(lon, 4),
+                          'brightness': brightness,
+                          'confidence': row.get('confidence') or 'unknown',
+                          'frp': frp,
+                          'acqDate': row.get('acq_date') or '',
+                          'acqTime': row.get('acq_time') or '',
+                          'instrument': row.get('instrument') or '',
+                          'satellite': row.get('satellite') or '',
+                      })
+                  if parsed:
+                      fire_rows = parsed
+                      fire_source = source_name
+                      break
+              except Exception as exc:
+                  print(f'{source_name} unavailable: {exc}')
+
+          if fire_rows:
+              write_json(ROOT / 'fires.json', {
+                  'fires': fire_rows,
+                  'fetchedAt': now_ms,
+                  'stale': False,
+                  'source': fire_source,
+              })
+          else:
+              print('NASA FIRMS unavailable; retaining existing fires.json')
+
+          # OSIRIS space-weather stream: NOAA SWPC Kp, alerts and latest GOES
+          # X-ray flares. This is a same-origin fallback for browsers where
+          # provider CORS/network policy blocks the direct live request.
+          kp = get_json('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json')
+          alerts = get_json('https://services.swpc.noaa.gov/json/alerts.json')
+          flares = get_json('https://services.swpc.noaa.gov/json/goes/primary/xray-flares-latest.json')
+
+          latest = kp[-1] if isinstance(kp, list) and kp else {}
+          try:
+              kp_value = float(latest.get('kp_index') or latest.get('Kp') or 0)
+          except (TypeError, ValueError):
+              kp_value = 0
+
+          if kp_value >= 8: storm = 'EXTREME G5'
+          elif kp_value >= 7: storm = 'SEVERE G4'
+          elif kp_value >= 6: storm = 'STRONG G3'
+          elif kp_value >= 5: storm = 'MODERATE G2'
+          elif kp_value >= 4: storm = 'MINOR G1'
+          elif kp_value >= 3: storm = 'UNSETTLED'
+          else: storm = 'QUIET'
+
+          compact_alerts = []
+          if isinstance(alerts, list):
+              for alert in alerts[:10]:
+                  compact_alerts.append({
+                      'id': alert.get('product_id') or '',
+                      'issue_datetime': alert.get('issue_datetime') or '',
+                      'message': str(alert.get('message') or '')[:200],
+                  })
+
+          compact_flares = []
+          if isinstance(flares, list):
+              for flare in flares:
+                  if not flare.get('max_class'):
+                      continue
+                  compact_flares.append({
+                      'class': flare.get('max_class'),
+                      'begin': flare.get('begin_time'),
+                      'peak': flare.get('max_time'),
+                      'end': flare.get('end_time'),
+                  })
+                  if len(compact_flares) >= 5:
+                      break
+
+          write_json(ROOT / 'space-weather.json', {
+              'kp_index': kp_value,
+              'storm_level': storm,
+              'kp_timestamp': latest.get('time_tag') or '',
+              'alerts': compact_alerts,
+              'solar_flares': compact_flares,
+              'timestamp': now.isoformat().replace('+00:00', 'Z'),
+              'source': 'NOAA Space Weather Prediction Center',
+          })
+
+          print(f"earthquakes={len(earthquakes['features'])} fires={len(fire_rows or [])} kp={kp_value} flares={len(compact_flares)}")
+          PY
+
+      - name: Validate stream snapshots
+        run: |
+          test -s experimental-data/earthquakes.json
+          test -s experimental-data/space-weather.json
+          test -s experimental-data/fires.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          eq = json.loads(Path('experimental-data/earthquakes.json').read_text())
+          sw = json.loads(Path('experimental-data/space-weather.json').read_text())
+          fires = json.loads(Path('experimental-data/fires.json').read_text())
+          assert isinstance(eq.get('features'), list)
+          assert 'kp_index' in sw
+          assert isinstance(fires.get('fires'), list)
+          print('PASS: OSIRIS-derived stream snapshots validated')
+          PY
+
+      - name: Commit refreshed stream snapshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add experimental-data/earthquakes.json experimental-data/space-weather.json experimental-data/fires.json
+          if git diff --cached --quiet; then
+            echo "Stream snapshots already current."
+            exit 0
+          fi
+          git commit -m "Refresh RHKEARTH public stream snapshots [skip ci]"
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              exit 0
+            fi
+            git fetch origin main
+            git rebase origin/main
+          done
+          exit 1
