@@ -1,0 +1,106 @@
+name: Install RHKEARTH analysis tools
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/install-osiris-tools.yml
+      - scripts/rhkearth-osiris-tools.js
+      - scripts/rhkearth-osiris-tools.css
+      - scripts/OSIRIS_LICENSE.txt
+  workflow_run:
+    workflows: ["Build Experimental integrated"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-analysis-tools-install
+  cancel-in-progress: true
+
+jobs:
+  install:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out latest RHKEARTH main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install source-locked analysis tools
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import shutil
+
+          index = Path('experimental/index.html')
+          if not index.exists():
+              raise SystemExit('experimental/index.html is missing')
+
+          sources = {
+              Path('scripts/rhkearth-osiris-tools.js'): Path('experimental/rhkearth-osiris-tools.js'),
+              Path('scripts/rhkearth-osiris-tools.css'): Path('experimental/rhkearth-osiris-tools.css'),
+              Path('scripts/OSIRIS_LICENSE.txt'): Path('experimental/OSIRIS_LICENSE.txt'),
+          }
+          for src, dst in sources.items():
+              if not src.exists():
+                  raise SystemExit(f'missing durable source: {src}')
+              shutil.copyfile(src, dst)
+
+          html = index.read_text(encoding='utf-8')
+
+          # Idempotent install: remove old cache-versioned tags, then insert one
+          # source-locked copy of each. CSS is inert outside its own IDs/classes.
+          html = re.sub(r'\s*<link[^>]+href="/experimental/rhkearth-osiris-tools\.css(?:\?v=\d+)?"[^>]*>\s*', '\n', html)
+          html = re.sub(r'\s*<script[^>]+src="/experimental/rhkearth-osiris-tools\.js(?:\?v=\d+)?"[^>]*></script>\s*', '\n', html)
+
+          css_tag = '  <link rel="stylesheet" href="/experimental/rhkearth-osiris-tools.css?v=1">\n'
+          js_tag = '  <script src="/experimental/rhkearth-osiris-tools.js?v=1" defer></script>\n'
+          if '</head>' not in html or '</body>' not in html:
+              raise SystemExit('Experimental shell is malformed')
+          html = html.replace('</head>', css_tag + '</head>', 1)
+          html = html.replace('</body>', js_tag + '</body>', 1)
+          index.write_text(html, encoding='utf-8')
+
+          checks = {
+              'analysis JS installed': Path('experimental/rhkearth-osiris-tools.js').stat().st_size > 5000,
+              'analysis CSS installed': Path('experimental/rhkearth-osiris-tools.css').stat().st_size > 2000,
+              'OSIRIS MIT license installed': 'Copyright (c) 2026 simplifaisoul' in Path('experimental/OSIRIS_LICENSE.txt').read_text(),
+              'analysis JS linked once': html.count('/experimental/rhkearth-osiris-tools.js?v=1') == 1,
+              'analysis CSS linked once': html.count('/experimental/rhkearth-osiris-tools.css?v=1') == 1,
+          }
+          failed = [name for name, ok in checks.items() if not ok]
+          if failed:
+              raise SystemExit('Analysis-tool install validation failed: ' + ', '.join(failed))
+          print('PASS: OSIRIS-derived RHKEARTH analysis tools installed')
+          PY
+
+      - name: JavaScript syntax gate
+        run: node --check experimental/rhkearth-osiris-tools.js
+
+      - name: Commit installed Experimental tools
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add experimental/index.html experimental/rhkearth-osiris-tools.js experimental/rhkearth-osiris-tools.css experimental/OSIRIS_LICENSE.txt
+          if git diff --cached --quiet; then
+            echo "Analysis tools already current."
+            exit 0
+          fi
+          git commit -m "Install OSIRIS-derived RHKEARTH analysis tools [skip ci]"
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Remote advanced; retrying install against current main (attempt $attempt)."
+            git fetch origin main
+            git rebase origin/main
+          done
+          echo "Could not publish analysis tools after retries."
+          exit 1
