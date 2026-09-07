@@ -7,11 +7,12 @@ text = TARGET.read_text(encoding='utf-8')
 
 marker = 'RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4'
 
-bbox_pattern = re.compile(
+# Replace the generated viewport helper + live URL function with global tile helpers.
+helper_pattern = re.compile(
     r"function currentAisViewportBbox\(\) \{.*?\n\}\n\nfunction liveApiUrl\(\) \{.*?\n\}",
     re.S,
 )
-replacement = r'''// RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4
+helper = r'''// RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4
 const AIS_TILE_DEG = 9;
 const AIS_TILE_BATCH = 6;
 const AIS_GLOBAL_REFRESH_MS = 180000;
@@ -30,12 +31,7 @@ function aisWorldTiles() {
   }
   return tiles;
 }
-
 const AIS_WORLD_TILES = aisWorldTiles();
-
-function tileContains(tile, lat, lon) {
-  return lat >= tile[0] && lat <= tile[2] && lon >= tile[1] && lon <= tile[3];
-}
 
 function currentAisViewportCenter() {
   const viewer = state.viewer;
@@ -56,7 +52,7 @@ function currentAisViewportCenter() {
 
 function orderedAisTiles() {
   const [lat, lon] = currentAisViewportCenter();
-  const local = AIS_WORLD_TILES.findIndex((tile) => tileContains(tile, lat, lon));
+  const local = AIS_WORLD_TILES.findIndex((tile) => lat >= tile[0] && lat <= tile[2] && lon >= tile[1] && lon <= tile[3]);
   if (local < 0) return AIS_WORLD_TILES;
   return [AIS_WORLD_TILES[local], ...AIS_WORLD_TILES.slice(local + 1), ...AIS_WORLD_TILES.slice(0, local)];
 }
@@ -93,11 +89,20 @@ async function fetchAisTile(tile, signal) {
     const c = feature?.geometry?.coordinates || [];
     return {
       mmsi: p.mmsi ?? feature?.id ?? '',
-      name: p.name || '', imo: p.imo ?? p.imo_number ?? '', callsign: p.callsign ?? p.call_sign ?? '',
-      type: p.type ?? p.kind ?? '', destination: p.destination ?? p.dest ?? '',
-      length: p.length ?? p.length_m ?? null, width: p.width ?? p.beam ?? p.beam_m ?? null,
-      draught: p.draught ?? p.draft ?? p.draught_m ?? null, speed: p.sog, course: p.cog, heading: p.heading,
-      lon: Number(c[0]), lat: Number(c[1]), last_position_UTC: p.seen || '',
+      name: p.name || '',
+      imo: p.imo ?? p.imo_number ?? '',
+      callsign: p.callsign ?? p.call_sign ?? '',
+      type: p.type ?? p.kind ?? '',
+      destination: p.destination ?? p.dest ?? '',
+      length: p.length ?? p.length_m ?? null,
+      width: p.width ?? p.beam ?? p.beam_m ?? null,
+      draught: p.draught ?? p.draft ?? p.draught_m ?? null,
+      speed: p.sog,
+      course: p.cog,
+      heading: p.heading,
+      lon: Number(c[0]),
+      lat: Number(c[1]),
+      last_position_UTC: p.seen || '',
       last_position_epoch: p.seen ? Date.parse(p.seen) / 1000 : 0,
     };
   }).filter((row) => Number.isFinite(row.lat) && Number.isFinite(row.lon));
@@ -106,7 +111,10 @@ async function fetchAisTile(tile, signal) {
 async function fetchGlobalAisBatch(signal) {
   const ordered = orderedAisTiles();
   const now = Date.now();
-  if (now - aisLastGlobalSweepAt > AIS_GLOBAL_REFRESH_MS) { aisTileCursor = 0; aisLastGlobalSweepAt = now; }
+  if (now - aisLastGlobalSweepAt > AIS_GLOBAL_REFRESH_MS) {
+    aisTileCursor = 0;
+    aisLastGlobalSweepAt = now;
+  }
   const tiles = [];
   for (let i = 0; i < AIS_TILE_BATCH; i += 1) tiles.push(ordered[(aisTileCursor + i) % ordered.length]);
   aisTileCursor = (aisTileCursor + AIS_TILE_BATCH) % ordered.length;
@@ -119,19 +127,38 @@ async function fetchGlobalAisBatch(signal) {
   return mergeGlobalAisRows(fresh);
 }
 
-function liveApiUrl() { return aisUrlForTile(orderedAisTiles()[0]); }'''
-text, count = bbox_pattern.subn(replacement, text, count=1)
-if count != 1:
+function liveApiUrl() {
+  return aisUrlForTile(orderedAisTiles()[0]);
+}'''
+text, helper_count = helper_pattern.subn(helper, text, count=1)
+if helper_count != 1:
     raise SystemExit('RHKEARTH AIS helper block not found')
 
-# Replace everything inside the Open Waters branch up to newestSeenAt with the global batch fetch.
-fetch_pattern = re.compile(
-    r"(if \(String\(base\)\.startsWith\('https://ais\.openwaters\.io/'\)\) \{\n)(.*?)(\n\s*const newestSeenAt = rows\.reduce)",
+# Patch the stable loadLivePositions fetch seam. Keep lifecycle/error handling intact.
+load_pattern = re.compile(
+    r"(async function loadLivePositions\(viewer\) \{.*?try \{\n)(.*?)(\n\s*if \(!ownsAisRequest\(requestController, requestSessionId\)\) return;\n\s*applyAisFeedSnapshot\(viewer, payload\);)",
     re.S,
 )
-text, fetch_count = fetch_pattern.subn(r"\1      const rows = await fetchGlobalAisBatch(AbortSignal.timeout(15000));\3", text, count=1)
-if fetch_count != 1:
-    raise SystemExit('RHKEARTH AIS Open Waters branch not found')
+load_replacement = r'''\1    const signal = typeof AbortSignal.any === 'function'
+      ? AbortSignal.any([requestController.signal, AbortSignal.timeout(15000)])
+      : requestController.signal;
+    const rows = await fetchGlobalAisBatch(signal);
+    if (!ownsAisRequest(requestController, requestSessionId)) return;
+    const newestSeenAt = rows.reduce((latest, row) => {
+      const ms = Number(row.last_position_epoch) * 1000;
+      return Number.isFinite(ms) && ms > latest ? ms : latest;
+    }, 0);
+    const payload = {
+      status: 'live',
+      rows,
+      lastMessageAt: newestSeenAt || null,
+      newestPositionAt: newestSeenAt || null,
+      refreshing: false,
+      source: 'Open Waters AIS',
+    };\3'''
+text, load_count = load_pattern.subn(load_replacement, text, count=1)
+if load_count != 1:
+    raise SystemExit('RHKEARTH AIS loadLivePositions seam not found')
 
 source_line = "  source: 'Open Waters AIS · LIVE',"
 old_build = "  buildTag: 'RHKEARTH_AIS_ANON_AREA_LIMIT_V3',"
