@@ -12,7 +12,6 @@ on:
       - scripts/patch-entity-details.py
       - scripts/patch-ais-area-limit.py
       - scripts/patch-submarine-cables-osm.py
-      - scripts/refresh-submarine-cables-osm.py
       - scripts/patch-noir-default.py
       - scripts/patch-tactical-map-palette.py
       - scripts/clean-experimental-ui-source.py
@@ -56,23 +55,6 @@ jobs:
         with:
           node-version: 24.14.0
 
-      - name: Refresh submarine cable cache
-        run: |
-          python scripts/refresh-submarine-cables-osm.py
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          for name in ('submarine-cables-osm.geojson', 'submarine-cable-landings-osm.geojson'):
-              path = Path('experimental-data') / name
-              if not path.exists() or path.stat().st_size < 100:
-                  raise SystemExit(f'{name} missing or empty')
-              payload = json.loads(path.read_text())
-              features = payload.get('features') or []
-              if not features:
-                  raise SystemExit(f'{name} has no features')
-              print(f'{name}: {len(features)} features')
-          PY
-
       - name: Fetch pinned upstream source
         run: |
           rm -rf _gev
@@ -109,7 +91,6 @@ jobs:
           grep -q "RHKEARTH_AIS_ANON_AREA_LIMIT_V3" src/data/aisLiveVessels.js
           grep -q "url.searchParams.set('bbox'" src/data/aisLiveVessels.js
           grep -q "RHKEARTH_OSM_SUBMARINE_CABLES_V1" src/data/telegeographySubmarineCables.js
-          grep -q "STATIC_SUBMARINE_CABLE_URL" src/data/telegeographySubmarineCables.js
           grep -q "OpenStreetMap · ODbL" src/data/telegeographySubmarineCables.js
           grep -q "submarine-cables-osm" src/data/dataCredits.js
           grep -q "rhk-worldwide-cctv-addon" src/data/worldwideCameras.js
@@ -220,8 +201,6 @@ jobs:
           test -s dist/live-data/chicago-street-activity.json
           test -s dist/live-data/celestrak/stations
           test -s dist/live-data/launches.json
-          test -s dist/live-data/submarine-cables-osm.geojson
-          test -s dist/live-data/submarine-cable-landings-osm.geojson
 
           grep -R -q "api.adsb.lol/v2/point" dist/assets
           grep -R -q "trace_full_" dist/assets
@@ -229,8 +208,8 @@ jobs:
           grep -R -q "DRAFT" dist/assets
           grep -R -q "RHKEARTH_AIS_ANON_AREA_LIMIT_V3" dist/assets
           grep -R -q "ais.openwaters.io" dist/assets
-          grep -R -q "submarine-cables-osm.geojson" dist/assets
           grep -R -q "OpenStreetMap · ODbL" dist/assets
+          grep -R -q "cable_landing_station" dist/assets
           grep -R -q "rhk-worldwide-cctv-addon" dist/assets
           grep -R -q "bell206.glb" dist/assets
           grep -R -q "citation2.glb" dist/assets
@@ -249,10 +228,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          for name in ('submarine-cables-osm.geojson', 'submarine-cable-landings-osm.geojson'):
-              payload = json.loads((Path('dist/live-data') / name).read_text())
-              if not (payload.get('features') or []):
-                  raise SystemExit(f'{name} has no features in built bundle')
+
           cctv = json.loads(Path('dist/live-data/cctv.json').read_text())
           rows = cctv.get('sources') or []
           if not rows:
@@ -260,6 +236,14 @@ jobs:
           video_rows = [r for r in rows if str(r.get('feedType', '')).lower() in {'mp4','hls','webm'}]
           if not video_rows:
               raise SystemExit('London CCTV catalog contains no rolling video feeds')
+
+          world_path = Path('dist/live-data/worldwide-cameras.json')
+          if world_path.exists() and world_path.stat().st_size > 0:
+              world = json.loads(world_path.read_text())
+              world_rows = world.get('sources') or []
+              if world_rows and len({r.get('provider') for r in world_rows}) < 3:
+                  raise SystemExit('Worldwide CCTV catalog lacks provider diversity')
+
           index = Path('dist/index.html').read_text()
           if 'RHKEARTH' not in index.upper():
               raise SystemExit('RHKEARTH branding missing from built index')
@@ -288,8 +272,6 @@ jobs:
           test -s experimental/live-data/chicago-live-cameras.json
           test -f experimental/live-data/worldwide-cameras.json
           test -s experimental/live-data/chicago-street-activity.json
-          test -s experimental/live-data/submarine-cables-osm.geojson
-          test -s experimental/live-data/submarine-cable-landings-osm.geojson
           test -f experimental/rhkearth-runtime.js
           test -f experimental/rhkearth-theme.css
           test -f experimental/rhkearth-mobile.js
@@ -300,7 +282,7 @@ jobs:
           grep -q "rhkearth-mobile.css?v=2" experimental/index.html
           grep -q "rhkearth-weather-worldwide.js?v=1" experimental/index.html
           grep -q "rhkearth-chrome-cleanup" experimental/index.html
-          printf '%s\n' "Native RHKEARTH Experimental build. Maritime uses bounded Open Waters AIS viewport queries. Submarine Cables use RHKEARTH-hosted OpenStreetMap ODbL snapshots generated during the build, with browser Overpass only as fallback." > experimental/RHKEARTH_BUILD.txt
+          printf '%s\n' "Native RHKEARTH Experimental build. Maritime uses bounded Open Waters AIS viewport queries. Submarine Cables use RHKEARTH-hosted OpenStreetMap ODbL snapshots when available, with browser Overpass only as fallback." > experimental/RHKEARTH_BUILD.txt
 
       - name: Commit integrated bundle
         run: |
