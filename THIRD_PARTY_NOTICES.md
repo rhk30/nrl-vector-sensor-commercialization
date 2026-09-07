@@ -2,6 +2,14 @@
 
 The public presentation uses external maritime media only as illustrative operating context. It is not evidence that any photographed or filmed platform uses the evaluated NRL technology, and it does not represent an NRL-validated sensor installation or operational deployment.
 
+## RHKEARTH Experimental — OSIRIS-derived analysis features
+
+RHKEARTH Experimental adapts selected interaction and analysis patterns from **OSIRIS — Open Source Intelligence & Reconnaissance Integrated System** by simplifaisoul (https://github.com/simplifaisoul/osiris), licensed under the MIT License.
+
+The adapted feature pack covers keyboard-shortcut discoverability, loaded-entity search, map drawing/measurement, area-of-interest inspection, and GeoJSON export. RHKEARTH's implementation is Cesium-native and does not copy OSIRIS heuristic threat scoring or guessed keyword geolocation. The original OSIRIS MIT license is preserved in `scripts/OSIRIS_LICENSE.txt` and is published with the Experimental application as `experimental/OSIRIS_LICENSE.txt`.
+
+Copyright (c) 2026 simplifaisoul. MIT License.
+
 ## Hero context media
 
 The current hero media is loaded from Wikimedia Commons source files:
