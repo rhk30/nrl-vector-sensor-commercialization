@@ -103,11 +103,20 @@ text, live_count = live_pattern.subn(live_replacement, text, count=1)
 if live_count != 1:
     raise SystemExit('RHKEARTH AIS liveApiUrl patch target missing')
 
+# Keep a production-visible build tag on the layer object so the integrity gate
+# validates the compiled runtime instead of a source comment Vite strips.
+source_line = "  source: 'Open Waters AIS · LIVE',"
+build_tag_line = "  buildTag: 'RHKEARTH_AIS_ANON_AREA_LIMIT_V3',"
+if build_tag_line not in text:
+    if source_line not in text:
+        raise SystemExit('RHKEARTH AIS layer source field missing')
+    text = text.replace(source_line, source_line + "\n" + build_tag_line, 1)
+
 # Give the CORS GeoJSON snapshot enough time to return while still bounding hangs.
 text = text.replace('AbortSignal.timeout(10000)', 'AbortSignal.timeout(15000)', 1)
 TARGET.write_text(text, encoding='utf-8')
 
-checks = [marker, "url.searchParams.set('bbox'", 'area <= 96', 'const half = 4.8;', 'AbortSignal.timeout(15000)']
+checks = [marker, build_tag_line, "url.searchParams.set('bbox'", 'area <= 96', 'const half = 4.8;', 'AbortSignal.timeout(15000)']
 patched = TARGET.read_text(encoding='utf-8')
 for needle in checks:
     if needle not in patched:
@@ -116,4 +125,4 @@ for needle in checks:
 if patched.count('function currentAisViewportBbox()') != 1:
     raise SystemExit('AIS bbox helper must be declared exactly once')
 
-print('RHKEARTH AIS fixed: one bounded Open Waters viewport bbox helper, no duplicate declarations')
+print('RHKEARTH AIS fixed: one bounded Open Waters viewport bbox helper, production build tag retained')
