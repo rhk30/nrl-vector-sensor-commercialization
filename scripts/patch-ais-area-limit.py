@@ -5,45 +5,47 @@ ROOT = Path.cwd()
 TARGET = ROOT / 'src/data/aisLiveVessels.js'
 text = TARGET.read_text(encoding='utf-8')
 
-marker = 'RHKEARTH_AIS_ANON_AREA_LIMIT_V3'
+marker = 'RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4'
 
-# patch-entity-details.py already installs currentAisViewportBbox(). Tighten that
-# existing helper here instead of declaring a second function, which breaks Vite.
 bbox_pattern = re.compile(
-    r"function currentAisViewportBbox\(\) \{.*?\n\}\n\nfunction liveApiUrl\(\)",
+    r"// RHKEARTH_AIS_ANON_AREA_LIMIT_V3.*?\nfunction currentAisViewportBbox\(\) \{.*?\n\}\n\nfunction liveApiUrl\(\) \{.*?\n\}",
     re.S,
 )
-bbox_replacement = r'''// RHKEARTH_AIS_ANON_AREA_LIMIT_V3
-// Open Waters anonymous vessel snapshots require a bbox and cap it at 100
-// square degrees. Use the visible rectangle only when it fits; otherwise use
-// a compact box around the camera target. This keeps Maritime usable while
-// panning worldwide and prevents anonymous HTTP 400 responses.
-function currentAisViewportBbox() {
+replacement = r'''// RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4
+// Open Waters anonymous requests are capped at 100 square degrees. Build a
+// deterministic worldwide grid of 9°×9° cells (81 sq° each), fetch them in
+// batches, and merge vessel state by MMSI. The active viewport is prioritized,
+// but vessels from already fetched cells remain rendered instead of disappearing
+// when the operator pans away.
+const AIS_TILE_DEG = 9;
+const AIS_TILE_BATCH = 6;
+const AIS_GLOBAL_REFRESH_MS = 180000;
+const aisGlobalRows = new Map();
+let aisTileCursor = 0;
+let aisLastGlobalSweepAt = 0;
+
+function aisWorldTiles() {
+  const tiles = [];
+  for (let south = -81; south < 90; south += AIS_TILE_DEG) {
+    const north = Math.min(90, south + AIS_TILE_DEG);
+    for (let west = -180; west < 180; west += AIS_TILE_DEG) {
+      const east = Math.min(180, west + AIS_TILE_DEG);
+      tiles.push([south, west, north, east]);
+    }
+  }
+  return tiles;
+}
+
+const AIS_WORLD_TILES = aisWorldTiles();
+
+function tileContains(tile, lat, lon) {
+  return lat >= tile[0] && lat <= tile[2] && lon >= tile[1] && lon <= tile[3];
+}
+
+function currentAisViewportCenter() {
   const viewer = state.viewer;
   const camera = viewer?.camera;
   const ellipsoid = viewer?.scene?.globe?.ellipsoid || Cesium.Ellipsoid.WGS84;
-  const rect = camera?.computeViewRectangle?.(ellipsoid);
-
-  if (rect) {
-    const minLat = Cesium.Math.toDegrees(rect.south);
-    const maxLat = Cesium.Math.toDegrees(rect.north);
-    const minLon = Cesium.Math.toDegrees(rect.west);
-    const maxLon = Cesium.Math.toDegrees(rect.east);
-    const latSpan = maxLat - minLat;
-    const lonSpan = maxLon - minLon;
-    const area = latSpan * lonSpan;
-    if (Number.isFinite(area) && area > 0 && area <= 96 && minLon <= maxLon) {
-      return [
-        Math.max(-90, minLat),
-        Math.max(-180, minLon),
-        Math.min(90, maxLat),
-        Math.min(180, maxLon),
-      ];
-    }
-  }
-
-  let centerLat = 39.5;
-  let centerLon = -98.35;
   try {
     const canvas = viewer?.scene?.canvas;
     const center = canvas
@@ -52,77 +54,139 @@ function currentAisViewportBbox() {
           ellipsoid,
         )
       : null;
-    const carto = center
-      ? ellipsoid.cartesianToCartographic(center)
-      : camera?.positionCartographic;
+    const carto = center ? ellipsoid.cartesianToCartographic(center) : camera?.positionCartographic;
     if (carto) {
       const lat = Cesium.Math.toDegrees(carto.latitude);
       const lon = Cesium.Math.toDegrees(carto.longitude);
-      if (Number.isFinite(lat)) centerLat = lat;
-      if (Number.isFinite(lon)) centerLon = lon;
+      if (Number.isFinite(lat) && Number.isFinite(lon)) return [lat, lon];
     }
-  } catch { /* retain safe defaults */ }
-
-  // 9.6° × 9.6° = 92.16 square degrees, leaving margin under the cap.
-  const half = 4.8;
-  let minLat = Math.max(-90, centerLat - half);
-  let maxLat = Math.min(90, centerLat + half);
-  let minLon = centerLon - half;
-  let maxLon = centerLon + half;
-
-  if (minLon < -180) {
-    maxLon += (-180 - minLon);
-    minLon = -180;
-  }
-  if (maxLon > 180) {
-    minLon -= (maxLon - 180);
-    maxLon = 180;
-  }
-  minLon = Math.max(-180, minLon);
-  maxLon = Math.min(180, maxLon);
-  return [minLat, minLon, maxLat, maxLon];
+  } catch { /* fall through */ }
+  return [39.5, -98.35];
 }
 
-function liveApiUrl()'''
-text, bbox_count = bbox_pattern.subn(bbox_replacement, text, count=1)
-if bbox_count != 1:
-    raise SystemExit('RHKEARTH AIS bbox helper patch target missing')
+function orderedAisTiles() {
+  const [lat, lon] = currentAisViewportCenter();
+  const local = AIS_WORLD_TILES.findIndex((tile) => tileContains(tile, lat, lon));
+  if (local < 0) return AIS_WORLD_TILES;
+  return [
+    AIS_WORLD_TILES[local],
+    ...AIS_WORLD_TILES.slice(local + 1),
+    ...AIS_WORLD_TILES.slice(0, local),
+  ];
+}
 
-live_pattern = re.compile(r"function liveApiUrl\(\) \{.*?\n\}", re.S)
-live_replacement = r'''function liveApiUrl() {
+function aisUrlForTile(tile) {
   const base = import.meta.env?.VITE_AIS_LIVE_API_URL || DEFAULT_API_URL;
   const url = new URL(base, window.location.origin);
   if (url.hostname === 'ais.openwaters.io' && url.pathname === '/v1/vessels') {
-    url.searchParams.set('bbox', currentAisViewportBbox().map((n) => n.toFixed(4)).join(','));
+    url.searchParams.set('bbox', tile.map((n) => Number(n).toFixed(4)).join(','));
     return url.toString();
   }
   url.searchParams.set('maxRows', String(renderRowLimit()));
   return url.toString();
+}
+
+function mergeGlobalAisRows(rows) {
+  for (const row of rows || []) {
+    const key = String(row?.mmsi || row?.id || '').trim();
+    if (!key) continue;
+    const previous = aisGlobalRows.get(key);
+    const nextSeen = Number(row?.last_position_epoch || 0);
+    const prevSeen = Number(previous?.last_position_epoch || 0);
+    if (!previous || nextSeen >= prevSeen) aisGlobalRows.set(key, row);
+  }
+  return Array.from(aisGlobalRows.values());
+}
+
+async function fetchAisTile(tile, signal) {
+  const response = await fetch(aisUrlForTile(tile), { signal, cache: 'no-store', mode: 'cors' });
+  if (!response.ok) throw new Error(`AIS HTTP ${response.status}`);
+  const geo = await response.json();
+  return (geo?.features || []).map((feature) => {
+    const p = feature?.properties || {};
+    const c = feature?.geometry?.coordinates || [];
+    return {
+      mmsi: p.mmsi ?? feature?.id ?? '',
+      name: p.name || '',
+      imo: p.imo ?? p.imo_number ?? '',
+      callsign: p.callsign ?? p.call_sign ?? '',
+      type: p.type ?? p.kind ?? '',
+      destination: p.destination ?? p.dest ?? '',
+      length: p.length ?? p.length_m ?? null,
+      width: p.width ?? p.beam ?? p.beam_m ?? null,
+      draught: p.draught ?? p.draft ?? p.draught_m ?? null,
+      speed: p.sog,
+      course: p.cog,
+      heading: p.heading,
+      lon: Number(c[0]),
+      lat: Number(c[1]),
+      last_position_UTC: p.seen || '',
+      last_position_epoch: p.seen ? Date.parse(p.seen) / 1000 : 0,
+    };
+  }).filter((row) => Number.isFinite(row.lat) && Number.isFinite(row.lon));
+}
+
+async function fetchGlobalAisBatch(signal) {
+  const ordered = orderedAisTiles();
+  const now = Date.now();
+  if (now - aisLastGlobalSweepAt > AIS_GLOBAL_REFRESH_MS) {
+    aisTileCursor = 0;
+    aisLastGlobalSweepAt = now;
+  }
+  const tiles = [];
+  for (let i = 0; i < AIS_TILE_BATCH; i += 1) {
+    tiles.push(ordered[(aisTileCursor + i) % ordered.length]);
+  }
+  aisTileCursor = (aisTileCursor + AIS_TILE_BATCH) % ordered.length;
+  const settled = await Promise.allSettled(tiles.map((tile) => fetchAisTile(tile, signal)));
+  const fresh = [];
+  for (const result of settled) {
+    if (result.status === 'fulfilled') fresh.push(...result.value);
+    else console.warn('[Data:ais] global tile fetch failed', result.reason);
+  }
+  return mergeGlobalAisRows(fresh);
+}
+
+function liveApiUrl() {
+  const ordered = orderedAisTiles();
+  return aisUrlForTile(ordered[0]);
 }'''
-text, live_count = live_pattern.subn(live_replacement, text, count=1)
-if live_count != 1:
-    raise SystemExit('RHKEARTH AIS liveApiUrl patch target missing')
+text, count = bbox_pattern.subn(replacement, text, count=1)
+if count != 1:
+    raise SystemExit('RHKEARTH AIS V3 helper block not found')
 
-# Keep a production-visible build tag on the layer object so the integrity gate
-# validates the compiled runtime instead of a source comment Vite strips.
-source_line = "  source: 'Open Waters AIS · LIVE',"
-build_tag_line = "  buildTag: 'RHKEARTH_AIS_ANON_AREA_LIMIT_V3',"
-if build_tag_line not in text:
-    if source_line not in text:
-        raise SystemExit('RHKEARTH AIS layer source field missing')
-    text = text.replace(source_line, source_line + "\n" + build_tag_line, 1)
+# Replace the single-request Open Waters fetch path with progressive worldwide batches.
+fetch_pattern = re.compile(
+    r"const response = await fetch\(liveApiUrl\(\), \{.*?payload = \{\n        status: 'live',\n        rows,",
+    re.S,
+)
+fetch_replacement = r'''const rows = await fetchGlobalAisBatch(AbortSignal.timeout(15000));
+      const newestSeenAt = rows.reduce((latest, row) => {
+        const ms = Number(row.last_position_epoch) * 1000;
+        return Number.isFinite(ms) && ms > latest ? ms : latest;
+      }, 0);
+      payload = {
+        status: 'live',
+        rows,'''
+text, fetch_count = fetch_pattern.subn(fetch_replacement, text, count=1)
+if fetch_count != 1:
+    raise SystemExit('RHKEARTH AIS single-fetch block not found')
 
-# Give the CORS GeoJSON snapshot enough time to return while still bounding hangs.
-text = text.replace('AbortSignal.timeout(10000)', 'AbortSignal.timeout(15000)', 1)
+# Remove duplicate newestSeenAt declaration left by the previous V3 patch if present.
+text = re.sub(
+    r"\n      const newestSeenAt = rows\.reduce\(\(latest, row\) => \{\n        const ms = Number\(row\.last_position_epoch\) \* 1000;\n        return Number\.isFinite\(ms\) && ms > latest \? ms : latest;\n      \}, 0\);\n      payload = \{\n        status: 'live',\n        rows,\n      const newestSeenAt = rows\.reduce.*?\n      payload = \{\n        status: 'live',\n        rows,",
+    "\n      const newestSeenAt = rows.reduce((latest, row) => {\n        const ms = Number(row.last_position_epoch) * 1000;\n        return Number.isFinite(ms) && ms > latest ? ms : latest;\n      }, 0);\n      payload = {\n        status: 'live',\n        rows,",
+    text,
+    flags=re.S,
+)
+
+text = text.replace("buildTag: 'RHKEARTH_AIS_ANON_AREA_LIMIT_V3',", "buildTag: 'RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4',")
 TARGET.write_text(text, encoding='utf-8')
 
-checks = [marker, build_tag_line, "url.searchParams.set('bbox'", 'area <= 96', 'const half = 4.8;', 'AbortSignal.timeout(15000)']
 patched = TARGET.read_text(encoding='utf-8')
+checks = [marker, 'AIS_WORLD_TILES', 'AIS_TILE_BATCH', 'fetchGlobalAisBatch', 'mergeGlobalAisRows', "buildTag: 'RHKEARTH_AIS_GLOBAL_TILE_CACHE_V4'"]
 for needle in checks:
     if needle not in patched:
-        raise SystemExit('AIS area-limit contract missing: ' + needle)
+        raise SystemExit('AIS global tile contract missing: ' + needle)
 
-if patched.count('function currentAisViewportBbox()') != 1:
-    raise SystemExit('AIS bbox helper must be declared exactly once')
-
-print('RHKEARTH AIS fixed: one bounded Open Waters viewport bbox helper, production build tag retained')
+print('RHKEARTH AIS repaired: progressive global tiles retained and deduped by MMSI')
