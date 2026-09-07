@@ -1,0 +1,80 @@
+name: Refresh submarine cable cache
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/refresh-submarine-cables.yml
+      - scripts/refresh-submarine-cables-osm.py
+  schedule:
+    - cron: '37 5 * * 0'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: rhkearth-submarine-cable-cache
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out RHKEARTH
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Refresh OpenStreetMap cable snapshot
+        run: python scripts/refresh-submarine-cables-osm.py
+
+      - name: Validate snapshot
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for name in ('submarine-cables-osm.geojson', 'submarine-cable-landings-osm.geojson'):
+              path = Path('experimental-data') / name
+              if not path.exists() or path.stat().st_size < 100:
+                  raise SystemExit(f'{name} missing or empty')
+              payload = json.loads(path.read_text())
+              features = payload.get('features') or []
+              if not features:
+                  raise SystemExit(f'{name} has no features')
+              print(f'{name}: {len(features)} features')
+          PY
+
+      - name: Commit cache
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add experimental-data/submarine-cables-osm.geojson experimental-data/submarine-cable-landings-osm.geojson
+          if git diff --cached --quiet; then
+            echo "Cable cache already current."
+          else
+            git commit -m "Refresh OSM submarine cable cache [skip ci]"
+            for attempt in 1 2 3; do
+              if git push origin main; then
+                break
+              fi
+              if [ "$attempt" = "3" ]; then exit 1; fi
+              git fetch origin main
+              git rebase origin/main
+            done
+          fi
+
+      - name: Rebuild Experimental with cache
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl --fail-with-body -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/build-experimental-integrated.yml/dispatches" \
+            -d '{"ref":"main"}'
