@@ -43,12 +43,7 @@ function currentAisViewportCenter() {
   const ellipsoid = viewer?.scene?.globe?.ellipsoid || Cesium.Ellipsoid.WGS84;
   try {
     const canvas = viewer?.scene?.canvas;
-    const center = canvas
-      ? camera?.pickEllipsoid?.(
-          new Cesium.Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2),
-          ellipsoid,
-        )
-      : null;
+    const center = canvas ? camera?.pickEllipsoid?.(new Cesium.Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2), ellipsoid) : null;
     const carto = center ? ellipsoid.cartesianToCartographic(center) : camera?.positionCartographic;
     if (carto) {
       const lat = Cesium.Math.toDegrees(carto.latitude);
@@ -98,20 +93,11 @@ async function fetchAisTile(tile, signal) {
     const c = feature?.geometry?.coordinates || [];
     return {
       mmsi: p.mmsi ?? feature?.id ?? '',
-      name: p.name || '',
-      imo: p.imo ?? p.imo_number ?? '',
-      callsign: p.callsign ?? p.call_sign ?? '',
-      type: p.type ?? p.kind ?? '',
-      destination: p.destination ?? p.dest ?? '',
-      length: p.length ?? p.length_m ?? null,
-      width: p.width ?? p.beam ?? p.beam_m ?? null,
-      draught: p.draught ?? p.draft ?? p.draught_m ?? null,
-      speed: p.sog,
-      course: p.cog,
-      heading: p.heading,
-      lon: Number(c[0]),
-      lat: Number(c[1]),
-      last_position_UTC: p.seen || '',
+      name: p.name || '', imo: p.imo ?? p.imo_number ?? '', callsign: p.callsign ?? p.call_sign ?? '',
+      type: p.type ?? p.kind ?? '', destination: p.destination ?? p.dest ?? '',
+      length: p.length ?? p.length_m ?? null, width: p.width ?? p.beam ?? p.beam_m ?? null,
+      draught: p.draught ?? p.draft ?? p.draught_m ?? null, speed: p.sog, course: p.cog, heading: p.heading,
+      lon: Number(c[0]), lat: Number(c[1]), last_position_UTC: p.seen || '',
       last_position_epoch: p.seen ? Date.parse(p.seen) / 1000 : 0,
     };
   }).filter((row) => Number.isFinite(row.lat) && Number.isFinite(row.lon));
@@ -120,14 +106,9 @@ async function fetchAisTile(tile, signal) {
 async function fetchGlobalAisBatch(signal) {
   const ordered = orderedAisTiles();
   const now = Date.now();
-  if (now - aisLastGlobalSweepAt > AIS_GLOBAL_REFRESH_MS) {
-    aisTileCursor = 0;
-    aisLastGlobalSweepAt = now;
-  }
+  if (now - aisLastGlobalSweepAt > AIS_GLOBAL_REFRESH_MS) { aisTileCursor = 0; aisLastGlobalSweepAt = now; }
   const tiles = [];
-  for (let i = 0; i < AIS_TILE_BATCH; i += 1) {
-    tiles.push(ordered[(aisTileCursor + i) % ordered.length]);
-  }
+  for (let i = 0; i < AIS_TILE_BATCH; i += 1) tiles.push(ordered[(aisTileCursor + i) % ordered.length]);
   aisTileCursor = (aisTileCursor + AIS_TILE_BATCH) % ordered.length;
   const settled = await Promise.allSettled(tiles.map((tile) => fetchAisTile(tile, signal)));
   const fresh = [];
@@ -138,20 +119,19 @@ async function fetchGlobalAisBatch(signal) {
   return mergeGlobalAisRows(fresh);
 }
 
-function liveApiUrl() {
-  return aisUrlForTile(orderedAisTiles()[0]);
-}'''
+function liveApiUrl() { return aisUrlForTile(orderedAisTiles()[0]); }'''
 text, count = bbox_pattern.subn(replacement, text, count=1)
 if count != 1:
     raise SystemExit('RHKEARTH AIS helper block not found')
 
+# Replace everything inside the Open Waters branch up to newestSeenAt with the global batch fetch.
 fetch_pattern = re.compile(
-    r"const response = await fetch\(liveApiUrl\(\), \{.*?const geo = await response\.json\(\);.*?const rows = \(geo\?\.features \|\| \[\]\)\.map\(.*?\)\.filter\(.*?\);",
+    r"(if \(String\(base\)\.startsWith\('https://ais\.openwaters\.io/'\)\) \{\n)(.*?)(\n\s*const newestSeenAt = rows\.reduce)",
     re.S,
 )
-text, fetch_count = fetch_pattern.subn("const rows = await fetchGlobalAisBatch(AbortSignal.timeout(15000));", text, count=1)
+text, fetch_count = fetch_pattern.subn(r"\1      const rows = await fetchGlobalAisBatch(AbortSignal.timeout(15000));\3", text, count=1)
 if fetch_count != 1:
-    raise SystemExit('RHKEARTH AIS single-fetch block not found')
+    raise SystemExit('RHKEARTH AIS Open Waters branch not found')
 
 source_line = "  source: 'Open Waters AIS · LIVE',"
 old_build = "  buildTag: 'RHKEARTH_AIS_ANON_AREA_LIMIT_V3',"
@@ -164,10 +144,8 @@ elif new_build not in text:
     text = text.replace(source_line, source_line + "\n" + new_build, 1)
 
 TARGET.write_text(text, encoding='utf-8')
-
 patched = TARGET.read_text(encoding='utf-8')
 for needle in [marker, 'AIS_WORLD_TILES', 'fetchGlobalAisBatch', 'mergeGlobalAisRows', new_build]:
     if needle not in patched:
         raise SystemExit('AIS global tile contract missing: ' + needle)
-
 print('RHKEARTH AIS repaired: progressive global tiles retained and deduped by MMSI')
