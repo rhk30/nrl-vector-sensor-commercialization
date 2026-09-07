@@ -29,6 +29,8 @@ jobs:
           ref: main
           fetch-depth: 0
 
+      # The workflow file itself is in the push path so merging a maintenance
+      # change can intentionally seed or repair the cache without browser work.
       - name: Refresh OpenStreetMap cable snapshot
         run: python scripts/refresh-submarine-cables-osm.py
 
