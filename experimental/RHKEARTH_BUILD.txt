@@ -1,1 +1,1 @@
-Native RHKEARTH Experimental build. Maritime uses bounded Open Waters AIS viewport queries. Submarine Cables use RHKEARTH-hosted OpenStreetMap ODbL snapshots when available, with browser Overpass only as fallback.
+Native RHKEARTH Experimental build. Maritime refreshes the local AIS tile plus a continuous worldwide background sweep, retaining/deduplicating fresh vessel state by MMSI. Submarine Cables use RHKEARTH-hosted OpenStreetMap ODbL snapshots when available, with browser Overpass only as fallback.
