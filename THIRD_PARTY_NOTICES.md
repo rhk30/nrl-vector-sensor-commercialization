@@ -2,11 +2,15 @@
 
 The public presentation uses external maritime media only as illustrative operating context. It is not evidence that any photographed or filmed platform uses the evaluated NRL technology, and it does not represent an NRL-validated sensor installation or operational deployment.
 
-## RHKEARTH Experimental — OSIRIS-derived analysis features
+## RHKEARTH Experimental — OSIRIS-derived features
 
-RHKEARTH Experimental adapts selected interaction and analysis patterns from **OSIRIS — Open Source Intelligence & Reconnaissance Integrated System** by simplifaisoul (https://github.com/simplifaisoul/osiris), licensed under the MIT License.
+RHKEARTH Experimental adapts selected interaction, analysis, data-source, and display patterns from **OSIRIS — Open Source Intelligence & Reconnaissance Integrated System** by simplifaisoul (https://github.com/simplifaisoul/osiris), licensed under the MIT License.
 
-The adapted feature pack covers keyboard-shortcut discoverability, loaded-entity search, map drawing/measurement, area-of-interest inspection, and GeoJSON export. RHKEARTH's implementation is Cesium-native and does not copy OSIRIS heuristic threat scoring or guessed keyword geolocation. The original OSIRIS MIT license is preserved in `scripts/OSIRIS_LICENSE.txt` and is published with the Experimental application as `experimental/OSIRIS_LICENSE.txt`.
+The adapted analysis feature pack covers keyboard-shortcut discoverability, loaded-entity search, map drawing/measurement, area-of-interest inspection, and GeoJSON export. The adapted data/display pack covers public-source seismic and active-fire layers, a space-weather source monitor, a global live-broadcast catalog, broadcast map pins, a source viewer, and limited close-zoom map-pinned video previews. RHKEARTH's implementation is Cesium-native and does not copy OSIRIS heuristic threat scoring or guessed keyword geolocation.
+
+The public data providers used by the adapted stream pack are independently sourced and retain their own attribution: **USGS Earthquake Hazards Program** for seismic events, **NASA FIRMS** for satellite active-fire detections, and **NOAA Space Weather Prediction Center** for Kp/geomagnetic and solar-event information. Live broadcast links remain controlled by their respective broadcasters/platforms; availability and embedding permissions may change.
+
+The original OSIRIS MIT license is preserved in `scripts/OSIRIS_LICENSE.txt` and is published with the Experimental application as `experimental/OSIRIS_LICENSE.txt`.
 
 Copyright (c) 2026 simplifaisoul. MIT License.
 
