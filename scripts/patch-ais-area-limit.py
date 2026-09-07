@@ -6,9 +6,14 @@ TARGET = ROOT / 'src/data/aisLiveVessels.js'
 text = TARGET.read_text(encoding='utf-8')
 
 marker = 'RHKEARTH_AIS_ANON_AREA_LIMIT_V3'
-if marker not in text:
-    pattern = re.compile(r"function liveApiUrl\(\) \{.*?\n\}", re.S)
-    replacement = r'''// RHKEARTH_AIS_ANON_AREA_LIMIT_V3
+
+# patch-entity-details.py already installs currentAisViewportBbox(). Tighten that
+# existing helper here instead of declaring a second function, which breaks Vite.
+bbox_pattern = re.compile(
+    r"function currentAisViewportBbox\(\) \{.*?\n\}\n\nfunction liveApiUrl\(\)",
+    re.S,
+)
+bbox_replacement = r'''// RHKEARTH_AIS_ANON_AREA_LIMIT_V3
 // Open Waters anonymous vessel snapshots require a bbox and cap it at 100
 // square degrees. Use the visible rectangle only when it fits; otherwise use
 // a compact box around the camera target. This keeps Maritime usable while
@@ -78,19 +83,25 @@ function currentAisViewportBbox() {
   return [minLat, minLon, maxLat, maxLon];
 }
 
-function liveApiUrl() {
+function liveApiUrl()'''
+text, bbox_count = bbox_pattern.subn(bbox_replacement, text, count=1)
+if bbox_count != 1:
+    raise SystemExit('RHKEARTH AIS bbox helper patch target missing')
+
+live_pattern = re.compile(r"function liveApiUrl\(\) \{.*?\n\}", re.S)
+live_replacement = r'''function liveApiUrl() {
   const base = import.meta.env?.VITE_AIS_LIVE_API_URL || DEFAULT_API_URL;
   const url = new URL(base, window.location.origin);
   if (url.hostname === 'ais.openwaters.io' && url.pathname === '/v1/vessels') {
-    url.searchParams.set('bbox', currentAisViewportBbox().join(','));
+    url.searchParams.set('bbox', currentAisViewportBbox().map((n) => n.toFixed(4)).join(','));
     return url.toString();
   }
   url.searchParams.set('maxRows', String(renderRowLimit()));
   return url.toString();
 }'''
-    text, count = pattern.subn(replacement, text, count=1)
-    if count != 1:
-        raise SystemExit('RHKEARTH AIS liveApiUrl patch target missing')
+text, live_count = live_pattern.subn(live_replacement, text, count=1)
+if live_count != 1:
+    raise SystemExit('RHKEARTH AIS liveApiUrl patch target missing')
 
 # Give the CORS GeoJSON snapshot enough time to return while still bounding hangs.
 text = text.replace('AbortSignal.timeout(10000)', 'AbortSignal.timeout(15000)', 1)
@@ -102,4 +113,7 @@ for needle in checks:
     if needle not in patched:
         raise SystemExit('AIS area-limit contract missing: ' + needle)
 
-print('RHKEARTH AIS fixed: Open Waters receives a bounded viewport bbox on every poll')
+if patched.count('function currentAisViewportBbox()') != 1:
+    raise SystemExit('AIS bbox helper must be declared exactly once')
+
+print('RHKEARTH AIS fixed: one bounded Open Waters viewport bbox helper, no duplicate declarations')
