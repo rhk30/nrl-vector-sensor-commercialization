@@ -369,6 +369,86 @@ jobs:
                   max_pages=10,
               )
 
+          def load_tfl():
+              data = get_json('https://api.tfl.gov.uk/Place/Type/JamCam', timeout=25, attempts=2)
+              if not isinstance(data, list) or not data:
+                  raise RuntimeError('TfL returned no JamCams')
+              accepted = 0
+              for cam in data:
+                  props = cam.get('additionalProperties') or []
+                  image = ''
+                  for prop in props:
+                      if str(prop.get('key') or '') == 'imageUrl' and prop.get('value'):
+                          image = str(prop.get('value')).strip()
+                          break
+                  cid = str(cam.get('id') or '').replace('JamCams_', '')
+                  if not image and cid:
+                      image = f'https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/{cid}.jpg'
+                  if add(
+                      'TfL JamCams',
+                      f'tfl-{cam.get("id") or cid}',
+                      cam.get('lat'),
+                      cam.get('lon'),
+                      cam.get('commonName') or f'London JamCam {cid}',
+                      image,
+                      city='London',
+                      country='United Kingdom',
+                      refresh_ms=15000,
+                      source_kind='official-open-data-camera',
+                  ):
+                      accepted += 1
+              if accepted < 500:
+                  raise RuntimeError(f'TfL returned only {accepted} usable cameras')
+              print(f'TfL JamCams: accepted {accepted}')
+
+          SPAIN_PROVINCES = {
+              '01': 'Álava', '02': 'Albacete', '03': 'Alicante', '04': 'Almería',
+              '05': 'Ávila', '06': 'Badajoz', '07': 'Baleares', '08': 'Barcelona',
+              '09': 'Burgos', '10': 'Cáceres', '11': 'Cádiz', '12': 'Castellón',
+              '13': 'Ciudad Real', '14': 'Córdoba', '15': 'A Coruña', '16': 'Cuenca',
+              '17': 'Girona', '18': 'Granada', '19': 'Guadalajara', '20': 'Gipuzkoa',
+              '21': 'Huelva', '22': 'Huesca', '23': 'Jaén', '24': 'León',
+              '25': 'Lleida', '26': 'La Rioja', '27': 'Lugo', '28': 'Madrid',
+              '29': 'Málaga', '30': 'Murcia', '31': 'Navarra', '32': 'Ourense',
+              '33': 'Asturias', '34': 'Palencia', '35': 'Las Palmas',
+              '36': 'Pontevedra', '37': 'Salamanca', '38': 'S.C. Tenerife',
+              '39': 'Cantabria', '40': 'Segovia', '41': 'Sevilla', '42': 'Soria',
+              '43': 'Tarragona', '44': 'Teruel', '45': 'Toledo', '46': 'Valencia',
+              '47': 'Valladolid', '48': 'Bizkaia', '49': 'Zamora', '50': 'Zaragoza',
+              '51': 'Ceuta', '52': 'Melilla',
+          }
+
+          def load_spain_dgt():
+              data = get_json('https://www.dgt.es/.content/.assets/json/camaras.json', timeout=30, attempts=2)
+              rows = data.get('camaras') if isinstance(data, dict) else []
+              if not isinstance(rows, list) or not rows:
+                  raise RuntimeError('Spain DGT returned no cameras')
+              accepted = 0
+              for cam in rows:
+                  road = str(cam.get('carretera') or '').strip()
+                  pk = str(cam.get('pk') or '').strip()
+                  direction = str(cam.get('sentido') or '').strip()
+                  direction_text = ''
+                  if direction and direction != '-':
+                      direction_text = f' ({direction})'
+                  name = f'{road} km {pk}{direction_text}'.strip() or f'DGT Camera {cam.get("id")}'
+                  if add(
+                      'Spain DGT',
+                      f'dgt-{cam.get("id")}',
+                      cam.get('latitud'),
+                      cam.get('longitud'),
+                      name,
+                      cam.get('imagen'),
+                      city=SPAIN_PROVINCES.get(str(cam.get('provincia') or '').zfill(2), 'Spain'),
+                      country='Spain',
+                      refresh_ms=20000,
+                      source_kind='official-open-data-camera',
+                  ):
+                      accepted += 1
+              if accepted < 1000:
+                  raise RuntimeError(f'Spain DGT returned only {accepted} usable HTTPS cameras')
+              print(f'Spain DGT: accepted {accepted}')
+
           def load_iowa():
               url = (
                   'https://services.arcgis.com/8lRhdTsQyJpO52F1/arcgis/rest/services/'
@@ -409,6 +489,8 @@ jobs:
               ('UDOT Traffic', load_udot),
               ('NDOT / NV Roads', load_ndot),
               ('LADOTD / 511LA', load_ladotd),
+              ('TfL JamCams', load_tfl),
+              ('Spain DGT', load_spain_dgt),
               ('Iowa DOT 511', load_iowa),
           ]:
               run_provider(provider, loader)
