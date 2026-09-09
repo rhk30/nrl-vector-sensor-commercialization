@@ -19,6 +19,11 @@ let _sources = new Map();
 let _visibleCount = 0;
 let _lastUpdate = null;
 let _lastError = null;
+let _activeSource = null;
+
+function isMobileUi() {
+  return document.body.classList.contains('rhk-mobile-ui') || matchMedia('(max-width: 760px) and (pointer: coarse)').matches;
+}
 
 function currentViewRectangle() {
   if (!_viewer) return null;
@@ -46,34 +51,49 @@ function pointInRect(lat, lon, rect) {
     && longitude >= rect.west && longitude <= rect.east;
 }
 
+function panelButton(label, id) {
+  return `<button id="${id}" type="button" style="height:30px;padding:0 10px;border:1px solid rgba(169,181,155,.20);border-radius:4px;background:rgba(255,255,255,.025);color:#cfd3c7;font:600 9px/1 Inter,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;">${label}</button>`;
+}
+
 function makePanel() {
   let panel = document.getElementById('rhk-live-camera-panel');
   if (panel) return panel;
   panel = document.createElement('section');
   panel.id = 'rhk-live-camera-panel';
-  panel.setAttribute('aria-label', 'RHKEARTH live camera');
+  panel.setAttribute('aria-label', 'RHKEARTH public camera viewer');
   Object.assign(panel.style, {
-    position: 'fixed', right: '22px', bottom: '24px',
-    width: 'min(520px, calc(100vw - 44px))',
-    background: 'rgba(10,12,11,.96)', border: '1px solid rgba(169,181,155,.28)',
+    position: 'fixed', right: isMobileUi() ? '10px' : '22px', bottom: isMobileUi() ? '44px' : '24px',
+    width: isMobileUi() ? 'calc(100vw - 20px)' : 'min(540px, calc(100vw - 44px))',
+    maxHeight: isMobileUi() ? 'min(64vh, 520px)' : 'min(74vh, 620px)',
+    background: 'rgba(8,10,9,.97)', border: '1px solid rgba(169,181,155,.28)',
+    borderRadius: '7px', overflow: 'hidden',
     boxShadow: '0 18px 55px rgba(0,0,0,.46)', zIndex: '1200', display: 'none',
     fontFamily: 'Inter, system-ui, sans-serif',
   });
   panel.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:11px 12px;border-bottom:1px solid rgba(169,181,155,.16);">
       <div style="min-width:0;flex:1;">
-        <div id="rhk-live-camera-title" style="font-size:12px;letter-spacing:.10em;text-transform:uppercase;color:#efefe9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">LIVE CCTV</div>
-        <div id="rhk-live-camera-meta" style="margin-top:3px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9fc5ad;">CHICAGO · LIVE</div>
+        <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#A7D7B6;box-shadow:0 0 8px rgba(167,215,182,.35);flex:0 0 auto;"></span>
+          <div id="rhk-live-camera-title" style="font-size:12px;letter-spacing:.10em;text-transform:uppercase;color:#efefe9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">PUBLIC CAMERA</div>
+        </div>
+        <div id="rhk-live-camera-meta" style="margin-top:4px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#9fc5ad;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">CHICAGO · PUBLIC SOURCE</div>
       </div>
-      <button id="rhk-live-camera-close" type="button" aria-label="Close live camera" style="border:0;background:transparent;color:#d8dacc;font-size:21px;line-height:1;cursor:pointer;padding:2px 4px;">×</button>
+      <button id="rhk-live-camera-close" type="button" aria-label="Close camera" style="border:0;background:transparent;color:#d8dacc;font-size:21px;line-height:1;cursor:pointer;padding:2px 4px;">×</button>
     </div>
-    <div style="position:relative;width:100%;aspect-ratio:16/9;background:#050606;">
-      <iframe id="rhk-live-camera-frame" title="Chicago live camera" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="no-referrer-when-downgrade" style="position:absolute;inset:0;width:100%;height:100%;border:0;background:#050606;"></iframe>
+    <div id="rhk-live-camera-media" style="position:relative;width:100%;aspect-ratio:16/9;background:#050606;display:grid;place-items:center;overflow:hidden;">
+      <iframe id="rhk-live-camera-frame" title="Chicago public camera" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="no-referrer-when-downgrade" style="position:absolute;inset:0;width:100%;height:100%;border:0;background:#050606;"></iframe>
     </div>
-    <div style="display:flex;justify-content:space-between;gap:12px;padding:8px 11px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#777d6d;">
-      <span>PUBLIC CONTINUOUS FEED</span><span>RHKEARTH // CCTV</span>
+    <div style="display:flex;gap:6px;padding:8px 10px 0;flex-wrap:wrap;">
+      ${panelButton('Refresh', 'rhk-live-camera-refresh')}
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:12px;padding:8px 11px;font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:#777d6d;">
+      <span id="rhk-live-camera-semantics">CONTINUOUS / ROLLING LIVE FEED</span><span id="rhk-live-camera-provider">RHKEARTH // CCTV</span>
     </div>`;
   panel.querySelector('#rhk-live-camera-close')?.addEventListener('click', closePanel);
+  panel.querySelector('#rhk-live-camera-refresh')?.addEventListener('click', () => {
+    if (_activeSource) openFeed(_activeSource, true);
+  });
   document.body.appendChild(panel);
   return panel;
 }
@@ -83,17 +103,27 @@ function closePanel() {
   const panel = document.getElementById('rhk-live-camera-panel');
   if (frame) frame.src = 'about:blank';
   if (panel) panel.style.display = 'none';
+  _activeSource = null;
 }
 
-function openFeed(source) {
+function openFeed(source, force = false) {
   if (!source?.embedUrl || !_enabled) return;
+  _activeSource = source;
   const panel = makePanel();
   const title = panel.querySelector('#rhk-live-camera-title');
   const meta = panel.querySelector('#rhk-live-camera-meta');
+  const provider = panel.querySelector('#rhk-live-camera-provider');
+  const semantics = panel.querySelector('#rhk-live-camera-semantics');
   const frame = panel.querySelector('#rhk-live-camera-frame');
-  if (title) title.textContent = source.name || 'LIVE CCTV';
-  if (meta) meta.textContent = `${String(source.category || 'camera').toUpperCase()} · ${String(source.feedType || 'LIVE').toUpperCase()} · CHICAGO`;
-  if (frame) frame.src = source.embedUrl;
+  if (title) title.textContent = source.name || 'PUBLIC CAMERA';
+  if (meta) meta.textContent = ['CHICAGO', source.category].filter(Boolean).join(' · ').toUpperCase();
+  if (provider) provider.textContent = String(source.provider || 'PUBLIC SOURCE').toUpperCase();
+  if (semantics) semantics.textContent = 'CONTINUOUS / ROLLING LIVE FEED';
+  if (frame) {
+    const url = String(source.embedUrl);
+    const separator = url.includes('?') ? '&' : '?';
+    frame.src = force ? `${url}${separator}rhk=${Date.now()}` : url;
+  }
   panel.style.display = 'block';
 }
 
@@ -328,4 +358,4 @@ state_text = state.read_text(encoding='utf-8')
 state_text = state_text.replace("  Object.freeze({ id: 'chicago-live-cameras', token: 'v', disposition: 'enabled-only' }),\n", '')
 state.write_text(state_text, encoding='utf-8')
 
-print('RHKEARTH Chicago continuous-live cameras folded into existing CCTV layer with viewport gating')
+print('RHKEARTH Chicago continuous-live cameras folded into existing CCTV layer with globally unified viewer')
