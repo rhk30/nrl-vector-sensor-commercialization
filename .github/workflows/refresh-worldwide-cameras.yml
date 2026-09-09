@@ -32,6 +32,7 @@ jobs:
           from pathlib import Path
           from datetime import datetime, timezone
           from urllib.parse import urljoin
+          import html
           import json
           import re
           import time
@@ -131,7 +132,7 @@ jobs:
               data = get_json('https://www.travelmidwest.com/lmiga/cameraReport.json', timeout=20)
               rows = data.get('cameraReports') if isinstance(data, dict) else data
               rows = rows if isinstance(rows, list) else []
-              for i, cam in enumerate(rows[:1200]):
+              for i, cam in enumerate(rows):
                   add('Illinois DOT / TravelMidwest', f'idot-{cam.get("id") or i}', cam.get('latitude'), cam.get('longitude'), cam.get('cameraName') or cam.get('description') or 'Illinois traffic camera', cam.get('imageUrl') or cam.get('url'), city='Illinois', country='US', refresh_ms=15000)
 
           def load_wsdot():
@@ -141,11 +142,52 @@ jobs:
                   add('WSDOT', f'wsdot-{cam.get("CameraID")}', loc.get('Latitude'), loc.get('Longitude'), cam.get('Title') or 'Washington traffic camera', cam.get('ImageURL'), city='Washington', country='US', refresh_ms=15000)
 
           def load_caltrans():
-              url = 'https://caltrans-gis.dot.ca.gov/arcgis/rest/services/CHhighway/CCTV/FeatureServer/0/query?where=1%3D1&outFields=OBJECTID%2Clatitude%2Clongitude%2CcurrentImageURL%2ClocationName%2CnearbyPlace%2Ccounty&returnGeometry=false&resultRecordCount=5000&f=json'
+              url = 'https://caltrans-gis.dot.ca.gov/arcgis/rest/services/CHhighway/CCTV/FeatureServer/0/query?where=1%3D1&outFields=OBJECTID%2Clatitude%2Clongitude%2CcurrentImageURL%2ClocationName%2CnearbyPlace%2Ccounty&returnGeometry=false&resultRecordCount=10000&f=json'
               data = get_json(url, timeout=35)
               for feature in data.get('features') or []:
                   p = feature.get('attributes') or {}
                   add('Caltrans', f'caltrans-{p.get("OBJECTID")}', p.get('latitude'), p.get('longitude'), p.get('locationName') or 'Caltrans camera', p.get('currentImageURL'), city=p.get('nearbyPlace') or p.get('county') or 'California', country='US', refresh_ms=15000)
+
+          # Adapted from OSIRIS ODOT TripCheck provider (MIT).
+          def load_oregon():
+              data = get_json('https://www.tripcheck.com/Scripts/map/data/cctvinventory.js', timeout=30)
+              for feature in data.get('features') or []:
+                  p = feature.get('attributes') or {}
+                  filename = str(p.get('filename') or '').strip()
+                  if not filename:
+                      continue
+                  try:
+                      lat = float(p.get('latitude'))
+                      lon = float(p.get('longitude'))
+                  except (TypeError, ValueError):
+                      continue
+                  if not (41.9 <= lat <= 46.3 and -124.6 <= lon <= -116.4):
+                      continue
+                  cid = p.get('cameraId')
+                  add('ODOT TripCheck', f'odot-{cid}', lat, lon, p.get('title') or p.get('route') or f'ODOT Camera {cid}', f'https://tripcheck.com/RoadCams/cams/{filename}', city=p.get('route') or 'Oregon', country='US', refresh_ms=15000, source_kind='osiris-derived-public-camera-adapter')
+
+          # Adapted from OSIRIS MDOT MiDrive provider (MIT).
+          def load_michigan():
+              data = get_json('https://mdotjboss.state.mi.us/MiDrive/camera/list', timeout=30)
+              if not isinstance(data, list):
+                  return
+              for rec in data:
+                  county_html = html.unescape(str(rec.get('county') or ''))
+                  image_html = html.unescape(str(rec.get('image') or ''))
+                  coords = re.search(r'lat=(-?[\d.]+)&(?:amp;)?lon=(-?[\d.]+)', county_html)
+                  src = re.search(r'src=["\'](https://[^"\']+)["\']', image_html)
+                  cid = re.search(r'[?&]id=(\d+)', county_html)
+                  if not coords or not src or not cid:
+                      continue
+                  lat, lon = float(coords.group(1)), float(coords.group(2))
+                  if not (41.6 <= lat <= 48.3 and -90.5 <= lon <= -82.1):
+                      continue
+                  route = str(rec.get('route') or '').strip()
+                  location = str(rec.get('location') or '').strip()
+                  label = ' '.join(x for x in [route, location] if x) or f'MDOT Camera {cid.group(1)}'
+                  county = re.sub(r'<[^>]+>', ' ', county_html)
+                  county = re.sub(r'\s+', ' ', county).strip()
+                  add('MDOT MiDrive', f'mdot-{cid.group(1)}', lat, lon, label, src.group(1), city=county or 'Michigan', country='US', refresh_ms=15000, source_kind='osiris-derived-public-camera-adapter')
 
           def load_ontario():
               data = get_json('https://511on.ca/api/v2/get/cameras', timeout=25)
@@ -227,6 +269,8 @@ jobs:
               ('Illinois DOT / TravelMidwest', load_idot),
               ('WSDOT', load_wsdot),
               ('Caltrans', load_caltrans),
+              ('ODOT TripCheck', load_oregon),
+              ('MDOT MiDrive', load_michigan),
               ('511 Ontario', load_ontario),
               ('DriveBC', load_drivebc),
               ('HK Transport Dept', load_hongkong),
@@ -237,7 +281,8 @@ jobs:
           ]:
               run_provider(provider, loader)
 
-          # Exact-id dedupe. A source that repeats an ID should not crash Cesium.
+          # Exact-id dedupe. No camera-count truncation: retain every valid source
+          # returned by the configured public networks.
           dedup = {}
           for row in sources:
               dedup[str(row.get('id'))] = row
@@ -255,6 +300,7 @@ jobs:
               'source': 'Official/public transportation camera networks',
               'feedSemantics': 'near-real-time provider-refreshed images; continuous video remains explicitly labeled separately',
               'providers': provider_counts,
+              'renderPolicy': 'full valid catalog; no arbitrary camera-count truncation',
               'architectureNote': 'Provider selection and failure-isolation approach adapted from simplifaisoul/osiris (MIT); RHKEARTH queries original public sources directly.',
           }, separators=(',', ':'), ensure_ascii=False) + '\n')
           print('worldwide camera total:', len(sources), provider_counts)
@@ -272,6 +318,7 @@ jobs:
           assert all(-90 <= float(r['lat']) <= 90 and -180 <= float(r['lon']) <= 180 for r in rows)
           providers = {r.get('provider') for r in rows}
           assert len(providers) >= 3, providers
+          assert data.get('renderPolicy') == 'full valid catalog; no arbitrary camera-count truncation'
           print('validated', len(rows), 'cameras from', len(providers), 'providers')
           PY
 
