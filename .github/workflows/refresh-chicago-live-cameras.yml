@@ -19,7 +19,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
 
     steps:
       - name: Check out RHKEARTH
@@ -33,6 +33,7 @@ jobs:
           from pathlib import Path
           from datetime import datetime, timezone
           from urllib.parse import urlencode, urljoin
+          import hashlib
           import json
           import re
           import urllib.request
@@ -41,10 +42,7 @@ jobs:
           UA = 'RHKEARTH/1.0 (+https://rhkearth.com/experimental/; public roadway camera catalog)'
 
           def request(url, *, body=None, headers=None, timeout=35):
-              merged = {
-                  'User-Agent': UA,
-                  'Accept': 'application/json,image/*,*/*',
-              }
+              merged = {'User-Agent': UA, 'Accept': 'application/json,image/*,*/*'}
               if headers:
                   merged.update(headers)
               req = urllib.request.Request(
@@ -54,18 +52,18 @@ jobs:
                   method='POST' if body is not None else 'GET',
               )
               with urllib.request.urlopen(req, timeout=timeout) as response:
-                  if response.status < 200 or response.status >= 300:
+                  if not 200 <= response.status < 300:
                       raise RuntimeError(f'HTTP {response.status}: {url}')
                   return response.read(), dict(response.headers)
+
+          def stable_id(prefix, lat, lon, name):
+              digest = hashlib.sha1(f'{lat:.6f}|{lon:.6f}|{name}'.encode('utf-8')).hexdigest()[:14]
+              return f'{prefix}-{digest}'
 
           sources = []
           provider_counts = {}
 
-          # -----------------------------------------------------------------
-          # Indiana: official INDOT TrafficWise / 511IN public camera map.
-          # Request the complete Indiana bounds at a non-clustered zoom and
-          # retain still-image camera views only (not HLS/video/player pages).
-          # -----------------------------------------------------------------
+          # Indiana — statewide INDOT TrafficWise / 511IN public camera map.
           endpoint = 'https://511in.org/api/graphql'
           gql = '''query MapFeatures($input: MapFeaturesArgs!) {
             mapFeaturesQuery(input: $input) {
@@ -83,21 +81,13 @@ jobs:
           }'''
           body = json.dumps({
               'query': gql,
-              'variables': {
-                  'input': {
-                      'north': 41.9,
-                      'south': 37.7,
-                      'east': -84.6,
-                      'west': -88.2,
-                      'zoom': 16,
-                      'layerSlugs': ['normalCameras'],
-                      'nonClusterableUris': None,
-                  }
-              },
+              'variables': {'input': {
+                  'north': 41.9, 'south': 37.7, 'east': -84.6, 'west': -88.2,
+                  'zoom': 16, 'layerSlugs': ['normalCameras'], 'nonClusterableUris': None,
+              }},
           }).encode('utf-8')
           raw, _ = request(endpoint, body=body, headers={
-              'Content-Type': 'application/json',
-              'Referer': 'https://511in.org/',
+              'Content-Type': 'application/json', 'Referer': 'https://511in.org/',
           })
           payload = json.loads(raw.decode('utf-8'))
           feats = (((payload.get('data') or {}).get('mapFeaturesQuery') or {}).get('mapFeatures') or [])
@@ -105,8 +95,8 @@ jobs:
           for i, feature in enumerate(feats):
               if feature.get('__typename') != 'Camera' or feature.get('active') is False:
                   continue
-              geometries = feature.get('features') or []
-              coords = (((geometries[0] if geometries else {}).get('geometry') or {}).get('coordinates') or [])
+              geoms = feature.get('features') or []
+              coords = (((geoms[0] if geoms else {}).get('geometry') or {}).get('coordinates') or [])
               if len(coords) < 2:
                   continue
               try:
@@ -115,51 +105,106 @@ jobs:
                   continue
               if not (37.7 <= lat <= 41.9 and -88.2 <= lon <= -84.6):
                   continue
-
               views = []
               for view in feature.get('views') or []:
                   url = str(view.get('url') or '').strip()
                   low = url.lower()
-                  if not url.startswith('https://'):
+                  if not url.startswith('https://') or '.m3u8' in low or 'youtube.com' in low or 'youtu.be' in low:
                       continue
-                  if '.m3u8' in low or 'youtube.com' in low or 'youtu.be' in low:
+                  if url in [v['url'] for v in views]:
                       continue
-                  category = str(view.get('category') or 'Camera').strip()
-                  if url not in [v['url'] for v in views]:
-                      views.append({'label': category or 'Camera', 'url': url})
+                  views.append({'label': str(view.get('category') or 'Camera').strip() or 'Camera', 'url': url})
               if not views:
                   continue
-
               match = re.search(r'camera/(\d+)', str(feature.get('uri') or ''))
               cid = match.group(1) if match else str(i)
               sources.append({
                   'id': f'indot-{cid}',
                   'name': str(feature.get('title') or f'INDOT Camera {cid}')[:180],
-                  'category': 'traffic',
-                  'lat': lat,
-                  'lon': lon,
-                  'feedType': 'image',
-                  'url': views[0]['url'],
-                  'snapshotUrl': views[0]['url'],
-                  'mediaUrl': views[0]['url'],
-                  'views': views,
-                  'refreshMs': 30000,
-                  'provider': 'INDOT TrafficWise / 511IN',
-                  'city': 'Indiana',
-                  'state': 'IN',
-                  'country': 'US',
+                  'category': 'traffic', 'lat': lat, 'lon': lon, 'feedType': 'image',
+                  'url': views[0]['url'], 'snapshotUrl': views[0]['url'], 'mediaUrl': views[0]['url'],
+                  'views': views, 'refreshMs': 30000,
+                  'provider': 'INDOT TrafficWise / 511IN', 'city': 'Indiana', 'state': 'IN', 'country': 'US',
                   'sourceKind': 'official-state-dot-camera',
                   'liveSemantics': 'near-real-time roadway CCTV image',
               })
               in_count += 1
           provider_counts['INDOT TrafficWise / 511IN'] = in_count
 
-          # -----------------------------------------------------------------
-          # Illinois: official Illinois Tollway Virtual Tollway public camera
-          # layer. This is a genuinely public camera-image endpoint used by
-          # the Tollway's own map. It currently exposes 25 camera locations,
-          # often with two directional views per location.
-          # -----------------------------------------------------------------
+          # Illinois — IDOT's public ArcGIS view of Travel Midwest cameras.
+          # The service publishes one feature per direction, so collapse E/N/S/W
+          # snapshots into one map marker with multiple selectable views.
+          tm_query = 'https://services2.arcgis.com/aIrBD8yn1TDTEXoz/arcgis/rest/services/TrafficCamerasTM_Public/FeatureServer/0/query'
+          tm_groups = {}
+          offset = 0
+          tm_feature_count = 0
+          while offset < 10000:
+              params = {
+                  'where': 'y > 36.9 AND y < 42.6 AND x > -91.6 AND x < -87.0',
+                  'outFields': 'OBJECTID,CameraLocation,CameraDirection,y,x,SnapShot,WarningAge,TooOld,AgeInMinutes',
+                  'returnGeometry': 'false', 'f': 'json', 'resultRecordCount': '1000',
+                  'resultOffset': str(offset), 'orderByFields': 'OBJECTID ASC',
+              }
+              tm_raw, _ = request(tm_query + '?' + urlencode(params))
+              tm_payload = json.loads(tm_raw.decode('utf-8'))
+              if tm_payload.get('error'):
+                  raise RuntimeError(f"IDOT public camera layer error: {tm_payload['error']}")
+              page = tm_payload.get('features') or []
+              tm_feature_count += len(page)
+              for feature in page:
+                  attrs = feature.get('attributes') or {}
+                  try:
+                      lat, lon = float(attrs.get('y')), float(attrs.get('x'))
+                  except (TypeError, ValueError):
+                      continue
+                  snapshot = str(attrs.get('SnapShot') or '').strip()
+                  # Keep Illinois-owned/identified records only; the public
+                  # Travel Midwest layer also contains neighboring-state rows.
+                  if '/IL-' not in snapshot.upper() or not snapshot.startswith('https://'):
+                      continue
+                  if str(attrs.get('TooOld') or '').strip().lower() == 'true':
+                      continue
+                  name = str(attrs.get('CameraLocation') or '').strip()
+                  if not name:
+                      continue
+                  key = (round(lat, 6), round(lon, 6), name)
+                  group = tm_groups.setdefault(key, {'lat': lat, 'lon': lon, 'name': name, 'views': [], 'ages': []})
+                  direction = str(attrs.get('CameraDirection') or '').strip().upper() or f'View {len(group["views"]) + 1}'
+                  if snapshot not in [v['url'] for v in group['views']]:
+                      group['views'].append({'label': direction, 'url': snapshot})
+                  try:
+                      group['ages'].append(int(attrs.get('AgeInMinutes')))
+                  except (TypeError, ValueError):
+                      pass
+              if not page:
+                  break
+              if len(page) < 1000 and not tm_payload.get('exceededTransferLimit'):
+                  break
+              offset += len(page)
+
+          idot_il_count = 0
+          for group in tm_groups.values():
+              views = group['views']
+              if not views:
+                  continue
+              lat, lon, name = group['lat'], group['lon'], group['name']
+              sources.append({
+                  'id': stable_id('idot-tm', lat, lon, name),
+                  'name': name[:180], 'category': 'traffic', 'lat': lat, 'lon': lon, 'feedType': 'image',
+                  'url': views[0]['url'], 'snapshotUrl': views[0]['url'], 'mediaUrl': views[0]['url'],
+                  'views': views, 'refreshMs': 30000,
+                  'provider': 'IDOT / Travel Midwest Public Camera Layer',
+                  'city': 'Illinois', 'state': 'IL', 'country': 'US',
+                  'sourceKind': 'official-public-state-camera-layer',
+                  'ageMinutes': min(group['ages']) if group['ages'] else None,
+                  'liveSemantics': 'near-real-time roadway CCTV image',
+              })
+              idot_il_count += 1
+          provider_counts['IDOT / Travel Midwest Public Camera Layer'] = idot_il_count
+          provider_counts['IDOT directional records'] = tm_feature_count
+
+          # Illinois Tollway — separate official public map, retained as an
+          # additional source/fallback for the Tollway network.
           cfg_raw, _ = request('https://www.illinoisvirtualtollway.com/config.json', headers={
               'Referer': 'https://www.illinoisvirtualtollway.com/',
           })
@@ -169,22 +214,15 @@ jobs:
           image_base = str((cfg.get('trafficCameras') or {}).get('baseURL') or '')
           if not map_url or camera_layer is None or not image_base.startswith('https://'):
               raise RuntimeError('Illinois Virtual Tollway camera configuration incomplete')
-
-          query = urlencode({
-              'where': '1=1',
-              'outFields': '*',
-              'returnGeometry': 'true',
-              'outSR': '4326',
-              'f': 'json',
-          })
+          query = urlencode({'where': '1=1', 'outFields': '*', 'returnGeometry': 'true', 'outSR': '4326', 'f': 'json'})
           il_raw, _ = request(f'{map_url}/{camera_layer}/query?{query}', headers={
               'Referer': 'https://www.illinoisvirtualtollway.com/',
           })
           il_payload = json.loads(il_raw.decode('utf-8'))
           if il_payload.get('error'):
-              raise RuntimeError(f"Illinois camera service error: {il_payload['error']}")
+              raise RuntimeError(f"Illinois Tollway camera service error: {il_payload['error']}")
 
-          il_count = 0
+          tollway_count = 0
           for feature in il_payload.get('features') or []:
               attrs = feature.get('attributes') or {}
               geometry = feature.get('geometry') or {}
@@ -193,9 +231,6 @@ jobs:
                   lon = float(attrs.get('longitude') if attrs.get('longitude') is not None else geometry.get('x'))
               except (TypeError, ValueError):
                   continue
-              if not (36.9 <= lat <= 42.6 and -91.6 <= lon <= -87.0):
-                  continue
-
               views = []
               for n in range(1, 9):
                   rel = str(attrs.get(f'Ap{n}File') or '').strip()
@@ -205,57 +240,46 @@ jobs:
                   if not image.startswith('https://'):
                       continue
                   label = str(attrs.get(f'Ap{n}Desc') or attrs.get(f'Ap{n}Dir') or f'View {n}').strip()
-                  views.append({'label': label or f'View {n}', 'url': image})
+                  if image not in [v['url'] for v in views]:
+                      views.append({'label': label or f'View {n}', 'url': image})
               if not views:
                   continue
-
-              oid = attrs.get('OBJECTID') or attrs.get('CamID') or il_count
-              name = attrs.get('DisplayName') or attrs.get('CamDesc') or f'Illinois Tollway Camera {oid}'
+              oid = attrs.get('OBJECTID') or attrs.get('CamID') or tollway_count
+              name = str(attrs.get('DisplayName') or attrs.get('CamDesc') or f'Illinois Tollway Camera {oid}')
               sources.append({
                   'id': f'illinois-tollway-{oid}',
-                  'name': str(name)[:180],
-                  'category': 'traffic',
-                  'lat': lat,
-                  'lon': lon,
-                  'feedType': 'image',
-                  'url': views[0]['url'],
-                  'snapshotUrl': views[0]['url'],
-                  'mediaUrl': views[0]['url'],
-                  'views': views,
-                  'refreshMs': 300000,
+                  'name': name[:180], 'category': 'traffic', 'lat': lat, 'lon': lon, 'feedType': 'image',
+                  'url': views[0]['url'], 'snapshotUrl': views[0]['url'], 'mediaUrl': views[0]['url'],
+                  'views': views, 'refreshMs': 300000,
                   'provider': 'Illinois Tollway / Virtual Tollway',
-                  'city': 'Illinois Tollway',
-                  'state': 'IL',
-                  'country': 'US',
-                  'roadway': str(attrs.get('Road') or ''),
-                  'milepost': attrs.get('MP'),
+                  'city': 'Illinois Tollway', 'state': 'IL', 'country': 'US',
+                  'roadway': str(attrs.get('Road') or ''), 'milepost': attrs.get('MP'),
                   'sourceKind': 'official-public-tollway-camera',
                   'liveSemantics': 'provider-refreshed roadway CCTV image',
               })
-              il_count += 1
-          provider_counts['Illinois Tollway / Virtual Tollway'] = il_count
+              tollway_count += 1
+          provider_counts['Illinois Tollway / Virtual Tollway'] = tollway_count
 
-          # Exact-ID dedupe only. Same-location alternate directions remain in
-          # `views` on a single marker rather than creating stacked map points.
           sources = list({str(row['id']): row for row in sources}.values())
-          sources.sort(key=lambda row: (row.get('state', ''), row.get('name', ''), row['id']))
+          sources.sort(key=lambda row: (row.get('state', ''), row.get('provider', ''), row.get('name', ''), row['id']))
 
-          if in_count < 100:
-              raise SystemExit(f'INDOT catalog unexpectedly small: {in_count}')
-          if il_count < 20:
-              raise SystemExit(f'Illinois Tollway catalog unexpectedly small: {il_count}')
+          if in_count < 300:
+              raise SystemExit(f'INDOT statewide catalog unexpectedly small: {in_count}')
+          if idot_il_count < 1000:
+              raise SystemExit(f'IDOT public Illinois catalog unexpectedly small: {idot_il_count}')
+          if tollway_count < 20:
+              raise SystemExit(f'Illinois Tollway catalog unexpectedly small: {tollway_count}')
 
           OUT.parent.mkdir(exist_ok=True)
           OUT.write_text(json.dumps({
               'sources': sources,
               'fetchedAt': int(datetime.now(timezone.utc).timestamp() * 1000),
-              'source': 'Official Illinois Tollway and INDOT public roadway cameras',
+              'source': 'Official/public Illinois and Indiana roadway camera layers',
               'providerCounts': provider_counts,
-              'coverage': 'Indiana statewide via INDOT TrafficWise plus the Illinois Tollway public camera network.',
-              'illinoisNote': 'Full statewide IDOT/Travel Midwest bulk camera reuse is not included because its raw redistribution feed requires registration/agreement.',
-              'policy': 'Roadway CCTV images only. No YouTube, generic webcams, or third-party camera-page embeds.',
+              'coverage': 'Indiana statewide via INDOT TrafficWise; Illinois via the IDOT/Travel Midwest public ArcGIS camera layer plus Illinois Tollway Virtual Tollway cameras.',
+              'policy': 'Roadway CCTV images only. No YouTube, generic webcams, or third-party camera-page embeds. Directional snapshots are grouped into one marker where possible.',
           }, separators=(',', ':'), ensure_ascii=False) + '\n', encoding='utf-8')
-          print('provider counts', provider_counts, 'total', len(sources))
+          print('provider counts', provider_counts, 'total markers', len(sources))
           PY
 
       - name: Validate real roadway camera images
@@ -267,22 +291,22 @@ jobs:
 
           data = json.load(open('experimental-data/chicago-live-cameras.json'))
           rows = data.get('sources') or []
-          in_rows = [r for r in rows if r.get('state') == 'IN']
-          il_rows = [r for r in rows if r.get('state') == 'IL']
-
-          assert len(in_rows) >= 100, len(in_rows)
-          assert len(il_rows) >= 20, len(il_rows)
+          groups = {
+              'INDOT': [r for r in rows if r.get('provider') == 'INDOT TrafficWise / 511IN'],
+              'IDOT': [r for r in rows if r.get('provider') == 'IDOT / Travel Midwest Public Camera Layer'],
+              'TOLLWAY': [r for r in rows if r.get('provider') == 'Illinois Tollway / Virtual Tollway'],
+          }
+          assert len(groups['INDOT']) >= 300, len(groups['INDOT'])
+          assert len(groups['IDOT']) >= 1000, len(groups['IDOT'])
+          assert len(groups['TOLLWAY']) >= 20, len(groups['TOLLWAY'])
           assert all(str(r.get('feedType') or '').lower() == 'image' for r in rows)
           assert all(str(r.get('snapshotUrl') or '').startswith('https://') for r in rows)
           assert not any('youtube.com' in json.dumps(r).lower() or 'youtu.be' in json.dumps(r).lower() for r in rows)
           assert len({r.get('id') for r in rows}) == len(rows)
 
-          def image_ok(row):
-              url = row['snapshotUrl']
-              req = urllib.request.Request(url, headers={
-                  'User-Agent': 'Mozilla/5.0 RHKEARTH-camera-validation',
-                  'Accept': 'image/*,*/*',
-                  'Referer': 'https://rhkearth.com/experimental/',
+          def view_ok(view):
+              req = urllib.request.Request(view['url'], headers={
+                  'User-Agent': 'Mozilla/5.0 RHKEARTH-camera-validation', 'Accept': 'image/*,*/*',
               })
               with urllib.request.urlopen(req, timeout=20) as response:
                   sample = response.read(64)
@@ -291,17 +315,23 @@ jobs:
                       'image/' in ctype or sample.startswith((b'\xff\xd8\xff', b'\x89PNG', b'GIF8'))
                   )
 
-          for label, group in [('IN', in_rows), ('IL', il_rows)]:
-              good = 0
-              for row in group[:5]:
+          def camera_ok(row):
+              for view in (row.get('views') or [{'url': row['snapshotUrl']}]):
                   try:
-                      good += int(image_ok(row))
+                      if view_ok(view):
+                          return True
                   except Exception as exc:
-                      print(label, 'sample failed', row.get('id'), exc)
-              assert good >= 2, f'{label}: only {good}/5 sample CCTV images reachable'
-              print(label, 'reachable samples', good, 'of', min(5, len(group)))
+                      print('view failed', row.get('id'), view.get('label'), exc)
+              return False
 
-          print('validated roadway CCTV:', len(il_rows), 'Illinois Tollway +', len(in_rows), 'Indiana')
+          requirements = {'INDOT': 4, 'IDOT': 4, 'TOLLWAY': 3}
+          for label, group in groups.items():
+              sample = group[:5]
+              good = sum(1 for row in sample if camera_ok(row))
+              assert good >= requirements[label], f'{label}: only {good}/{len(sample)} sample cameras reachable'
+              print(label, 'reachable sample cameras', good, 'of', len(sample))
+
+          print('validated real roadway CCTV markers:', {k: len(v) for k, v in groups.items()}, 'total', len(rows))
           PY
 
       - name: Commit refreshed regional roadway-camera catalog
