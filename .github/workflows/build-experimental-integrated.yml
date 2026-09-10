@@ -20,6 +20,7 @@ on:
       - scripts/add-chicago-live-cameras.py
       - scripts/add-worldwide-cameras.py
       - scripts/patch-camera-interactions.py
+      - scripts/patch-cctv-marker-colors.py
       - scripts/add-chicago-street-activity.py
       - scripts/rhkearth-weather.js
       - scripts/rhkearth-weather.css
@@ -79,6 +80,7 @@ jobs:
           python ../scripts/tune-experimental-cctv.py
           python ../scripts/add-worldwide-cameras.py
           python ../scripts/patch-camera-interactions.py
+          python ../scripts/patch-cctv-marker-colors.py
 
           grep -q "https://api.adsb.lol/v2/point" src/data/flights.js
           grep -q "normalizeAdsbLolPointResponse" src/data/flights.js
@@ -105,7 +107,10 @@ jobs:
           grep -q "rhk-worldwide-cctv-addon" src/data/worldwideCameras.js
           grep -q "rhk-world-cctv-horizon" src/data/worldwideCameras.js
           grep -q "RHKEARTH precision trackpad navigation" src/main.js
-          grep -q "#c3c8c2" src/data/cctv.js
+          grep -q "#56C8BE" src/data/cctv.js
+          grep -q "#56C8BE" src/data/chicagoLiveCameras.js
+          grep -q "#56C8BE" src/data/worldwideCameras.js
+          grep -q "#F0C66F" src/data/cctv.js
           grep -q "overpass.kumi.systems" src/data/traffic.js
           grep -q "directMediaUrl" src/data/cctv.js
           grep -q "mediaRefreshTimer" src/data/cctv.js
@@ -194,6 +199,8 @@ jobs:
           grep -R -q "rhk-worldwide-cctv-addon" dist/assets
           grep -R -q "rhk-trackpad-pan" dist/assets
           grep -R -q "rhk-world-cctv-horizon" dist/assets
+          grep -R -q "#56C8BE\|#56c8be" dist/assets
+          grep -R -q "#F0C66F\|#f0c66f" dist/assets
           grep -R -q "bell206.glb" dist/assets
           grep -R -q "citation2.glb" dist/assets
           grep -R -q "atr72.glb" dist/assets
