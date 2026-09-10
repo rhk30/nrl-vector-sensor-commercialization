@@ -1,53 +1,47 @@
 from pathlib import Path
+import re
 
 ROOT = Path.cwd()
 
 
-def replace_once(path, old, new, label):
-    target = ROOT / path
-    text = target.read_text(encoding='utf-8')
-    if old not in text:
-        raise SystemExit(f'RHKEARTH {label} patch target missing in {path}')
-    target.write_text(text.replace(old, new, 1), encoding='utf-8')
-
-
 # -----------------------------------------------------------------------------
-# Base CCTV presentation: the original saturated cyan/yellow treatment is
-# visually loud once thousands of cameras share the same globe. Keep the same
-# camera semantics and active-state distinction, but move the layer into the
-# neutral RHKEARTH instrument palette and reduce icon prominence.
+# Base CCTV presentation: calm the camera layer regardless of whether the
+# tactical-palette patch has already changed the upstream colors. Match visual
+# constants by semantic name instead of by their previous literal hex values.
 # -----------------------------------------------------------------------------
 cctv = ROOT / 'src/data/cctv.js'
 cctv_text = cctv.read_text(encoding='utf-8')
-base_replacements = {
-    "const IDLE_CAMERA_COLOR = Cesium.Color.fromCssColorString('#6be8ff').withAlpha(0.88);":
-        "const IDLE_CAMERA_COLOR = Cesium.Color.fromCssColorString('#c3c8c2').withAlpha(0.68);",
-    "const ACTIVE_CAMERA_COLOR = Cesium.Color.fromCssColorString('#ffd97a').withAlpha(0.95);":
-        "const ACTIVE_CAMERA_COLOR = Cesium.Color.fromCssColorString('#eee9dc').withAlpha(0.90);",
-    "const IDLE_COVERAGE_COLOR = Cesium.Color.fromCssColorString('#2fe0ff').withAlpha(0.24);":
-        "const IDLE_COVERAGE_COLOR = Cesium.Color.fromCssColorString('#aeb8b0').withAlpha(0.10);",
-    "const IDLE_COVERAGE_CENTER_MUTED = Cesium.Color.fromCssColorString('#2fe0ff').withAlpha(0.2);":
-        "const IDLE_COVERAGE_CENTER_MUTED = Cesium.Color.fromCssColorString('#aeb8b0').withAlpha(0.08);",
-    "const IDLE_COVERAGE_EDGE_MUTED = Cesium.Color.fromCssColorString('#2fe0ff').withAlpha(0.18);":
-        "const IDLE_COVERAGE_EDGE_MUTED = Cesium.Color.fromCssColorString('#aeb8b0').withAlpha(0.07);",
-    "const ACTIVE_COVERAGE_EDGE = Cesium.Color.fromCssColorString('#8dff87').withAlpha(0.58);":
-        "const ACTIVE_COVERAGE_EDGE = Cesium.Color.fromCssColorString('#d8ddd7').withAlpha(0.28);",
-    "const ACTIVE_COVERAGE_CENTER = Cesium.Color.fromCssColorString('#d7ff8d').withAlpha(0.82);":
-        "const ACTIVE_COVERAGE_CENTER = Cesium.Color.fromCssColorString('#eee9dc').withAlpha(0.42);",
-    "const ACTIVE_COVERAGE_EDGE_DEPTHFAIL = Cesium.Color.fromCssColorString('#8dff87').withAlpha(0.18);":
-        "const ACTIVE_COVERAGE_EDGE_DEPTHFAIL = Cesium.Color.fromCssColorString('#d8ddd7').withAlpha(0.10);",
-    "const ACTIVE_COVERAGE_CENTER_DEPTHFAIL = Cesium.Color.fromCssColorString('#d7ff8d').withAlpha(0.26);":
-        "const ACTIVE_COVERAGE_CENTER_DEPTHFAIL = Cesium.Color.fromCssColorString('#eee9dc').withAlpha(0.14);",
-    "const PLANE_OUTLINE_COLOR = Cesium.Color.fromCssColorString('#6be8ff').withAlpha(0.55);":
-        "const PLANE_OUTLINE_COLOR = Cesium.Color.fromCssColorString('#c3c8c2').withAlpha(0.34);",
-    "        width: 24,\n        height: 24,":
-        "        width: 18,\n        height: 18,",
-    "      record.billboard.scale = isActive ? 1.25 : 1.0;":
-        "      record.billboard.scale = isActive ? 1.12 : 0.92;",
-}
-for old, new in base_replacements.items():
+
+
+def replace_color_constant(text, name, css, alpha):
+    pattern = rf"const {re.escape(name)} = Cesium\.Color\.fromCssColorString\('[^']+'\)\.withAlpha\([^)]+\);"
+    replacement = f"const {name} = Cesium.Color.fromCssColorString('{css}').withAlpha({alpha});"
+    updated, count = re.subn(pattern, replacement, text, count=1)
+    if count != 1:
+        raise SystemExit(f'RHKEARTH CCTV color constant missing: {name}')
+    return updated
+
+
+for name, css, alpha in [
+    ('IDLE_CAMERA_COLOR', '#c3c8c2', '0.68'),
+    ('ACTIVE_CAMERA_COLOR', '#eee9dc', '0.90'),
+    ('IDLE_COVERAGE_COLOR', '#aeb8b0', '0.10'),
+    ('IDLE_COVERAGE_CENTER_MUTED', '#aeb8b0', '0.08'),
+    ('IDLE_COVERAGE_EDGE_MUTED', '#aeb8b0', '0.07'),
+    ('ACTIVE_COVERAGE_EDGE', '#d8ddd7', '0.28'),
+    ('ACTIVE_COVERAGE_CENTER', '#eee9dc', '0.42'),
+    ('ACTIVE_COVERAGE_EDGE_DEPTHFAIL', '#d8ddd7', '0.10'),
+    ('ACTIVE_COVERAGE_CENTER_DEPTHFAIL', '#eee9dc', '0.14'),
+    ('PLANE_OUTLINE_COLOR', '#c3c8c2', '0.34'),
+]:
+    cctv_text = replace_color_constant(cctv_text, name, css, alpha)
+
+for old, new, label in [
+    ("        width: 24,\n        height: 24,", "        width: 18,\n        height: 18,", 'billboard size'),
+    ("      record.billboard.scale = isActive ? 1.25 : 1.0;", "      record.billboard.scale = isActive ? 1.12 : 0.92;", 'active scale'),
+]:
     if old not in cctv_text:
-        raise SystemExit(f'RHKEARTH CCTV calm-visual patch target missing: {old[:72]}')
+        raise SystemExit(f'RHKEARTH CCTV calm-visual patch target missing: {label}')
     cctv_text = cctv_text.replace(old, new, 1)
 cctv.write_text(cctv_text, encoding='utf-8')
 
