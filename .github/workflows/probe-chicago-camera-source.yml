@@ -13,38 +13,59 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
-      - name: Inspect TravelMidwest camera payload
+      - name: Inspect current Chicago OpenCCTV feed health
         run: |
           python - <<'PY'
+          import html as htmlmod
           import json
+          import re
           import urllib.request
+          from concurrent.futures import ThreadPoolExecutor, as_completed
 
-          url = 'https://www.travelmidwest.com/lmiga/cameraReport.json'
-          req = urllib.request.Request(url, headers={
-              'User-Agent': 'RHKEARTH/1.0 (+https://rhkearth.com/experimental/)',
-              'Accept': 'application/json,*/*',
-          })
-          with urllib.request.urlopen(req, timeout=25) as r:
-              raw = r.read()
-              print('status', r.status, 'content-type', r.headers.get('Content-Type'), 'bytes', len(raw))
-          data = json.loads(raw.decode('utf-8'))
-          print('root type', type(data).__name__)
-          if isinstance(data, dict):
-              print('root keys', list(data.keys())[:100])
-              for key, value in data.items():
-                  print('KEY', key, 'TYPE', type(value).__name__, 'LEN', len(value) if hasattr(value, '__len__') else '-')
-                  if isinstance(value, list) and value:
-                      print('FIRST LIST ITEM', json.dumps(value[0], ensure_ascii=False)[:5000])
-                  elif isinstance(value, dict):
-                      print('DICT KEYS', list(value.keys())[:100])
-                      for k2, v2 in value.items():
-                          if isinstance(v2, list) and v2:
-                              print('NESTED LIST', key, k2, 'LEN', len(v2), 'FIRST', json.dumps(v2[0], ensure_ascii=False)[:5000])
-                              break
-          elif isinstance(data, list):
-              print('list len', len(data))
-              if data:
-                  print('first', json.dumps(data[0], ensure_ascii=False)[:5000])
+          API='https://raw.githubusercontent.com/rhk30/nrl-vector-sensor-commercialization/main/experimental-data/chicago-live-cameras.json'
+          UA='RHKEARTH/1.0 (+https://rhkearth.com/experimental/)'
+
+          def get(url):
+              req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'text/html,application/xhtml+xml,*/*'})
+              with urllib.request.urlopen(req,timeout=20) as r:
+                  return r.status,r.headers, r.read().decode('utf-8',errors='replace')
+
+          _,_,raw=get(API)
+          payload=json.loads(raw)
+          rows=payload.get('sources') or []
+          print('catalog rows',len(rows))
+
+          def inspect(row):
+              url=str(row.get('embedUrl') or row.get('url') or '')
+              try:
+                  status,headers,text=get(url)
+                  plain=re.sub(r'<[^>]+>',' ',text)
+                  plain=re.sub(r'\s+',' ',htmlmod.unescape(plain))
+                  unavailable=bool(re.search(r'Feed\s+unavailable',plain,re.I))
+                  live=bool(re.search(r'\bLive\b',plain,re.I))
+                  direct=''
+                  # OpenCCTV renders an "Open feed URL" / "Try direct link" anchor.
+                  for href in re.findall(r'href=["\']([^"\']+)["\']',text,re.I):
+                      h=htmlmod.unescape(href)
+                      if h.startswith('http') and ('m3u8' in h.lower() or 'mjpeg' in h.lower() or 'youtube.com' in h.lower() or 'youtu.be' in h.lower()):
+                          direct=h
+                          break
+                  return row.get('id'), row.get('name'), status, unavailable, live, direct, url
+              except Exception as e:
+                  return row.get('id'), row.get('name'), 0, True, False, '', url+' ERR='+repr(e)
+
+          results=[]
+          with ThreadPoolExecutor(max_workers=8) as pool:
+              futs=[pool.submit(inspect,r) for r in rows]
+              for fut in as_completed(futs): results.append(fut.result())
+
+          healthy=[r for r in results if r[2]==200 and not r[3]]
+          with_direct=[r for r in healthy if r[5]]
+          print('healthy pages',len(healthy),'with direct media',len(with_direct))
+          print('--- HEALTHY SAMPLE ---')
+          for r in sorted(healthy,key=lambda x:str(x[1]))[:30]:
+              print(json.dumps({'id':r[0],'name':r[1],'status':r[2],'direct':r[5],'page':r[6]},ensure_ascii=False))
+          print('--- UNAVAILABLE COUNT ---',len(results)-len(healthy))
           PY
