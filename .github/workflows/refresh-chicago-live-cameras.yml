@@ -27,169 +27,224 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Discover embeddable Chicago public cameras
+      - name: Build Chicago metro direct-snapshot catalog
         run: |
           python - <<'PY'
           from pathlib import Path
           from datetime import datetime, timezone
-          from html import unescape
+          from urllib.parse import urljoin
           import json
           import re
           import time
           import urllib.request
 
-          BASE = 'https://opencctv.org'
-          CITY = '/cameras/united-states/illinois/chicago'
           OUT = Path('experimental-data/chicago-live-cameras.json')
-          UA = 'RHKEARTH/1.0 (+https://rhkearth.com/experimental/; public-camera catalog refresh)'
+          WORLDWIDE = Path('experimental-data/worldwide-cameras.json')
+          UA = 'RHKEARTH/1.0 (+https://rhkearth.com/experimental/; Chicago public-camera refresh)'
+          FEED = 'https://www.travelmidwest.com/lmiga/cameraReport.json'
 
-          try:
-              previous = json.loads(OUT.read_text(encoding='utf-8')) if OUT.exists() else {}
-          except Exception:
-              previous = {}
-          previous_rows = previous.get('sources') if isinstance(previous, dict) else []
-          previous_rows = previous_rows if isinstance(previous_rows, list) else []
+          # Chicago metro / northeastern Illinois. This intentionally includes
+          # the urban freeway network around the city rather than only points
+          # inside Chicago's municipal boundary.
+          MIN_LAT, MAX_LAT = 41.45, 42.25
+          MIN_LON, MAX_LON = -88.45, -87.35
 
-          def fetch(url, attempts=3):
+          def in_bounds(lat, lon):
+              return MIN_LAT <= lat <= MAX_LAT and MIN_LON <= lon <= MAX_LON
+
+          def request_json(url, attempts=3):
               last = None
               for attempt in range(attempts):
                   try:
                       req = urllib.request.Request(url, headers={
                           'User-Agent': UA,
-                          'Accept': 'text/html,application/xhtml+xml',
+                          'Accept': 'application/json,*/*',
                       })
-                      with urllib.request.urlopen(req, timeout=20) as response:
-                          if response.status != 200:
+                      with urllib.request.urlopen(req, timeout=25) as response:
+                          if response.status < 200 or response.status >= 300:
                               raise RuntimeError(f'HTTP {response.status}')
-                          return response.read().decode('utf-8', errors='replace')
+                          return json.loads(response.read().decode('utf-8'))
                   except Exception as exc:
                       last = exc
                       if attempt + 1 < attempts:
                           time.sleep(1.5 * (attempt + 1))
-              raise RuntimeError(f'fetch failed {url}: {last}')
+              raise RuntimeError(f'{url}: {last}')
 
-          def clean_html(raw):
-              raw = re.sub(r'<script\b.*?</script>', ' ', raw, flags=re.I | re.S)
-              raw = re.sub(r'<style\b.*?</style>', ' ', raw, flags=re.I | re.S)
-              raw = re.sub(r'<[^>]+>', ' ', raw)
-              return re.sub(r'\s+', ' ', unescape(raw)).strip()
+          def normalize_url(raw):
+              raw = str(raw or '').strip()
+              if not raw:
+                  return ''
+              if raw.startswith('//'):
+                  raw = 'https:' + raw
+              elif not raw.startswith('http'):
+                  raw = urljoin('https://www.travelmidwest.com/', raw)
+              if raw.startswith('http://'):
+                  raw = 'https://' + raw[len('http://'):]
+              return raw if raw.startswith('https://') else ''
 
-          links = []
-          seen = set()
-          for page in range(1, 13):
-              url = f'{BASE}{CITY}' + ('' if page == 1 else f'?page={page}')
-              html = fetch(url)
-              page_added = 0
-              for href in re.findall(r'href=["\']([^"\']+)["\']', html, flags=re.I):
-                  href = unescape(href).split('#', 1)[0]
-                  if not href.startswith(CITY + '/'):
-                      continue
-                  href = href.split('?', 1)[0]
-                  if href in seen:
-                      continue
-                  seen.add(href)
-                  links.append(href)
-                  page_added += 1
-              if page > 1 and page_added == 0:
-                  break
-              time.sleep(0.08)
+          def build_row(cam, index):
+              try:
+                  lat = float(cam.get('latitude'))
+                  lon = float(cam.get('longitude'))
+              except (TypeError, ValueError):
+                  return None
+              if not in_bounds(lat, lon):
+                  return None
+
+              image = normalize_url(cam.get('imageUrl') or cam.get('url'))
+              if not image:
+                  return None
+
+              raw_id = cam.get('id') or cam.get('cameraId') or cam.get('cameraID') or index
+              safe_id = re.sub(r'[^A-Za-z0-9_.:-]+', '-', str(raw_id))[:120]
+              name = (
+                  cam.get('cameraName')
+                  or cam.get('description')
+                  or cam.get('location')
+                  or cam.get('roadway')
+                  or f'Chicago traffic camera {raw_id}'
+              )
+
+              return {
+                  'id': f'chicago-tm-{safe_id}',
+                  'name': str(name)[:180],
+                  'category': 'traffic',
+                  'lat': lat,
+                  'lon': lon,
+                  'feedType': 'image',
+                  'url': image,
+                  'snapshotUrl': image,
+                  'mediaUrl': image,
+                  'refreshMs': 15000,
+                  'provider': 'Illinois DOT / TravelMidwest',
+                  'city': 'Chicago metro',
+                  'state': 'Illinois',
+                  'country': 'US',
+                  'sourceKind': 'official-public-camera',
+                  'liveSemantics': 'near-real-time provider-refreshed image',
+              }
 
           sources = []
-          for i, href in enumerate(links):
+          live_error = None
+          try:
+              data = request_json(FEED)
+              rows = data.get('cameraReports') if isinstance(data, dict) else data
+              rows = rows if isinstance(rows, list) else []
+              for i, cam in enumerate(rows):
+                  if not isinstance(cam, dict):
+                      continue
+                  row = build_row(cam, i)
+                  if row:
+                      sources.append(row)
+              print(f'TravelMidwest live Chicago candidates: {len(sources)}')
+          except Exception as exc:
+              live_error = exc
+              print(f'TravelMidwest live refresh failed: {exc}')
+
+          # Fail-soft fallback: the worldwide RHKEARTH camera catalog already
+          # contains the same official TravelMidwest snapshots. Reuse those
+          # rather than falling back to fragile OpenCCTV webpage embeds.
+          if len(sources) < 20 and WORLDWIDE.exists():
               try:
-                  page_url = BASE + href
-                  raw = fetch(page_url)
-                  text = clean_html(raw)
-
-                  coords = re.search(
-                      r'Coordinates\s+(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)',
-                      text,
-                      flags=re.I,
-                  )
-                  if not coords:
-                      continue
-                  lat, lon = float(coords.group(1)), float(coords.group(2))
-                  if not (40.8 <= lat <= 42.9 and -89.2 <= lon <= -86.8):
-                      continue
-
-                  h1 = re.search(r'<h1[^>]*>(.*?)</h1>', raw, flags=re.I | re.S)
-                  name = clean_html(h1.group(1)) if h1 else href.rstrip('/').split('/')[-1].replace('-', ' ').title()
-                  cam_id = re.search(r'Camera ID\s+(\d+)', text, flags=re.I)
-                  category = re.search(
-                      r'Category\s+([A-Za-z][A-Za-z /&-]{0,40}?)(?=\s+Coordinates\b)',
-                      text,
-                      flags=re.I,
-                  )
-                  source_feed = re.search(r'Feed Type\s+([A-Z0-9]+)', text, flags=re.I)
-                  camera_id = cam_id.group(1) if cam_id else href.rstrip('/').split('-')[-1]
-
-                  # OpenCCTV publishes the camera page itself as its supported
-                  # embed target. Do not mislabel that HTML URL as M3U8/HLS.
-                  # RHKEARTH renders the provider page in an iframe and retains
-                  # the underlying feed type only as descriptive metadata.
-                  sources.append({
-                      'id': f'opencctv-{camera_id}',
-                      'name': name[:160],
-                      'category': category.group(1).strip().lower() if category else 'camera',
-                      'lat': lat,
-                      'lon': lon,
-                      'feedType': 'iframe',
-                      'embedUrl': page_url,
-                      'sourceFeedType': source_feed.group(1).lower() if source_feed else 'unknown',
-                      'provider': 'OpenCCTV / public source',
-                      'city': 'Chicago',
-                      'state': 'Illinois',
-                      'country': 'US',
-                  })
+                  worldwide = json.loads(WORLDWIDE.read_text(encoding='utf-8'))
+                  fallback = []
+                  for i, cam in enumerate(worldwide.get('sources') or []):
+                      if str(cam.get('provider') or '') != 'Illinois DOT / TravelMidwest':
+                          continue
+                      try:
+                          lat = float(cam.get('lat'))
+                          lon = float(cam.get('lon'))
+                      except (TypeError, ValueError):
+                          continue
+                      if not in_bounds(lat, lon):
+                          continue
+                      image = normalize_url(cam.get('snapshotUrl') or cam.get('mediaUrl') or cam.get('url'))
+                      if not image:
+                          continue
+                      raw_id = cam.get('id') or i
+                      fallback.append({
+                          'id': f'chicago-{raw_id}',
+                          'name': str(cam.get('name') or 'Chicago traffic camera')[:180],
+                          'category': 'traffic',
+                          'lat': lat,
+                          'lon': lon,
+                          'feedType': 'image',
+                          'url': image,
+                          'snapshotUrl': image,
+                          'mediaUrl': image,
+                          'refreshMs': int(cam.get('refreshMs') or 15000),
+                          'provider': 'Illinois DOT / TravelMidwest',
+                          'city': 'Chicago metro',
+                          'state': 'Illinois',
+                          'country': 'US',
+                          'sourceKind': 'official-public-camera',
+                          'liveSemantics': 'near-real-time provider-refreshed image',
+                      })
+                  if len(fallback) > len(sources):
+                      sources = fallback
+                      print(f'Using worldwide-catalog TravelMidwest fallback: {len(sources)}')
               except Exception as exc:
-                  print(f'camera skip {href}: {exc}')
-              if i % 12 == 0:
-                  time.sleep(0.10)
+                  print(f'Worldwide TravelMidwest fallback failed: {exc}')
 
-          sources = sorted(
-              {row['id']: row for row in sources}.values(),
-              key=lambda row: (row['category'], row['name'], row['id']),
-          )
+          # Dedupe on geographic position + URL, which avoids stacked camera
+          # dots if the provider repeats the same camera under multiple labels.
+          dedup = {}
+          for row in sources:
+              key = (round(float(row['lat']), 6), round(float(row['lon']), 6), row['url'])
+              dedup[key] = row
+          sources = sorted(dedup.values(), key=lambda row: (row['name'], row['id']))
 
-          if not sources:
-              raise SystemExit('No Chicago camera embeds discovered; preserving previous snapshot')
-
-          if previous_rows and len(previous_rows) >= 20 and len(sources) < max(20, int(len(previous_rows) * 0.5)):
+          if len(sources) < 20:
               raise SystemExit(
-                  f'Chicago camera catalog collapsed from {len(previous_rows)} to {len(sources)}; preserving previous snapshot'
+                  f'Chicago official snapshot catalog produced only {len(sources)} cameras; '
+                  f'live error={live_error!r}. Refusing to publish a degraded catalog.'
               )
 
           OUT.parent.mkdir(exist_ok=True)
           OUT.write_text(json.dumps({
               'sources': sources,
               'fetchedAt': int(datetime.now(timezone.utc).timestamp() * 1000),
-              'source': 'OpenCCTV public embeddable camera pages',
-              'policy': 'Render provider-supported camera pages as iframes; retain underlying media type as metadata.',
-              'catalogCandidates': len(links),
-          }, separators=(',', ':'), ensure_ascii=False) + '\n')
-          print(f'embeddable={len(sources)} catalog_candidates={len(links)}')
+              'source': 'Illinois DOT / TravelMidwest direct public camera snapshots',
+              'policy': 'Direct provider-refreshed image URLs only; no third-party camera-page iframes.',
+              'region': 'Chicago metro / northeastern Illinois',
+          }, separators=(',', ':'), ensure_ascii=False) + '\n', encoding='utf-8')
+          print(f'Chicago direct-snapshot total: {len(sources)}')
           PY
 
-      - name: Validate Chicago camera embeds
+      - name: Validate Chicago direct snapshots
         run: |
           test -s experimental-data/chicago-live-cameras.json
           python - <<'PY'
           import json
+          import urllib.request
 
           data = json.load(open('experimental-data/chicago-live-cameras.json'))
           rows = data.get('sources') or []
-
           assert len(rows) >= 20, f'only {len(rows)} Chicago cameras'
           assert len({r.get('id') for r in rows}) == len(rows), 'duplicate Chicago camera ids'
-          assert all(str(r.get('feedType', '')).lower() == 'iframe' for r in rows)
-          assert all(
-              str(r.get('embedUrl', '')).startswith(
-                  'https://opencctv.org/cameras/united-states/illinois/chicago/'
-              )
-              for r in rows
-          )
-          assert all(40.8 <= float(r['lat']) <= 42.9 and -89.2 <= float(r['lon']) <= -86.8 for r in rows)
-          print('validated', len(rows), 'Chicago embeddable camera pages')
+          assert all(str(r.get('feedType', '')).lower() == 'image' for r in rows)
+          assert all(str(r.get('provider', '')) == 'Illinois DOT / TravelMidwest' for r in rows)
+          assert all(str(r.get('url', '')).startswith('https://') for r in rows)
+          assert all(str(r.get('snapshotUrl', '')).startswith('https://') for r in rows)
+          assert all(41.45 <= float(r['lat']) <= 42.25 and -88.45 <= float(r['lon']) <= -87.35 for r in rows)
+
+          # Probe a few representative snapshots and require actual image bytes.
+          checked = 0
+          for row in rows[:min(8, len(rows))]:
+              req = urllib.request.Request(row['url'], headers={
+                  'User-Agent': 'RHKEARTH/1.0 (+https://rhkearth.com/experimental/)',
+                  'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+              })
+              try:
+                  with urllib.request.urlopen(req, timeout=15) as response:
+                      content_type = str(response.headers.get('Content-Type') or '').lower()
+                      sample = response.read(32)
+                      if response.status == 200 and sample and ('image/' in content_type or sample.startswith((b'\xff\xd8\xff', b'\x89PNG', b'GIF8'))):
+                          checked += 1
+              except Exception as exc:
+                  print('snapshot probe failed:', row.get('id'), exc)
+          assert checked >= 2, f'only {checked} representative Chicago snapshots returned image bytes'
+          print('validated', len(rows), 'Chicago direct-image cameras;', checked, 'sample snapshots reachable')
           PY
 
       - name: Commit refreshed Chicago camera catalog
@@ -212,7 +267,7 @@ jobs:
               exit 0
             fi
 
-            git commit -m "Refresh Chicago embeddable cameras [skip ci]"
+            git commit -m "Refresh Chicago direct-snapshot cameras [skip ci]"
             if git push origin main; then
               exit 0
             fi
