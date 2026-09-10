@@ -5,9 +5,12 @@ ROOT = Path.cwd()
 module = r'''import * as Cesium from 'cesium';
 import { governorRequestRender } from '../renderGovernor.js';
 
+// Historical filename retained so the existing RHKEARTH build/data pipeline
+// does not break. The catalog now covers real roadway cameras in Illinois and
+// Indiana rather than generic Chicago webcams.
 const API_URL = '/experimental/live-data/chicago-live-cameras.json';
-const ENTITY_PREFIX = 'rhk-chicago-livecam:';
-const CHICAGO_RECT = Cesium.Rectangle.fromDegrees(-88.55, 41.45, -87.45, 42.55);
+const ENTITY_PREFIX = 'rhk-il-in-roadcam:';
+const IL_IN_RECT = Cesium.Rectangle.fromDegrees(-91.65, 36.90, -84.55, 42.65);
 
 let _viewer = null;
 let _dataSource = null;
@@ -20,6 +23,8 @@ let _visibleCount = 0;
 let _lastUpdate = null;
 let _lastError = null;
 let _activeSource = null;
+let _activeViewIndex = 0;
+let _imageTimer = 0;
 
 function isMobileUi() {
   return document.body.classList.contains('rhk-mobile-ui') || matchMedia('(max-width: 760px) and (pointer: coarse)').matches;
@@ -34,10 +39,10 @@ function currentViewRectangle() {
   }
 }
 
-function intersectsChicago(rect) {
+function intersectsRegion(rect) {
   if (!rect) return false;
   try {
-    return Boolean(Cesium.Rectangle.intersection(rect, CHICAGO_RECT, new Cesium.Rectangle()));
+    return Boolean(Cesium.Rectangle.intersection(rect, IL_IN_RECT, new Cesium.Rectangle()));
   } catch {
     return false;
   }
@@ -52,7 +57,34 @@ function pointInRect(lat, lon, rect) {
 }
 
 function panelButton(label, id) {
-  return `<button id="${id}" type="button" style="height:30px;padding:0 10px;border:1px solid rgba(169,181,155,.20);border-radius:4px;background:rgba(255,255,255,.025);color:#cfd3c7;font:600 9px/1 Inter,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;">${label}</button>`;
+  return `<button id="${id}" type="button" style="height:30px;padding:0 10px;border:1px solid rgba(86,200,190,.28);border-radius:4px;background:rgba(255,255,255,.025);color:#d7e6e2;font:600 9px/1 Inter,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;">${label}</button>`;
+}
+
+function sourceViews(source) {
+  const raw = Array.isArray(source?.views) ? source.views : [];
+  const views = [];
+  for (const view of raw) {
+    const url = String(view?.url || '').trim();
+    if (!/^https:\/\//i.test(url)) continue;
+    if (/youtube\.com|youtu\.be|\.m3u8(?:$|\?)/i.test(url)) continue;
+    if (views.some((v) => v.url === url)) continue;
+    views.push({ label: String(view?.label || `View ${views.length + 1}`), url });
+  }
+  if (views.length) return views;
+  const fallback = String(source?.snapshotUrl || source?.mediaUrl || source?.url || '').trim();
+  return /^https:\/\//i.test(fallback) && !/youtube\.com|youtu\.be|\.m3u8(?:$|\?)/i.test(fallback)
+    ? [{ label: 'Camera', url: fallback }]
+    : [];
+}
+
+function cacheBust(url) {
+  const sep = String(url).includes('?') ? '&' : '?';
+  return `${url}${sep}rhk=${Date.now()}`;
+}
+
+function stopImageRefresh() {
+  if (_imageTimer) window.clearInterval(_imageTimer);
+  _imageTimer = 0;
 }
 
 function makePanel() {
@@ -60,71 +92,123 @@ function makePanel() {
   if (panel) return panel;
   panel = document.createElement('section');
   panel.id = 'rhk-live-camera-panel';
-  panel.setAttribute('aria-label', 'RHKEARTH public camera viewer');
+  panel.setAttribute('aria-label', 'RHKEARTH Illinois and Indiana roadway camera viewer');
   Object.assign(panel.style, {
     position: 'fixed', right: isMobileUi() ? '10px' : '22px', bottom: isMobileUi() ? '44px' : '24px',
     width: isMobileUi() ? 'calc(100vw - 20px)' : 'min(540px, calc(100vw - 44px))',
     maxHeight: isMobileUi() ? 'min(64vh, 520px)' : 'min(74vh, 620px)',
-    background: 'rgba(8,10,9,.97)', border: '1px solid rgba(169,181,155,.28)',
-    borderRadius: '7px', overflow: 'hidden',
-    boxShadow: '0 18px 55px rgba(0,0,0,.46)', zIndex: '1200', display: 'none',
-    fontFamily: 'Inter, system-ui, sans-serif',
+    background: 'rgba(8,10,9,.97)', border: '1px solid rgba(86,200,190,.28)',
+    borderRadius: '7px', overflow: 'hidden', boxShadow: '0 18px 55px rgba(0,0,0,.46)',
+    zIndex: '1200', display: 'none', fontFamily: 'Inter, system-ui, sans-serif',
   });
   panel.innerHTML = `
-    <div style="display:flex;align-items:center;gap:12px;padding:11px 12px;border-bottom:1px solid rgba(169,181,155,.16);">
+    <div style="display:flex;align-items:center;gap:12px;padding:11px 12px;border-bottom:1px solid rgba(86,200,190,.16);">
       <div style="min-width:0;flex:1;">
         <div style="display:flex;align-items:center;gap:7px;min-width:0;">
-          <span style="width:6px;height:6px;border-radius:50%;background:#A7D7B6;box-shadow:0 0 8px rgba(167,215,182,.35);flex:0 0 auto;"></span>
-          <div id="rhk-live-camera-title" style="font-size:12px;letter-spacing:.10em;text-transform:uppercase;color:#efefe9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">PUBLIC CAMERA</div>
+          <span style="width:6px;height:6px;border-radius:50%;background:#56C8BE;box-shadow:0 0 8px rgba(86,200,190,.35);flex:0 0 auto;"></span>
+          <div id="rhk-live-camera-title" style="font-size:12px;letter-spacing:.10em;text-transform:uppercase;color:#efefe9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">ROADWAY CCTV</div>
         </div>
-        <div id="rhk-live-camera-meta" style="margin-top:4px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#9fc5ad;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">CHICAGO · PUBLIC SOURCE</div>
+        <div id="rhk-live-camera-meta" style="margin-top:4px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#8ed8d2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">ILLINOIS + INDIANA · PUBLIC DOT CAMERA</div>
       </div>
       <button id="rhk-live-camera-close" type="button" aria-label="Close camera" style="border:0;background:transparent;color:#d8dacc;font-size:21px;line-height:1;cursor:pointer;padding:2px 4px;">×</button>
     </div>
-    <div id="rhk-live-camera-media" style="position:relative;width:100%;aspect-ratio:16/9;background:#050606;display:grid;place-items:center;overflow:hidden;">
-      <iframe id="rhk-live-camera-frame" title="Chicago public camera" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="no-referrer-when-downgrade" style="position:absolute;inset:0;width:100%;height:100%;border:0;background:#050606;"></iframe>
-    </div>
+    <div id="rhk-live-camera-media" style="position:relative;width:100%;aspect-ratio:16/9;background:#050606;display:grid;place-items:center;overflow:hidden;"></div>
     <div style="display:flex;gap:6px;padding:8px 10px 0;flex-wrap:wrap;">
       ${panelButton('Refresh', 'rhk-live-camera-refresh')}
+      ${panelButton('Prev view', 'rhk-live-camera-prev-view')}
+      ${panelButton('Next view', 'rhk-live-camera-next-view')}
     </div>
     <div style="display:flex;justify-content:space-between;gap:12px;padding:8px 11px;font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:#777d6d;">
-      <span id="rhk-live-camera-semantics">CONTINUOUS / ROLLING LIVE FEED</span><span id="rhk-live-camera-provider">RHKEARTH // CCTV</span>
+      <span id="rhk-live-camera-semantics">NEAR REAL-TIME · ROADWAY CCTV IMAGE</span><span id="rhk-live-camera-provider">PUBLIC DOT CAMERA</span>
     </div>`;
+
   panel.querySelector('#rhk-live-camera-close')?.addEventListener('click', closePanel);
-  panel.querySelector('#rhk-live-camera-refresh')?.addEventListener('click', () => {
-    if (_activeSource) openFeed(_activeSource, true);
-  });
+  panel.querySelector('#rhk-live-camera-refresh')?.addEventListener('click', () => renderActiveView(true));
+  panel.querySelector('#rhk-live-camera-prev-view')?.addEventListener('click', () => changeView(-1));
+  panel.querySelector('#rhk-live-camera-next-view')?.addEventListener('click', () => changeView(1));
   document.body.appendChild(panel);
   return panel;
 }
 
-function closePanel() {
-  const frame = document.getElementById('rhk-live-camera-frame');
-  const panel = document.getElementById('rhk-live-camera-panel');
-  if (frame) frame.src = 'about:blank';
-  if (panel) panel.style.display = 'none';
-  _activeSource = null;
+function mediaError(message) {
+  const media = document.getElementById('rhk-live-camera-media');
+  if (!media) return;
+  const error = document.createElement('div');
+  error.textContent = message;
+  Object.assign(error.style, {
+    padding: '18px', color: '#a8ab9f', fontSize: '10px', lineHeight: '1.5',
+    letterSpacing: '.07em', textTransform: 'uppercase', textAlign: 'center',
+  });
+  media.replaceChildren(error);
 }
 
-function openFeed(source, force = false) {
-  if (!source?.embedUrl || !_enabled) return;
-  _activeSource = source;
+function closePanel() {
+  stopImageRefresh();
+  const panel = document.getElementById('rhk-live-camera-panel');
+  const media = document.getElementById('rhk-live-camera-media');
+  if (media) media.replaceChildren();
+  if (panel) panel.style.display = 'none';
+  _activeSource = null;
+  _activeViewIndex = 0;
+}
+
+function changeView(delta) {
+  if (!_activeSource) return;
+  const views = sourceViews(_activeSource);
+  if (views.length < 2) return;
+  _activeViewIndex = (_activeViewIndex + delta + views.length) % views.length;
+  renderActiveView(true);
+}
+
+function renderActiveView(force = false) {
+  if (!_activeSource || !_enabled) return;
+  const source = _activeSource;
+  const views = sourceViews(source);
+  if (!views.length) {
+    mediaError('Provider camera image is currently unavailable');
+    return;
+  }
+  _activeViewIndex = Math.min(_activeViewIndex, views.length - 1);
+  const view = views[_activeViewIndex];
   const panel = makePanel();
   const title = panel.querySelector('#rhk-live-camera-title');
   const meta = panel.querySelector('#rhk-live-camera-meta');
   const provider = panel.querySelector('#rhk-live-camera-provider');
   const semantics = panel.querySelector('#rhk-live-camera-semantics');
-  const frame = panel.querySelector('#rhk-live-camera-frame');
-  if (title) title.textContent = source.name || 'PUBLIC CAMERA';
-  if (meta) meta.textContent = ['CHICAGO', source.category].filter(Boolean).join(' · ').toUpperCase();
-  if (provider) provider.textContent = String(source.provider || 'PUBLIC SOURCE').toUpperCase();
-  if (semantics) semantics.textContent = 'CONTINUOUS / ROLLING LIVE FEED';
-  if (frame) {
-    const url = String(source.embedUrl);
-    const separator = url.includes('?') ? '&' : '?';
-    frame.src = force ? `${url}${separator}rhk=${Date.now()}` : url;
-  }
+  const media = panel.querySelector('#rhk-live-camera-media');
+  const prev = panel.querySelector('#rhk-live-camera-prev-view');
+  const next = panel.querySelector('#rhk-live-camera-next-view');
+
+  if (title) title.textContent = source.name || 'ROADWAY CCTV';
+  if (meta) meta.textContent = [source.state || source.city, view.label, source.roadway].filter(Boolean).join(' · ').toUpperCase();
+  if (provider) provider.textContent = String(source.provider || 'PUBLIC DOT CAMERA').toUpperCase();
+  if (semantics) semantics.textContent = views.length > 1
+    ? `ROADWAY CCTV IMAGE · VIEW ${_activeViewIndex + 1}/${views.length}`
+    : 'NEAR REAL-TIME · ROADWAY CCTV IMAGE';
+  if (prev) prev.style.display = views.length > 1 ? '' : 'none';
+  if (next) next.style.display = views.length > 1 ? '' : 'none';
+  if (!media) return;
+
+  stopImageRefresh();
+  media.replaceChildren();
+  const image = document.createElement('img');
+  image.alt = `${source.name || 'Roadway camera'} — ${view.label}`;
+  image.referrerPolicy = 'no-referrer-when-downgrade';
+  image.addEventListener('error', () => mediaError('Provider camera image is temporarily unavailable'));
+  Object.assign(image.style, { width: '100%', height: '100%', objectFit: 'contain', background: '#050606' });
+  const refresh = () => { image.src = force ? cacheBust(view.url) : cacheBust(view.url); };
+  refresh();
+  media.appendChild(image);
+  const refreshMs = Math.max(15000, Number(source.refreshMs) || 30000);
+  _imageTimer = window.setInterval(refresh, refreshMs);
   panel.style.display = 'block';
+}
+
+function openFeed(source) {
+  if (!source || !_enabled) return;
+  _activeSource = source;
+  _activeViewIndex = 0;
+  renderActiveView(true);
 }
 
 function clearRendered() {
@@ -137,9 +221,9 @@ function clearRendered() {
 
 function renderForCurrentView() {
   const rect = currentViewRectangle();
-  if (!_enabled || !intersectsChicago(rect)) {
+  if (!_enabled || !intersectsRegion(rect)) {
     clearRendered();
-    governorRequestRender('rhk-chicago-cctv-out-of-frame');
+    governorRequestRender('rhk-il-in-cctv-out-of-frame');
     return;
   }
 
@@ -154,41 +238,41 @@ function renderForCurrentView() {
       id: ENTITY_PREFIX + key,
       position: Cesium.Cartesian3.fromDegrees(Number(row.lon), Number(row.lat), 8),
       point: {
-        pixelSize: 9,
-        color: Cesium.Color.fromCssColorString('#9fc5ad'),
-        outlineColor: Cesium.Color.fromCssColorString('#111511'),
+        pixelSize: 8,
+        color: Cesium.Color.fromCssColorString('#56C8BE'),
+        outlineColor: Cesium.Color.fromCssColorString('#101514'),
         outlineWidth: 2,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       label: {
-        text: String(row.name || 'LIVE CCTV'),
+        text: String(row.name || 'ROADWAY CCTV'),
         font: '10px Inter, sans-serif',
         fillColor: Cesium.Color.fromCssColorString('#efefe9'),
         showBackground: true,
         backgroundColor: Cesium.Color.fromCssColorString('#0a0c0b').withAlpha(0.80),
-        pixelOffset: new Cesium.Cartesian2(0, -18),
-        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 60000),
+        pixelOffset: new Cesium.Cartesian2(0, -17),
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 65000),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       properties: {
-        rhkLayer: 'cctv', regionalSource: 'chicago-live', name: row.name || 'Live CCTV',
-        category: row.category || 'camera', feedType: row.feedType || 'live',
-        provider: row.provider || 'public source',
+        rhkLayer: 'cctv', regionalSource: 'illinois-indiana-roadway', name: row.name || 'Roadway CCTV',
+        state: row.state || '', category: row.category || 'traffic', feedType: 'image',
+        provider: row.provider || 'public DOT camera',
       },
     });
     count += 1;
   }
   _visibleCount = count;
   _dataSource.show = true;
-  governorRequestRender('rhk-chicago-cctv-render');
+  governorRequestRender('rhk-il-in-cctv-render');
 }
 
 const addon = {
-  id: 'rhk-chicago-cctv-addon',
+  id: 'rhk-illinois-indiana-cctv-addon',
 
   init(viewer) {
     _viewer = viewer;
-    _dataSource = new Cesium.CustomDataSource('rhk-chicago-live-cameras');
+    _dataSource = new Cesium.CustomDataSource('rhk-illinois-indiana-roadway-cameras');
     _dataSource.show = false;
     viewer.dataSources.add(_dataSource);
 
@@ -219,7 +303,7 @@ const addon = {
 
   async update() {
     const rect = currentViewRectangle();
-    if (!_enabled || !intersectsChicago(rect)) {
+    if (!_enabled || !intersectsRegion(rect)) {
       clearRendered();
       return true;
     }
@@ -229,10 +313,9 @@ const addon = {
       const payload = await response.json();
       const rows = Array.isArray(payload?.sources) ? payload.sources : [];
       _rows = rows.filter((row) => {
-        const type = String(row?.feedType || '').toLowerCase();
-        return ['hls', 'm3u8', 'iframe', 'mjpeg', 'mp4', 'webm'].includes(type)
-          && Number.isFinite(Number(row?.lat)) && Number.isFinite(Number(row?.lon))
-          && /^https:\/\//i.test(String(row?.embedUrl || ''));
+        if (String(row?.feedType || '').toLowerCase() !== 'image') return false;
+        if (!Number.isFinite(Number(row?.lat)) || !Number.isFinite(Number(row?.lon))) return false;
+        return sourceViews(row).length > 0;
       });
       _lastUpdate = Number(payload?.fetchedAt) || Date.now();
       _lastError = null;
@@ -240,7 +323,7 @@ const addon = {
       return true;
     } catch (error) {
       _lastError = String(error?.message || error);
-      console.warn('[RHKEARTH:CCTV:Chicago] update failed:', error);
+      console.warn('[RHKEARTH:CCTV:IllinoisIndiana] update failed:', error);
       clearRendered();
       return false;
     }
@@ -264,8 +347,8 @@ const addon = {
       visibleCount: _visibleCount,
       lastUpdate: _lastUpdate,
       error: _lastError,
-      status: !_enabled || !intersectsChicago(currentViewRectangle()) ? 'idle' : (_lastError && !_visibleCount ? 'degraded' : 'nominal'),
-      source: 'Chicago public continuous live CCTV',
+      status: !_enabled || !intersectsRegion(currentViewRectangle()) ? 'idle' : (_lastError && !_visibleCount ? 'degraded' : 'nominal'),
+      source: 'Illinois Tollway + INDOT TrafficWise roadway CCTV',
     };
   },
 };
@@ -281,7 +364,7 @@ import_anchor = "import cctvLayer from './data/cctv.js';\n"
 addon_import = "import chicagoLiveCamerasAddon from './data/chicagoLiveCameras.js';\n"
 if addon_import not in text:
     if import_anchor not in text:
-        raise SystemExit('Chicago CCTV import anchor missing')
+        raise SystemExit('Regional CCTV import anchor missing')
     text = text.replace(import_anchor, import_anchor + addon_import, 1)
 
 helper = r'''
@@ -341,21 +424,25 @@ if 'function attachRhkRegionalAddon(' not in text:
     text = text.replace(anchor, helper + "\n" + anchor, 1)
 
 manager_anchor = "    dataManager.register(cctvLayer);\n"
-bind = "    attachRhkRegionalAddon(cctvLayer, chicagoLiveCamerasAddon, 'CCTV:Chicago');\n"
-if bind not in text:
+old_bind = "    attachRhkRegionalAddon(cctvLayer, chicagoLiveCamerasAddon, 'CCTV:Chicago');\n"
+new_bind = "    attachRhkRegionalAddon(cctvLayer, chicagoLiveCamerasAddon, 'CCTV:IllinoisIndiana');\n"
+text = text.replace(old_bind, new_bind)
+if new_bind not in text:
     if manager_anchor not in text:
-        raise SystemExit('Chicago CCTV registration anchor missing')
-    text = text.replace(manager_anchor, bind + manager_anchor, 1)
+        raise SystemExit('Regional CCTV registration anchor missing')
+    text = text.replace(manager_anchor, new_bind + manager_anchor, 1)
 
-# Defensive cleanup for earlier iterations that registered Chicago as its own row.
+# Defensive cleanup for earlier iterations that registered the regional source
+# as a separate row instead of owning it under the existing CCTV toggle.
 text = text.replace("import chicagoLiveCamerasLayer from './data/chicagoLiveCameras.js';\n", addon_import)
 text = text.replace("    dataManager.register(chicagoLiveCamerasLayer);\n", '')
 main.write_text(text, encoding='utf-8')
 
-# No city-specific layer-state token: Chicago is owned by the existing CCTV toggle.
+# No region-specific layer-state token: Illinois/Indiana cameras are owned by
+# the existing CCTV layer toggle.
 state = ROOT / 'src/data/layerState.js'
 state_text = state.read_text(encoding='utf-8')
 state_text = state_text.replace("  Object.freeze({ id: 'chicago-live-cameras', token: 'v', disposition: 'enabled-only' }),\n", '')
 state.write_text(state_text, encoding='utf-8')
 
-print('RHKEARTH Chicago continuous-live cameras folded into existing CCTV layer with globally unified viewer')
+print('RHKEARTH real Illinois/Indiana roadway cameras folded into existing CCTV layer')
