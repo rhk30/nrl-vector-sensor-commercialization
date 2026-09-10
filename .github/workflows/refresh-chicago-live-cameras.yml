@@ -20,25 +20,35 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 12
+
     steps:
       - name: Check out RHKEARTH
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Discover public continuous Chicago camera feeds
+      - name: Discover embeddable Chicago public cameras
         run: |
           python - <<'PY'
           from pathlib import Path
           from datetime import datetime, timezone
           from html import unescape
-          import json, re, time, urllib.request
+          import json
+          import re
+          import time
+          import urllib.request
 
           BASE = 'https://opencctv.org'
           CITY = '/cameras/united-states/illinois/chicago'
           OUT = Path('experimental-data/chicago-live-cameras.json')
           UA = 'RHKEARTH/1.0 (+https://rhkearth.com/experimental/; public-camera catalog refresh)'
-          LIVE_TYPES = {'HLS', 'M3U8', 'IFRAME', 'MJPEG', 'MP4', 'WEBM'}
+
+          try:
+              previous = json.loads(OUT.read_text(encoding='utf-8')) if OUT.exists() else {}
+          except Exception:
+              previous = {}
+          previous_rows = previous.get('sources') if isinstance(previous, dict) else []
+          previous_rows = previous_rows if isinstance(previous_rows, list) else []
 
           def fetch(url, attempts=3):
               last = None
@@ -64,7 +74,8 @@ jobs:
               raw = re.sub(r'<[^>]+>', ' ', raw)
               return re.sub(r'\s+', ' ', unescape(raw)).strip()
 
-          links, seen = [], set()
+          links = []
+          seen = set()
           for page in range(1, 13):
               url = f'{BASE}{CITY}' + ('' if page == 1 else f'?page={page}')
               html = fetch(url)
@@ -86,67 +97,102 @@ jobs:
           sources = []
           for i, href in enumerate(links):
               try:
-                  raw = fetch(BASE + href)
+                  page_url = BASE + href
+                  raw = fetch(page_url)
                   text = clean_html(raw)
-                  feed = re.search(r'Feed Type\s+([A-Z0-9]+)', text, flags=re.I)
-                  feed_type = feed.group(1).upper() if feed else ''
-                  if feed_type not in LIVE_TYPES:
-                      continue
-                  coords = re.search(r'Coordinates\s+(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)', text, flags=re.I)
+
+                  coords = re.search(
+                      r'Coordinates\s+(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)',
+                      text,
+                      flags=re.I,
+                  )
                   if not coords:
                       continue
                   lat, lon = float(coords.group(1)), float(coords.group(2))
                   if not (40.8 <= lat <= 42.9 and -89.2 <= lon <= -86.8):
                       continue
+
                   h1 = re.search(r'<h1[^>]*>(.*?)</h1>', raw, flags=re.I | re.S)
                   name = clean_html(h1.group(1)) if h1 else href.rstrip('/').split('/')[-1].replace('-', ' ').title()
                   cam_id = re.search(r'Camera ID\s+(\d+)', text, flags=re.I)
-                  category = re.search(r'Category\s+([A-Za-z][A-Za-z /&-]{0,40}?)(?=\s+Coordinates\b)', text, flags=re.I)
+                  category = re.search(
+                      r'Category\s+([A-Za-z][A-Za-z /&-]{0,40}?)(?=\s+Coordinates\b)',
+                      text,
+                      flags=re.I,
+                  )
+                  source_feed = re.search(r'Feed Type\s+([A-Z0-9]+)', text, flags=re.I)
                   camera_id = cam_id.group(1) if cam_id else href.rstrip('/').split('-')[-1]
+
+                  # OpenCCTV publishes the camera page itself as its supported
+                  # embed target. Do not mislabel that HTML URL as M3U8/HLS.
+                  # RHKEARTH renders the provider page in an iframe and retains
+                  # the underlying feed type only as descriptive metadata.
                   sources.append({
                       'id': f'opencctv-{camera_id}',
                       'name': name[:160],
                       'category': category.group(1).strip().lower() if category else 'camera',
                       'lat': lat,
                       'lon': lon,
-                      'feedType': feed_type.lower(),
-                      'embedUrl': BASE + href,
+                      'feedType': 'iframe',
+                      'embedUrl': page_url,
+                      'sourceFeedType': source_feed.group(1).lower() if source_feed else 'unknown',
                       'provider': 'OpenCCTV / public source',
+                      'city': 'Chicago',
+                      'state': 'Illinois',
+                      'country': 'US',
                   })
               except Exception as exc:
                   print(f'camera skip {href}: {exc}')
               if i % 12 == 0:
                   time.sleep(0.10)
 
-          sources = sorted({row['id']: row for row in sources}.values(), key=lambda row: (row['category'], row['name'], row['id']))
+          sources = sorted(
+              {row['id']: row for row in sources}.values(),
+              key=lambda row: (row['category'], row['name'], row['id']),
+          )
+
           if not sources:
-              raise SystemExit('No continuous Chicago feeds discovered; preserving previous snapshot')
+              raise SystemExit('No Chicago camera embeds discovered; preserving previous snapshot')
+
+          if previous_rows and len(previous_rows) >= 20 and len(sources) < max(20, int(len(previous_rows) * 0.5)):
+              raise SystemExit(
+                  f'Chicago camera catalog collapsed from {len(previous_rows)} to {len(sources)}; preserving previous snapshot'
+              )
 
           OUT.parent.mkdir(exist_ok=True)
           OUT.write_text(json.dumps({
               'sources': sources,
               'fetchedAt': int(datetime.now(timezone.utc).timestamp() * 1000),
-              'source': 'OpenCCTV public live embeds',
-              'policy': 'Continuous/embedded live feeds only; still-image feeds excluded',
+              'source': 'OpenCCTV public embeddable camera pages',
+              'policy': 'Render provider-supported camera pages as iframes; retain underlying media type as metadata.',
               'catalogCandidates': len(links),
           }, separators=(',', ':'), ensure_ascii=False) + '\n')
-          print(f'continuous_live={len(sources)} catalog_candidates={len(links)}')
+          print(f'embeddable={len(sources)} catalog_candidates={len(links)}')
           PY
 
-      - name: Validate live camera snapshot
+      - name: Validate Chicago camera embeds
         run: |
           test -s experimental-data/chicago-live-cameras.json
           python - <<'PY'
           import json
+
           data = json.load(open('experimental-data/chicago-live-cameras.json'))
           rows = data.get('sources') or []
-          assert rows, 'camera snapshot empty'
-          assert all(str(r.get('feedType','')).lower() in {'hls','m3u8','iframe','mjpeg','mp4','webm'} for r in rows)
-          assert all(str(r.get('embedUrl','')).startswith('https://') for r in rows)
-          print('validated', len(rows), 'continuous live feeds')
+
+          assert len(rows) >= 20, f'only {len(rows)} Chicago cameras'
+          assert len({r.get('id') for r in rows}) == len(rows), 'duplicate Chicago camera ids'
+          assert all(str(r.get('feedType', '')).lower() == 'iframe' for r in rows)
+          assert all(
+              str(r.get('embedUrl', '')).startswith(
+                  'https://opencctv.org/cameras/united-states/illinois/chicago/'
+              )
+              for r in rows
+          )
+          assert all(40.8 <= float(r['lat']) <= 42.9 and -89.2 <= float(r['lon']) <= -86.8 for r in rows)
+          print('validated', len(rows), 'Chicago embeddable camera pages')
           PY
 
-      - name: Commit refreshed Chicago live-camera catalog
+      - name: Commit refreshed Chicago camera catalog
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -160,15 +206,18 @@ jobs:
             cp /tmp/chicago-live-cameras.json experimental-data/chicago-live-cameras.json
             cp /tmp/chicago-live-cameras.json experimental/live-data/chicago-live-cameras.json
             git add experimental-data/chicago-live-cameras.json experimental/live-data/chicago-live-cameras.json
+
             if git diff --cached --quiet; then
-              echo "Chicago continuous-live camera catalog already current."
+              echo "Chicago camera catalog already current."
               exit 0
             fi
-            git commit -m "Refresh Chicago continuous live cameras [skip ci]"
+
+            git commit -m "Refresh Chicago embeddable cameras [skip ci]"
             if git push origin main; then
               exit 0
             fi
             echo "Remote advanced during camera refresh; retrying."
           done
-          echo "Could not publish Chicago live cameras after three attempts."
+
+          echo "Could not publish Chicago cameras after three attempts."
           exit 1
