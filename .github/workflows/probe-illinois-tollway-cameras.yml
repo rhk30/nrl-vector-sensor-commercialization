@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Inspect public Tollway map assets
+      - name: Inspect public Tollway camera configuration
         run: |
           python - <<'PY'
           import re, urllib.request
@@ -24,32 +24,44 @@ jobs:
           base='https://www.illinoisvirtualtollway.com/'
           ua='Mozilla/5.0 RHKEARTH-camera-probe'
           def get(url):
-              req=urllib.request.Request(url,headers={'User-Agent':ua,'Accept':'text/html,application/javascript,*/*'})
+              req=urllib.request.Request(url,headers={'User-Agent':ua,'Accept':'text/html,application/javascript,application/json,*/*'})
               with urllib.request.urlopen(req,timeout=20) as r:
                   return r.status,r.headers,r.read().decode('utf-8','replace')
 
           status,headers,html=get(base)
           print('HOME',status,headers.get('Content-Type'),'bytes',len(html))
-          print('HOME SAMPLE',html[:4000].replace('\n',' ')[:4000])
+          print('SCRIPT TAGS:')
           scripts=[]
           for src in re.findall(r'<script[^>]+src=["\']([^"\']+)',html,re.I):
               url=urljoin(base,src)
               if url not in scripts:scripts.append(url)
-          print('SCRIPTS',len(scripts))
+              print(url)
+
+          # Print inline snippets around app bootstrap/config so we can find the
+          # public map service and camera-image base URL without guessing.
+          lowhtml=html.lower()
+          for pat in ['appentry','config','settings','mapurl','trafficcameras']:
+              pos=lowhtml.find(pat)
+              if pos>=0:
+                  print('\nHTML MATCH',pat,html[max(0,pos-1000):pos+3000].replace('\n',' ')[:4000])
+
           for url in scripts:
               try:
                   st,h,text=get(url)
               except Exception as e:
                   print('SCRIPT ERR',url,e);continue
+              if 'illinoisvirtualtollway.com' not in url:
+                  continue
+              print('\n=== LOCAL SCRIPT',url,'bytes',len(text),'===')
               low=text.lower()
-              if any(k in low for k in ['camera','cctv','trafficcam','traffic_cam']):
-                  print('\n=== SCRIPT',url,'bytes',len(text),'===')
-                  for pat in ['camera','cctv','trafficcam','traffic_cam','arcgis','featureserver','mapserver']:
-                      pos=low.find(pat)
-                      if pos>=0:
-                          print('MATCH',pat,text[max(0,pos-600):pos+1800].replace('\n',' ')[:2400])
-                  urls=sorted(set(re.findall(r'https?://[^"\'\s)]+',text)))
-                  for u in urls:
-                      if any(k in u.lower() for k in ['camera','arcgis','mapserver','featureserver','tollway']):
-                          print('URL',u[:500])
+              for pat in ['appentry','fetch(','config','settings','mapurl','trafficcameras','baseurl','cameraslayerid','services']:
+                  start=0
+                  hits=0
+                  while hits<5:
+                      pos=low.find(pat,start)
+                      if pos<0:break
+                      print('MATCH',pat,text[max(0,pos-900):pos+2600].replace('\n',' ')[:3500])
+                      start=pos+len(pat);hits+=1
+              for rel in sorted(set(re.findall(r'["\']([^"\']+\.(?:json|js)(?:\?[^"\']*)?)["\']',text,re.I))):
+                  print('ASSET REF',urljoin(base,rel))
           PY
