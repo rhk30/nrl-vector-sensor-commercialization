@@ -1,4 +1,4 @@
-name: Refresh Chicago live cameras
+name: Refresh Illinois and Indiana roadway cameras
 
 on:
   workflow_dispatch:
@@ -13,13 +13,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: rhkearth-chicago-live-cameras
+  group: rhkearth-il-in-roadway-cameras
   cancel-in-progress: true
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
 
     steps:
       - name: Check out RHKEARTH
@@ -27,132 +27,284 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build validated Chicago direct-embed roster
+      - name: Build Illinois and Indiana roadway-camera catalog
         run: |
           python - <<'PY'
           from pathlib import Path
           from datetime import datetime, timezone
+          from urllib.parse import urlencode, urljoin
           import json
+          import re
+          import urllib.request
 
           OUT = Path('experimental-data/chicago-live-cameras.json')
+          UA = 'RHKEARTH/1.0 (+https://rhkearth.com/experimental/; public roadway camera catalog)'
 
-          # These were individually validated from the current Chicago public-camera
-          # catalog on 2026-09-10. Keeping the direct media target avoids two known
-          # failure modes: dead OpenCCTV catalog pages and rate-limited bulk crawling.
-          sources = [
-              {
-                  'id': 'opencctv-140379',
-                  'name': '4K LIVE CAM: Midway Airport | Chicago, IL USA | StreamTime LIVE',
-                  'category': 'airport',
-                  'lat': 41.7868,
-                  'lon': -87.7522,
-                  'feedType': 'iframe',
-                  'embedUrl': 'https://www.youtube.com/embed/67BCsiW-1Io',
-                  'sourcePage': 'https://opencctv.org/cameras/united-states/illinois/chicago/4k-live-cam-midway-airport-or-chicago-il-usa-or-streamtime-live-140379',
-                  'sourceFeedType': 'youtube-embed',
-                  'provider': 'Public source via OpenCCTV discovery',
-                  'city': 'Chicago',
-                  'state': 'Illinois',
-                  'country': 'US',
-                  'liveSemantics': 'provider-reported live video embed',
+          def request(url, *, body=None, headers=None, timeout=35):
+              merged = {
+                  'User-Agent': UA,
+                  'Accept': 'application/json,image/*,*/*',
+              }
+              if headers:
+                  merged.update(headers)
+              req = urllib.request.Request(
+                  url,
+                  data=body,
+                  headers=merged,
+                  method='POST' if body is not None else 'GET',
+              )
+              with urllib.request.urlopen(req, timeout=timeout) as response:
+                  if response.status < 200 or response.status >= 300:
+                      raise RuntimeError(f'HTTP {response.status}: {url}')
+                  return response.read(), dict(response.headers)
+
+          sources = []
+          provider_counts = {}
+
+          # -----------------------------------------------------------------
+          # Indiana: official INDOT TrafficWise / 511IN public camera map.
+          # Request the complete Indiana bounds at a non-clustered zoom and
+          # retain still-image camera views only (not HLS/video/player pages).
+          # -----------------------------------------------------------------
+          endpoint = 'https://511in.org/api/graphql'
+          gql = '''query MapFeatures($input: MapFeaturesArgs!) {
+            mapFeaturesQuery(input: $input) {
+              mapFeatures {
+                title uri features { geometry } __typename
+                ... on Camera {
+                  active
+                  views(limit: 4) {
+                    category
+                    ... on CameraView { url }
+                  }
+                }
+              }
+            }
+          }'''
+          body = json.dumps({
+              'query': gql,
+              'variables': {
+                  'input': {
+                      'north': 41.9,
+                      'south': 37.7,
+                      'east': -84.6,
+                      'west': -88.2,
+                      'zoom': 16,
+                      'layerSlugs': ['normalCameras'],
+                      'nonClusterableUris': None,
+                  }
               },
-              {
-                  'id': 'opencctv-140513',
-                  'name': 'Kościół św. Władysława w Chicago',
-                  'category': 'city',
-                  'lat': 41.9420,
-                  'lon': -87.7612,
-                  'feedType': 'iframe',
-                  'embedUrl': 'https://www.youtube.com/embed/YA9AA6IEyd0',
-                  'sourcePage': 'https://opencctv.org/cameras/united-states/illinois/chicago/kosciol-sw-wladyslawa-w-chicago-140513',
-                  'sourceFeedType': 'youtube-embed',
-                  'provider': 'Public source via OpenCCTV discovery',
-                  'city': 'Chicago',
-                  'state': 'Illinois',
+          }).encode('utf-8')
+          raw, _ = request(endpoint, body=body, headers={
+              'Content-Type': 'application/json',
+              'Referer': 'https://511in.org/',
+          })
+          payload = json.loads(raw.decode('utf-8'))
+          feats = (((payload.get('data') or {}).get('mapFeaturesQuery') or {}).get('mapFeatures') or [])
+          in_count = 0
+          for i, feature in enumerate(feats):
+              if feature.get('__typename') != 'Camera' or feature.get('active') is False:
+                  continue
+              geometries = feature.get('features') or []
+              coords = (((geometries[0] if geometries else {}).get('geometry') or {}).get('coordinates') or [])
+              if len(coords) < 2:
+                  continue
+              try:
+                  lon, lat = float(coords[0]), float(coords[1])
+              except (TypeError, ValueError):
+                  continue
+              if not (37.7 <= lat <= 41.9 and -88.2 <= lon <= -84.6):
+                  continue
+
+              views = []
+              for view in feature.get('views') or []:
+                  url = str(view.get('url') or '').strip()
+                  low = url.lower()
+                  if not url.startswith('https://'):
+                      continue
+                  if '.m3u8' in low or 'youtube.com' in low or 'youtu.be' in low:
+                      continue
+                  category = str(view.get('category') or 'Camera').strip()
+                  if url not in [v['url'] for v in views]:
+                      views.append({'label': category or 'Camera', 'url': url})
+              if not views:
+                  continue
+
+              match = re.search(r'camera/(\d+)', str(feature.get('uri') or ''))
+              cid = match.group(1) if match else str(i)
+              sources.append({
+                  'id': f'indot-{cid}',
+                  'name': str(feature.get('title') or f'INDOT Camera {cid}')[:180],
+                  'category': 'traffic',
+                  'lat': lat,
+                  'lon': lon,
+                  'feedType': 'image',
+                  'url': views[0]['url'],
+                  'snapshotUrl': views[0]['url'],
+                  'mediaUrl': views[0]['url'],
+                  'views': views,
+                  'refreshMs': 30000,
+                  'provider': 'INDOT TrafficWise / 511IN',
+                  'city': 'Indiana',
+                  'state': 'IN',
                   'country': 'US',
-                  'liveSemantics': 'provider-reported live video embed',
-              },
-              {
-                  'id': 'opencctv-141255',
-                  'name': 'Live Stream - Construction Hotel Chicago',
-                  'category': 'city',
-                  'lat': 41.8777,
-                  'lon': -87.6678,
-                  'feedType': 'iframe',
-                  'embedUrl': 'https://www.youtube.com/embed/dmEq_ddk0kw',
-                  'sourcePage': 'https://opencctv.org/cameras/united-states/illinois/chicago/live-stream-construction-hotel-chicago-141255',
-                  'sourceFeedType': 'youtube-embed',
-                  'provider': 'Public source via OpenCCTV discovery',
-                  'city': 'Chicago',
-                  'state': 'Illinois',
+                  'sourceKind': 'official-state-dot-camera',
+                  'liveSemantics': 'near-real-time roadway CCTV image',
+              })
+              in_count += 1
+          provider_counts['INDOT TrafficWise / 511IN'] = in_count
+
+          # -----------------------------------------------------------------
+          # Illinois: official Illinois Tollway Virtual Tollway public camera
+          # layer. This is a genuinely public camera-image endpoint used by
+          # the Tollway's own map. It currently exposes 25 camera locations,
+          # often with two directional views per location.
+          # -----------------------------------------------------------------
+          cfg_raw, _ = request('https://www.illinoisvirtualtollway.com/config.json', headers={
+              'Referer': 'https://www.illinoisvirtualtollway.com/',
+          })
+          cfg = json.loads(cfg_raw.decode('utf-8'))
+          map_url = str((cfg.get('services') or {}).get('mapURL') or '').rstrip('/')
+          camera_layer = (cfg.get('layers') or {}).get('camerasLayerID')
+          image_base = str((cfg.get('trafficCameras') or {}).get('baseURL') or '')
+          if not map_url or camera_layer is None or not image_base.startswith('https://'):
+              raise RuntimeError('Illinois Virtual Tollway camera configuration incomplete')
+
+          query = urlencode({
+              'where': '1=1',
+              'outFields': '*',
+              'returnGeometry': 'true',
+              'outSR': '4326',
+              'f': 'json',
+          })
+          il_raw, _ = request(f'{map_url}/{camera_layer}/query?{query}', headers={
+              'Referer': 'https://www.illinoisvirtualtollway.com/',
+          })
+          il_payload = json.loads(il_raw.decode('utf-8'))
+          if il_payload.get('error'):
+              raise RuntimeError(f"Illinois camera service error: {il_payload['error']}")
+
+          il_count = 0
+          for feature in il_payload.get('features') or []:
+              attrs = feature.get('attributes') or {}
+              geometry = feature.get('geometry') or {}
+              try:
+                  lat = float(attrs.get('latitude') if attrs.get('latitude') is not None else geometry.get('y'))
+                  lon = float(attrs.get('longitude') if attrs.get('longitude') is not None else geometry.get('x'))
+              except (TypeError, ValueError):
+                  continue
+              if not (36.9 <= lat <= 42.6 and -91.6 <= lon <= -87.0):
+                  continue
+
+              views = []
+              for n in range(1, 9):
+                  rel = str(attrs.get(f'Ap{n}File') or '').strip()
+                  if not rel:
+                      continue
+                  image = urljoin(image_base if image_base.endswith('/') else image_base + '/', rel)
+                  if not image.startswith('https://'):
+                      continue
+                  label = str(attrs.get(f'Ap{n}Desc') or attrs.get(f'Ap{n}Dir') or f'View {n}').strip()
+                  views.append({'label': label or f'View {n}', 'url': image})
+              if not views:
+                  continue
+
+              oid = attrs.get('OBJECTID') or attrs.get('CamID') or il_count
+              name = attrs.get('DisplayName') or attrs.get('CamDesc') or f'Illinois Tollway Camera {oid}'
+              sources.append({
+                  'id': f'illinois-tollway-{oid}',
+                  'name': str(name)[:180],
+                  'category': 'traffic',
+                  'lat': lat,
+                  'lon': lon,
+                  'feedType': 'image',
+                  'url': views[0]['url'],
+                  'snapshotUrl': views[0]['url'],
+                  'mediaUrl': views[0]['url'],
+                  'views': views,
+                  'refreshMs': 300000,
+                  'provider': 'Illinois Tollway / Virtual Tollway',
+                  'city': 'Illinois Tollway',
+                  'state': 'IL',
                   'country': 'US',
-                  'liveSemantics': 'provider-reported live video embed',
-              },
-              {
-                  'id': 'opencctv-141893',
-                  'name': 'Livestream from St. Luke Church',
-                  'category': 'city',
-                  'lat': 41.8885,
-                  'lon': -87.8151,
-                  'feedType': 'iframe',
-                  'embedUrl': 'https://www.youtube.com/embed/XdmdItr9tZc',
-                  'sourcePage': 'https://opencctv.org/cameras/united-states/illinois/chicago/livestream-from-st-luke-church-141893',
-                  'sourceFeedType': 'youtube-embed',
-                  'provider': 'Public source via OpenCCTV discovery',
-                  'city': 'Chicago',
-                  'state': 'Illinois',
-                  'country': 'US',
-                  'liveSemantics': 'provider-reported live video embed',
-              },
-          ]
+                  'roadway': str(attrs.get('Road') or ''),
+                  'milepost': attrs.get('MP'),
+                  'sourceKind': 'official-public-tollway-camera',
+                  'liveSemantics': 'provider-refreshed roadway CCTV image',
+              })
+              il_count += 1
+          provider_counts['Illinois Tollway / Virtual Tollway'] = il_count
+
+          # Exact-ID dedupe only. Same-location alternate directions remain in
+          # `views` on a single marker rather than creating stacked map points.
+          sources = list({str(row['id']): row for row in sources}.values())
+          sources.sort(key=lambda row: (row.get('state', ''), row.get('name', ''), row['id']))
+
+          if in_count < 100:
+              raise SystemExit(f'INDOT catalog unexpectedly small: {in_count}')
+          if il_count < 20:
+              raise SystemExit(f'Illinois Tollway catalog unexpectedly small: {il_count}')
 
           OUT.parent.mkdir(exist_ok=True)
           OUT.write_text(json.dumps({
               'sources': sources,
               'fetchedAt': int(datetime.now(timezone.utc).timestamp() * 1000),
-              'source': 'Validated direct Chicago public-camera embeds',
-              'policy': 'Small direct-media roster; no bulk OpenCCTV crawl and no dead catalog-page iframes.',
-              'healthyDirectEmbeds': len(sources),
+              'source': 'Official Illinois Tollway and INDOT public roadway cameras',
+              'providerCounts': provider_counts,
+              'coverage': 'Indiana statewide via INDOT TrafficWise plus the Illinois Tollway public camera network.',
+              'illinoisNote': 'Full statewide IDOT/Travel Midwest bulk camera reuse is not included because its raw redistribution feed requires registration/agreement.',
+              'policy': 'Roadway CCTV images only. No YouTube, generic webcams, or third-party camera-page embeds.',
           }, separators=(',', ':'), ensure_ascii=False) + '\n', encoding='utf-8')
-          print('Chicago stable direct embeds:', len(sources))
+          print('provider counts', provider_counts, 'total', len(sources))
           PY
 
-      - name: Validate Chicago direct embeds
+      - name: Validate real roadway camera images
         run: |
           test -s experimental-data/chicago-live-cameras.json
           python - <<'PY'
           import json
-          import re
           import urllib.request
 
           data = json.load(open('experimental-data/chicago-live-cameras.json'))
           rows = data.get('sources') or []
+          in_rows = [r for r in rows if r.get('state') == 'IN']
+          il_rows = [r for r in rows if r.get('state') == 'IL']
 
-          assert len(rows) == 4, f'expected 4 Chicago cameras, got {len(rows)}'
-          assert len({r.get('id') for r in rows}) == len(rows), 'duplicate Chicago camera ids'
-          assert all(str(r.get('feedType', '')).lower() == 'iframe' for r in rows)
-          assert all(re.match(r'https://(?:www\.)?youtube\.com/embed/[A-Za-z0-9_-]+$', str(r.get('embedUrl') or ''), flags=re.I) for r in rows)
-          assert all(41.45 <= float(r['lat']) <= 42.25 and -88.45 <= float(r['lon']) <= -87.35 for r in rows)
+          assert len(in_rows) >= 100, len(in_rows)
+          assert len(il_rows) >= 20, len(il_rows)
+          assert all(str(r.get('feedType') or '').lower() == 'image' for r in rows)
+          assert all(str(r.get('snapshotUrl') or '').startswith('https://') for r in rows)
+          assert not any('youtube.com' in json.dumps(r).lower() or 'youtu.be' in json.dumps(r).lower() for r in rows)
+          assert len({r.get('id') for r in rows}) == len(rows)
 
-          # Probe the actual media targets, not the aggregator pages. A temporary
-          # provider-side block must not erase the last-good roster, so the build
-          # records reachability but does not collapse the catalog on one transient.
-          reachable = 0
-          for row in rows:
-              req = urllib.request.Request(row['embedUrl'], headers={
-                  'User-Agent': 'Mozilla/5.0',
-                  'Accept': 'text/html,application/xhtml+xml,*/*',
+          def image_ok(row):
+              url = row['snapshotUrl']
+              req = urllib.request.Request(url, headers={
+                  'User-Agent': 'Mozilla/5.0 RHKEARTH-camera-validation',
+                  'Accept': 'image/*,*/*',
+                  'Referer': 'https://rhkearth.com/experimental/',
               })
-              try:
-                  with urllib.request.urlopen(req, timeout=15) as response:
-                      if response.status == 200:
-                          reachable += 1
-              except Exception as exc:
-                  print('embed probe warning:', row.get('id'), exc)
-          print('validated', len(rows), 'Chicago direct embeds;', reachable, 'embed targets reachable from runner')
+              with urllib.request.urlopen(req, timeout=20) as response:
+                  sample = response.read(64)
+                  ctype = str(response.headers.get('Content-Type') or '').lower()
+                  return response.status == 200 and bool(sample) and (
+                      'image/' in ctype or sample.startswith((b'\xff\xd8\xff', b'\x89PNG', b'GIF8'))
+                  )
+
+          for label, group in [('IN', in_rows), ('IL', il_rows)]:
+              good = 0
+              for row in group[:5]:
+                  try:
+                      good += int(image_ok(row))
+                  except Exception as exc:
+                      print(label, 'sample failed', row.get('id'), exc)
+              assert good >= 2, f'{label}: only {good}/5 sample CCTV images reachable'
+              print(label, 'reachable samples', good, 'of', min(5, len(group)))
+
+          print('validated roadway CCTV:', len(il_rows), 'Illinois Tollway +', len(in_rows), 'Indiana')
           PY
 
-      - name: Commit refreshed Chicago camera catalog
+      - name: Commit refreshed regional roadway-camera catalog
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -168,16 +320,16 @@ jobs:
             git add experimental-data/chicago-live-cameras.json experimental/live-data/chicago-live-cameras.json
 
             if git diff --cached --quiet; then
-              echo "Chicago camera catalog already current."
+              echo "Illinois/Indiana roadway camera catalog already current."
               exit 0
             fi
 
-            git commit -m "Refresh stable Chicago camera embeds [skip ci]"
+            git commit -m "Refresh Illinois and Indiana roadway cameras [skip ci]"
             if git push origin main; then
               exit 0
             fi
             echo "Remote advanced during camera refresh; retrying."
           done
 
-          echo "Could not publish Chicago cameras after three attempts."
+          echo "Could not publish regional roadway cameras after three attempts."
           exit 1
