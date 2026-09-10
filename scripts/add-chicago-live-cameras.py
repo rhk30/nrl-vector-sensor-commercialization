@@ -25,6 +25,7 @@ let _lastError = null;
 let _activeSource = null;
 let _activeViewIndex = 0;
 let _imageTimer = 0;
+let _failedViewUrls = new Set();
 
 function isMobileUi() {
   return document.body.classList.contains('rhk-mobile-ui') || matchMedia('(max-width: 760px) and (pointer: coarse)').matches;
@@ -123,7 +124,10 @@ function makePanel() {
     </div>`;
 
   panel.querySelector('#rhk-live-camera-close')?.addEventListener('click', closePanel);
-  panel.querySelector('#rhk-live-camera-refresh')?.addEventListener('click', () => renderActiveView(true));
+  panel.querySelector('#rhk-live-camera-refresh')?.addEventListener('click', () => {
+    _failedViewUrls.clear();
+    renderActiveView(true);
+  });
   panel.querySelector('#rhk-live-camera-prev-view')?.addEventListener('click', () => changeView(-1));
   panel.querySelector('#rhk-live-camera-next-view')?.addEventListener('click', () => changeView(1));
   document.body.appendChild(panel);
@@ -131,6 +135,7 @@ function makePanel() {
 }
 
 function mediaError(message) {
+  stopImageRefresh();
   const media = document.getElementById('rhk-live-camera-media');
   if (!media) return;
   const error = document.createElement('div');
@@ -150,6 +155,7 @@ function closePanel() {
   if (panel) panel.style.display = 'none';
   _activeSource = null;
   _activeViewIndex = 0;
+  _failedViewUrls.clear();
 }
 
 function changeView(delta) {
@@ -157,6 +163,7 @@ function changeView(delta) {
   const views = sourceViews(_activeSource);
   if (views.length < 2) return;
   _activeViewIndex = (_activeViewIndex + delta + views.length) % views.length;
+  _failedViewUrls.clear();
   renderActiveView(true);
 }
 
@@ -194,7 +201,16 @@ function renderActiveView(force = false) {
   const image = document.createElement('img');
   image.alt = `${source.name || 'Roadway camera'} — ${view.label}`;
   image.referrerPolicy = 'no-referrer-when-downgrade';
-  image.addEventListener('error', () => mediaError('Provider camera image is temporarily unavailable'));
+  image.addEventListener('error', () => {
+    _failedViewUrls.add(view.url);
+    const fallbackIndex = views.findIndex((candidate) => !_failedViewUrls.has(candidate.url));
+    if (fallbackIndex >= 0) {
+      _activeViewIndex = fallbackIndex;
+      renderActiveView(true);
+      return;
+    }
+    mediaError('Provider camera image is temporarily unavailable');
+  }, { once: true });
   Object.assign(image.style, { width: '100%', height: '100%', objectFit: 'contain', background: '#050606' });
   const refresh = () => { image.src = force ? cacheBust(view.url) : cacheBust(view.url); };
   refresh();
@@ -208,6 +224,7 @@ function openFeed(source) {
   if (!source || !_enabled) return;
   _activeSource = source;
   _activeViewIndex = 0;
+  _failedViewUrls.clear();
   renderActiveView(true);
 }
 
@@ -238,20 +255,20 @@ function renderForCurrentView() {
       id: ENTITY_PREFIX + key,
       position: Cesium.Cartesian3.fromDegrees(Number(row.lon), Number(row.lat), 8),
       point: {
-        pixelSize: 8,
-        color: Cesium.Color.fromCssColorString('#56C8BE'),
-        outlineColor: Cesium.Color.fromCssColorString('#101514'),
+        pixelSize: 9,
+        color: Cesium.Color.fromCssColorString('#9fc5ad'),
+        outlineColor: Cesium.Color.fromCssColorString('#111511'),
         outlineWidth: 2,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       label: {
-        text: String(row.name || 'ROADWAY CCTV'),
+        text: String(row.name || 'LIVE CCTV'),
         font: '10px Inter, sans-serif',
         fillColor: Cesium.Color.fromCssColorString('#efefe9'),
         showBackground: true,
         backgroundColor: Cesium.Color.fromCssColorString('#0a0c0b').withAlpha(0.80),
-        pixelOffset: new Cesium.Cartesian2(0, -17),
-        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 65000),
+        pixelOffset: new Cesium.Cartesian2(0, -18),
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 60000),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       properties: {
