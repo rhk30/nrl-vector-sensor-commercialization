@@ -5,9 +5,9 @@
   const CHECK_INTERVAL_MS = 120;
   const RESCAN_INTERVAL_MS = 1000;
   const STYLE = {
-    global: { minHeight: 7000000, size: 4.6, alpha: 0.62, outline: 1.15 },
-    regional: { minHeight: 1500000, size: 5.25, alpha: 0.74, outline: 1.3 },
-    local: { minHeight: 0, size: 6.1, alpha: 0.86, outline: 1.45 },
+    global: { minHeight: 7000000, size: 4.9, alpha: 0.72, outline: 1.3 },
+    regional: { minHeight: 1500000, size: 5.6, alpha: 0.82, outline: 1.45 },
+    local: { minHeight: 0, size: 6.3, alpha: 0.90, outline: 1.6 },
   };
 
   let viewer = null;
@@ -68,11 +68,11 @@
     if (!point || !isCameraItem(point)) return;
     if (!force && styledPoints.has(point) && lastStyleBand) return;
 
-    // One restrained camera treatment for every public camera. The old renderer
-    // varied size/color by media type, which made the layer visually uneven.
+    // CCTV owns a distinct muted-turquoise channel. It reads clearly against
+    // both the Noir land surface and dark ocean without the glare of white.
     point.pixelSize = style.size;
-    const fill = rgbaFromCss('#A9C7C5', style.alpha);
-    const outline = rgbaFromCss('#07100E', Math.min(0.98, style.alpha + 0.12));
+    const fill = rgbaFromCss('#56C8BE', style.alpha);
+    const outline = rgbaFromCss('#06100E', Math.min(0.98, style.alpha + 0.12));
     if (fill) point.color = fill;
     if (outline) point.outlineColor = outline;
     point.outlineWidth = style.outline;
@@ -85,7 +85,7 @@
 
   function applyLabelStyle(label) {
     if (!label || !isCameraItem(label) || styledLabels.has(label)) return;
-    const fill = rgbaFromCss('#E7EAE5', 0.88);
+    const fill = rgbaFromCss('#CDEAE6', 0.88);
     const background = rgbaFromCss('#07100E', 0.76);
     if (fill) label.fillColor = fill;
     if (background) label.backgroundColor = background;
@@ -157,7 +157,7 @@
     scene.preRender.addEventListener(listener);
     detachPreRender = () => scene.preRender.removeEventListener(listener);
     window.__RHK_CCTV_VISIBILITY_FIX__ = {
-      version: 2,
+      version: 3,
       refresh: () => {
         lastCheckAt = 0;
         lastScanAt = 0;
@@ -177,7 +177,7 @@
 
     renderPass();
     scene.requestRender?.();
-    console.info('[RHKEARTH:CCTV] Camera readability + Earth occlusion guard active');
+    console.info('[RHKEARTH:CCTV] Turquoise camera readability + Earth occlusion guard active');
     return true;
   }
 
