@@ -1,0 +1,117 @@
+name: Apply CCTV visibility fix
+
+on:
+  pull_request:
+    paths:
+      - scripts/rhkearth-camera-visibility.js
+      - .github/workflows/apply-camera-visibility-fix.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/rhkearth-camera-visibility.js
+      - .github/workflows/apply-camera-visibility-fix.yml
+  workflow_run:
+    workflows: ["Build Experimental integrated"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-cctv-visibility-fix
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out RHKEARTH
+        uses: actions/checkout@v4
+      - name: Validate camera rendering guard
+        run: |
+          node --check scripts/rhkearth-camera-visibility.js
+          grep -q "rhk-worldcam:" scripts/rhkearth-camera-visibility.js
+          grep -q "EllipsoidalOccluder" scripts/rhkearth-camera-visibility.js
+          grep -q "disableDepthTestDistance = 0" scripts/rhkearth-camera-visibility.js
+          grep -q "#A9C7C5" scripts/rhkearth-camera-visibility.js
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('scripts/rhkearth-camera-visibility.js').read_text(encoding='utf-8')
+          assert 'Number.POSITIVE_INFINITY' not in text
+          assert 'CAMERA_PREFIX' in text
+          assert 'CHECK_INTERVAL_MS = 120' in text
+          assert 'isPointVisible' in text
+          print('PASS: CCTV rendering guard is syntax-valid and camera-scoped')
+          PY
+
+  publish:
+    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install camera rendering guard into Experimental
+        run: |
+          node --check scripts/rhkearth-camera-visibility.js
+          test -f experimental/index.html
+          mkdir -p experimental
+          cp scripts/rhkearth-camera-visibility.js experimental/rhkearth-camera-visibility.js
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('experimental/index.html')
+          text = path.read_text(encoding='utf-8')
+          tag = '  <script src="/experimental/rhkearth-camera-visibility.js?v=2"></script>'
+          text = re.sub(r'\s*<script src="/experimental/rhkearth-camera-visibility\.js\?v=\d+"></script>', '', text)
+          if '</body>' not in text:
+              raise SystemExit('Experimental index has no closing body tag')
+          text = text.replace('</body>', tag + '\n</body>', 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          node --check experimental/rhkearth-camera-visibility.js
+          grep -q 'rhkearth-camera-visibility.js?v=2' experimental/index.html
+          grep -q 'EllipsoidalOccluder' experimental/rhkearth-camera-visibility.js
+          grep -q 'disableDepthTestDistance = 0' experimental/rhkearth-camera-visibility.js
+
+      - name: Commit guarded Experimental shell
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp experimental/rhkearth-camera-visibility.js /tmp/rhkearth-camera-visibility.js
+
+          for attempt in 1 2 3; do
+            echo "CCTV visibility publish attempt $attempt"
+            git fetch origin main
+            git reset --hard origin/main
+            cp /tmp/rhkearth-camera-visibility.js experimental/rhkearth-camera-visibility.js
+            python - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('experimental/index.html')
+          text = path.read_text(encoding='utf-8')
+          tag = '  <script src="/experimental/rhkearth-camera-visibility.js?v=2"></script>'
+          text = re.sub(r'\s*<script src="/experimental/rhkearth-camera-visibility\.js\?v=\d+"></script>', '', text)
+          if '</body>' not in text:
+              raise SystemExit('Experimental index has no closing body tag')
+          text = text.replace('</body>', tag + '\n</body>', 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+            git add experimental/index.html experimental/rhkearth-camera-visibility.js
+            if git diff --cached --quiet; then
+              echo "CCTV visibility guard already current."
+              exit 0
+            fi
+            git commit -m "Fix Experimental CCTV visibility and globe occlusion [skip ci]"
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Remote advanced; retrying CCTV visibility publish."
+          done
+          exit 1
