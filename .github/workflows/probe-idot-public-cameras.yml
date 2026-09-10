@@ -1,0 +1,51 @@
+name: Probe IDOT public ArcGIS cameras
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/probe-idot-public-cameras.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect public TrafficCamerasTM view
+        run: |
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+          base='https://services2.arcgis.com/aIrBD8yn1TDTEXoz/arcgis/rest/services/TrafficCamerasTM_Public/FeatureServer/0/query'
+          params={
+            'where':'y > 36.9 AND y < 42.6 AND x > -91.6 AND x < -87.0',
+            'outFields':'OBJECTID,ImgPath,CameraLocation,CameraDirection,y,x,SnapShot,WarningAge,TooOld,AgeInMinutes',
+            'returnGeometry':'true','outSR':'4326','f':'json','resultRecordCount':'1000'
+          }
+          url=base+'?'+urllib.parse.urlencode(params)
+          req=urllib.request.Request(url,headers={'User-Agent':'RHKEARTH/1.0 public-camera-probe','Accept':'application/json,*/*'})
+          with urllib.request.urlopen(req,timeout=30) as r:
+            data=json.loads(r.read().decode())
+          rows=data.get('features') or []
+          print('FEATURES',len(rows),'EXCEEDED',data.get('exceededTransferLimit'),'ERROR',data.get('error'))
+          for f in rows[:20]:
+            print('ROW',json.dumps(f,ensure_ascii=False)[:3000])
+          good=0
+          for f in rows[:20]:
+            a=f.get('attributes') or {}; u=str(a.get('SnapShot') or a.get('ImgPath') or '').strip()
+            if not u.startswith('http'): continue
+            if u.startswith('http://'): u='https://'+u[7:]
+            try:
+              q=urllib.request.Request(u,headers={'User-Agent':'Mozilla/5.0','Accept':'image/*,*/*'})
+              with urllib.request.urlopen(q,timeout=15) as r:
+                b=r.read(64); ct=str(r.headers.get('Content-Type') or '').lower()
+              ok=bool(b) and ('image/' in ct or b.startswith((b'\xff\xd8\xff',b'\x89PNG',b'GIF8')))
+              print('IMAGE',ok,ct,len(b),a.get('CameraLocation'),u)
+              good += int(ok)
+            except Exception as e:
+              print('IMAGE_ERR',a.get('CameraLocation'),u,e)
+          print('GOOD_IMAGES',good)
+          PY
