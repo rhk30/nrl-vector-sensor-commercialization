@@ -1,0 +1,35 @@
+name: Audit current US camera state coverage
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/audit-base-us-state-coverage.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Count current catalog state/provider coverage
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter,defaultdict
+          d=json.load(open('experimental-data/worldwide-cameras.json'))
+          rows=d.get('sources') or []
+          states=Counter(); providers=defaultdict(Counter); missing=0
+          for r in rows:
+              if str(r.get('country') or '').upper() not in {'US','USA','UNITED STATES','UNITED STATES OF AMERICA'}: continue
+              st=str(r.get('state') or '').strip().upper()
+              if len(st)==2:
+                  states[st]+=1; providers[st][str(r.get('provider') or 'unknown')]+=1
+              else: missing+=1
+          print('TOTAL',len(rows),'US_WITH_STATE',sum(states.values()),'US_MISSING_STATE',missing)
+          for st,n in sorted(states.items()): print('STATE',st,n,'PROVIDERS',dict(providers[st].most_common(8)))
+          print('STATES_WITH_EXPLICIT_ROWS',len(states),','.join(sorted(states)))
+          PY
