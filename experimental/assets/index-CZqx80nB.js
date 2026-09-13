@@ -227,15 +227,16 @@
       vec2 uv = v_textureCoordinates;
       vec4 color = texture(colorTexture, uv);
 
-      // RHKEARTH selective Noir: heavily desaturate ordinary imagery,
-      // while preserving saturated tactical contacts and source symbology.
+      // RHKEARTH selective Noir: mute ordinary imagery without making
+      // the underlying source look washed-out or low quality. Saturated tactical
+      // contacts retain most of their native screen color.
       float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
       vec3 gray = vec3(luma);
       float hi = max(max(color.r, color.g), color.b);
       float lo = min(min(color.r, color.g), color.b);
       float chroma = hi - lo;
       float tacticalAccent = smoothstep(0.24, 0.58, chroma);
-      float desatAmount = intensity * mix(0.94, 0.20, tacticalAccent);
+      float desatAmount = intensity * mix(0.78, 0.12, tacticalAccent);
       vec3 desaturated = mix(color.rgb, gray, desatAmount);
 
       // High contrast with S-curve (driven by contrastAmt uniform)
@@ -246,7 +247,9 @@
       // Film grain (driven by grainAmt uniform)
       float grain = fract(sin(dot(uv * colorTextureDimensions, vec2(12.9898, 78.233))) * 43758.5453);
       grain = (grain - 0.5) * 0.08 * grainAmt * intensity;
-      contrasted += grain * (1.0 - tacticalAccent * 0.75);
+      // Grain is texture, not the subject. Keep it subtle enough that
+      // satellite/photoreal imagery remains crisp at local zoom.
+      contrasted += grain * 0.42 * (1.0 - tacticalAccent * 0.80);
 
       // Vignette (driven by vignetteAmt uniform)
       vec2 vigUV = uv * (1.0 - uv);
@@ -259,11 +262,12 @@
         dot(contrasted, vec3(0.349, 0.686, 0.168)),
         dot(contrasted, vec3(0.272, 0.534, 0.131))
       );
-      vec3 tinted = mix(contrasted, sepia, 0.15 * intensity * (1.0 - tacticalAccent * 0.90));
+      vec3 tinted = mix(contrasted, sepia, 0.06 * intensity * (1.0 - tacticalAccent * 0.90));
 
-      // Keep edge-of-screen contacts readable; the basemap still receives the
-      // full Noir vignette while tactical accents only receive a light vignette.
-      float contactVig = mix(vig, 1.0, tacticalAccent * 0.68);
+      // Soften the cinematic vignette across the basemap and nearly remove it
+      // from tactical contacts so information remains readable edge-to-edge.
+      float softenedVig = mix(vig, 1.0, 0.28);
+      float contactVig = mix(softenedVig, 1.0, tacticalAccent * 0.72);
       vec3 result = tinted * contactVig;
       out_FragColor = vec4(mix(color.rgb, result, intensity), color.a);
     }
