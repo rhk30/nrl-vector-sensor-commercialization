@@ -35,7 +35,8 @@ jobs:
           grep -q "EllipsoidalOccluder" scripts/rhkearth-camera-visibility.js
           grep -q "disableDepthTestDistance = 0" scripts/rhkearth-camera-visibility.js
           grep -q "#A8B989" scripts/rhkearth-camera-visibility.js
-          grep -q "version: 4" scripts/rhkearth-camera-visibility.js
+          grep -q "LABEL_MAX_HEIGHT" scripts/rhkearth-camera-visibility.js
+          grep -q "version: 5" scripts/rhkearth-camera-visibility.js
           python - <<'PY'
           from pathlib import Path
           text = Path('scripts/rhkearth-camera-visibility.js').read_text(encoding='utf-8')
@@ -43,7 +44,8 @@ jobs:
           assert 'CAMERA_PREFIX' in text
           assert 'CHECK_INTERVAL_MS = 120' in text
           assert 'isPointVisible' in text
-          print('PASS: CCTV rendering guard is syntax-valid, sage-styled, and camera-scoped')
+          assert "kind === 'labels' ? earthVisible && labelsAllowed : earthVisible" in text
+          print('PASS: CCTV rendering guard is syntax-valid, sage, low-noise, and camera-scoped')
           PY
 
   publish:
@@ -68,7 +70,7 @@ jobs:
 
           path = Path('experimental/index.html')
           text = path.read_text(encoding='utf-8')
-          tag = '  <script src="/experimental/rhkearth-camera-visibility.js?v=4"></script>'
+          tag = '  <script src="/experimental/rhkearth-camera-visibility.js?v=5"></script>'
           text = re.sub(r'\s*<script src="/experimental/rhkearth-camera-visibility\.js\?v=\d+"></script>', '', text)
           if '</body>' not in text:
               raise SystemExit('Experimental index has no closing body tag')
@@ -77,10 +79,11 @@ jobs:
           PY
 
           node --check experimental/rhkearth-camera-visibility.js
-          grep -q 'rhkearth-camera-visibility.js?v=4' experimental/index.html
+          grep -q 'rhkearth-camera-visibility.js?v=5' experimental/index.html
           grep -q 'EllipsoidalOccluder' experimental/rhkearth-camera-visibility.js
           grep -q 'disableDepthTestDistance = 0' experimental/rhkearth-camera-visibility.js
           grep -q '#A8B989' experimental/rhkearth-camera-visibility.js
+          grep -q 'LABEL_MAX_HEIGHT' experimental/rhkearth-camera-visibility.js
 
       - name: Commit guarded Experimental shell
         run: |
@@ -98,7 +101,7 @@ jobs:
           import re
           path = Path('experimental/index.html')
           text = path.read_text(encoding='utf-8')
-          tag = '  <script src="/experimental/rhkearth-camera-visibility.js?v=4"></script>'
+          tag = '  <script src="/experimental/rhkearth-camera-visibility.js?v=5"></script>'
           text = re.sub(r'\s*<script src="/experimental/rhkearth-camera-visibility\.js\?v=\d+"></script>', '', text)
           if '</body>' not in text:
               raise SystemExit('Experimental index has no closing body tag')
@@ -110,7 +113,7 @@ jobs:
               echo "CCTV visibility guard already current."
               exit 0
             fi
-            git commit -m "Refine Experimental CCTV marker styling [skip ci]"
+            git commit -m "Refine Experimental CCTV readability [skip ci]"
             if git push origin main; then
               exit 0
             fi
