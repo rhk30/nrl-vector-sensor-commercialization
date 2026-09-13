@@ -1,0 +1,101 @@
+name: Apply RHKEARTH visual reset
+
+on:
+  pull_request:
+    paths:
+      - scripts/rhkearth-visual-reset.css
+      - .github/workflows/apply-visual-reset.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/rhkearth-visual-reset.css
+      - .github/workflows/apply-visual-reset.yml
+  workflow_run:
+    workflows: ["Build Experimental integrated"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-visual-reset
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate reset stylesheet
+        run: |
+          test -s scripts/rhkearth-visual-reset.css
+          grep -q "RHKEARTH visual reset v1" scripts/rhkearth-visual-reset.css
+          grep -q -- "--rhk-live: #9caf88" scripts/rhkearth-visual-reset.css
+          grep -q "#cesiumContainer canvas" scripts/rhkearth-visual-reset.css
+          grep -q "panel-glow" scripts/rhkearth-visual-reset.css
+
+  publish:
+    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install visual reset into Experimental
+        run: |
+          test -s scripts/rhkearth-visual-reset.css
+          cp scripts/rhkearth-visual-reset.css /tmp/rhkearth-visual-reset.css
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('experimental/index.html')
+          text = path.read_text(encoding='utf-8')
+          text = re.sub(r'\s*<link[^>]+href="/experimental/rhkearth-visual-reset\.css(?:\?v=\d+)?"[^>]*>', '', text)
+          tag = '  <link rel="stylesheet" href="/experimental/rhkearth-visual-reset.css?v=1">'
+          if '</head>' not in text:
+              raise SystemExit('Experimental index has no closing head tag')
+          text = text.replace('</head>', tag + '\n</head>', 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          cp /tmp/rhkearth-visual-reset.css experimental/rhkearth-visual-reset.css
+          grep -q 'rhkearth-visual-reset.css?v=1' experimental/index.html
+          grep -q 'RHKEARTH visual reset v1' experimental/rhkearth-visual-reset.css
+
+      - name: Commit final visual layer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp experimental/rhkearth-visual-reset.css /tmp/rhkearth-visual-reset.css
+          for attempt in 1 2 3; do
+            echo "Visual reset publish attempt $attempt"
+            git fetch origin main
+            git reset --hard origin/main
+            cp /tmp/rhkearth-visual-reset.css experimental/rhkearth-visual-reset.css
+            python - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('experimental/index.html')
+          text = path.read_text(encoding='utf-8')
+          text = re.sub(r'\s*<link[^>]+href="/experimental/rhkearth-visual-reset\.css(?:\?v=\d+)?"[^>]*>', '', text)
+          tag = '  <link rel="stylesheet" href="/experimental/rhkearth-visual-reset.css?v=1">'
+          if '</head>' not in text:
+              raise SystemExit('Experimental index has no closing head tag')
+          text = text.replace('</head>', tag + '\n</head>', 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+            git add experimental/index.html experimental/rhkearth-visual-reset.css
+            if git diff --cached --quiet; then
+              echo "Visual reset already current."
+              exit 0
+            fi
+            git commit -m "Apply RHKEARTH visual reset [skip ci]"
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Remote advanced; retrying visual reset publish."
+          done
+          exit 1
