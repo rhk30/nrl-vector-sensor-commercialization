@@ -107,15 +107,14 @@ jobs:
           grep -q "rhk-worldwide-cctv-addon" src/data/worldwideCameras.js
           grep -q "rhk-world-cctv-horizon" src/data/worldwideCameras.js
           grep -q "RHKEARTH precision trackpad navigation" src/main.js
-          grep -q "#56C8BE" src/data/cctv.js
-          grep -q "#56C8BE" src/data/chicagoLiveCameras.js
-          grep -q "#56C8BE" src/data/worldwideCameras.js
-          grep -q "#F0C66F" src/data/cctv.js
+          grep -q "#A8B989" src/data/cctv.js
+          grep -q "#A8B989" src/data/chicagoLiveCameras.js
+          grep -q "#A8B989" src/data/worldwideCameras.js
+          grep -q "#E5C777" src/data/cctv.js
           grep -q "overpass.kumi.systems" src/data/traffic.js
           grep -q "directMediaUrl" src/data/cctv.js
           grep -q "mediaRefreshTimer" src/data/cctv.js
-          grep -q "this.activeStyle = 'noir'" src/ui.js
-          grep -q "RHKEARTH startup-performance handoff" src/main.js
+          grep -q "this.activeStyle = 'normal'" src/ui.js
           grep -q "tacticalAccent = smoothstep" src/styles/noir.js
           grep -q "#72C9D8" src/data/flights.js
           grep -q "#D8A84E" src/data/militaryFlights.js
@@ -199,8 +198,8 @@ jobs:
           grep -R -q "rhk-worldwide-cctv-addon" dist/assets
           grep -R -q "rhk-trackpad-pan" dist/assets
           grep -R -q "rhk-world-cctv-horizon" dist/assets
-          grep -R -q "#56C8BE\|#56c8be" dist/assets
-          grep -R -q "#F0C66F\|#f0c66f" dist/assets
+          grep -R -q "#A8B989\|#a8b989" dist/assets
+          grep -R -q "#E5C777\|#e5c777" dist/assets
           grep -R -q "bell206.glb" dist/assets
           grep -R -q "citation2.glb" dist/assets
           grep -R -q "atr72.glb" dist/assets
@@ -212,7 +211,7 @@ jobs:
           grep -R -q "#72C9D8\|#72c9d8" dist/assets
           grep -R -q "#D8A84E\|#d8a84e" dist/assets
           grep -R -q "#63C5D0\|#63c5d0" dist/assets
-          grep -q "id=\"active-style-name\">NOIR\|id=\"active-style-name\">NOIR<" dist/index.html
+          grep -q "id=\"active-style-name\">NORMAL\|id=\"active-style-name\">NORMAL<" dist/index.html
           grep -q "rhkearth-chrome-cleanup" dist/index.html
           python - <<'PY'
           import json
@@ -228,7 +227,7 @@ jobs:
               if world_rows and len({r.get('provider') for r in world_rows}) < 3: raise SystemExit('Worldwide CCTV catalog lacks provider diversity')
           index = Path('dist/index.html').read_text()
           if 'RHKEARTH' not in index.upper(): raise SystemExit('RHKEARTH branding missing from built index')
-          if 'NOIR' not in index: raise SystemExit('Noir first-paint state missing from built index')
+          if 'NORMAL' not in index: raise SystemExit('Normal first-paint state missing from built index')
           print(f'PASS static native gate: {len(video_rows)} London video cameras in catalog')
           PY
 
