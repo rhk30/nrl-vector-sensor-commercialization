@@ -5,9 +5,9 @@
   const CHECK_INTERVAL_MS = 120;
   const RESCAN_INTERVAL_MS = 1000;
   const STYLE = {
-    global: { minHeight: 7000000, size: 4.9, alpha: 0.72, outline: 1.3 },
-    regional: { minHeight: 1500000, size: 5.6, alpha: 0.82, outline: 1.45 },
-    local: { minHeight: 0, size: 6.3, alpha: 0.90, outline: 1.6 },
+    global: { minHeight: 7000000, size: 4.0, alpha: 0.62, outline: 1.0 },
+    regional: { minHeight: 1500000, size: 4.8, alpha: 0.74, outline: 1.15 },
+    local: { minHeight: 0, size: 5.7, alpha: 0.86, outline: 1.35 },
   };
 
   let viewer = null;
@@ -68,25 +68,25 @@
     if (!point || !isCameraItem(point)) return;
     if (!force && styledPoints.has(point) && lastStyleBand) return;
 
-    // CCTV owns a distinct muted-turquoise channel. It reads clearly against
-    // both the Noir land surface and dark ocean without the glare of white.
+    // CCTV uses a subdued sage channel so dense camera coverage remains legible
+    // without the electric-blue cast or high-glare look of the previous pass.
     point.pixelSize = style.size;
-    const fill = rgbaFromCss('#56C8BE', style.alpha);
-    const outline = rgbaFromCss('#06100E', Math.min(0.98, style.alpha + 0.12));
+    const fill = rgbaFromCss('#A8B989', style.alpha);
+    const outline = rgbaFromCss('#0C1009', Math.min(0.96, style.alpha + 0.12));
     if (fill) point.color = fill;
     if (outline) point.outlineColor = outline;
     point.outlineWidth = style.outline;
 
-    // Never bypass depth testing for CCTV. The source addon previously used
-    // POSITIVE_INFINITY, allowing opposite-side cameras to bleed through Earth.
+    // Never bypass depth testing for CCTV. This is required to prevent cameras
+    // on the far side of Earth from appearing through the globe.
     if ('disableDepthTestDistance' in point) point.disableDepthTestDistance = 0;
     styledPoints.add(point);
   }
 
   function applyLabelStyle(label) {
     if (!label || !isCameraItem(label) || styledLabels.has(label)) return;
-    const fill = rgbaFromCss('#CDEAE6', 0.88);
-    const background = rgbaFromCss('#07100E', 0.76);
+    const fill = rgbaFromCss('#E3E5D8', 0.86);
+    const background = rgbaFromCss('#0B0E0A', 0.74);
     if (fill) label.fillColor = fill;
     if (background) label.backgroundColor = background;
     if ('disableDepthTestDistance' in label) label.disableDepthTestDistance = 0;
@@ -113,16 +113,13 @@
       if (kind === 'points') applyPointStyle(item, style, forceStyle);
       else applyLabelStyle(item);
 
-      // Explicit ellipsoid occlusion is the final guard. It remains effective
-      // when Google Photorealistic 3D Tiles are active and Cesium's globe itself
-      // is hidden, so a camera in Asia cannot draw through the planet while the
-      // user is viewing North America.
+      // Explicit ellipsoid occlusion remains the final guard, including while
+      // photorealistic 3D tiles are active and Cesium's globe surface is hidden.
       if (occluder && item.position) {
         try {
           item.show = !!occluder.isPointVisible(item.position);
         } catch {
-          // If a provider creates an unusual position object, ordinary Cesium
-          // depth testing still applies because disableDepthTestDistance is zero.
+          // Ordinary Cesium depth testing still applies because the bypass is 0.
         }
       }
     }
@@ -157,7 +154,7 @@
     scene.preRender.addEventListener(listener);
     detachPreRender = () => scene.preRender.removeEventListener(listener);
     window.__RHK_CCTV_VISIBILITY_FIX__ = {
-      version: 3,
+      version: 4,
       refresh: () => {
         lastCheckAt = 0;
         lastScanAt = 0;
@@ -177,7 +174,7 @@
 
     renderPass();
     scene.requestRender?.();
-    console.info('[RHKEARTH:CCTV] Turquoise camera readability + Earth occlusion guard active');
+    console.info('[RHKEARTH:CCTV] Sage camera styling + Earth occlusion guard active');
     return true;
   }
 
