@@ -15,10 +15,9 @@ def replace(path, old, new, *, required=True, count=1):
 
 
 # -----------------------------------------------------------------------------
-# NOIR: keep the basemap strongly muted, but preserve highly chromatic tactical
-# symbology. The previous shader desaturated every Cesium pixel equally, which
-# washed asset colors out together with imagery. A chroma mask lets cyan/amber/
-# teal/violet contact colors survive while ordinary aerial imagery stays Noir.
+# NOIR: keep the basemap muted, but do not process it so aggressively that
+# imagery looks degraded. Preserve saturated tactical symbology while retaining
+# enough real-world color/contrast for terrain, coastlines and urban texture.
 # -----------------------------------------------------------------------------
 replace(
     'src/styles/noir.js',
@@ -27,15 +26,16 @@ replace(
       vec3 gray = vec3(luma);
       vec3 desaturated = mix(color.rgb, gray, intensity);
 """,
-    """      // RHKEARTH selective Noir: heavily desaturate ordinary imagery,
-      // while preserving saturated tactical contacts and source symbology.
+    """      // RHKEARTH selective Noir: mute ordinary imagery without making
+      // the underlying source look washed-out or low quality. Saturated tactical
+      // contacts retain most of their native screen color.
       float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
       vec3 gray = vec3(luma);
       float hi = max(max(color.r, color.g), color.b);
       float lo = min(min(color.r, color.g), color.b);
       float chroma = hi - lo;
       float tacticalAccent = smoothstep(0.24, 0.58, chroma);
-      float desatAmount = intensity * mix(0.94, 0.20, tacticalAccent);
+      float desatAmount = intensity * mix(0.78, 0.12, tacticalAccent);
       vec3 desaturated = mix(color.rgb, gray, desatAmount);
 """,
 )
@@ -43,7 +43,9 @@ replace(
     'src/styles/noir.js',
     """      contrasted += grain;
 """,
-    """      contrasted += grain * (1.0 - tacticalAccent * 0.75);
+    """      // Grain is texture, not the subject. Keep it subtle enough that
+      // satellite/photoreal imagery remains crisp at local zoom.
+      contrasted += grain * 0.42 * (1.0 - tacticalAccent * 0.80);
 """,
 )
 replace(
@@ -52,20 +54,20 @@ replace(
 
       vec3 result = tinted * vig;
 """,
-    """      vec3 tinted = mix(contrasted, sepia, 0.15 * intensity * (1.0 - tacticalAccent * 0.90));
+    """      vec3 tinted = mix(contrasted, sepia, 0.06 * intensity * (1.0 - tacticalAccent * 0.90));
 
-      // Keep edge-of-screen contacts readable; the basemap still receives the
-      // full Noir vignette while tactical accents only receive a light vignette.
-      float contactVig = mix(vig, 1.0, tacticalAccent * 0.68);
+      // Soften the cinematic vignette across the basemap and nearly remove it
+      // from tactical contacts so information remains readable edge-to-edge.
+      float softenedVig = mix(vig, 1.0, 0.28);
+      float contactVig = mix(softenedVig, 1.0, tacticalAccent * 0.72);
       vec3 result = tinted * contactVig;
 """,
 )
 
 
 # -----------------------------------------------------------------------------
-# AIR: soft cyan civilian, amber military, brighter selected. These are designed
-# to separate classes at a glance without the eye-searing pure #00ffff/#ffb800
-# look. Flight trails use the same family as the owning contact.
+# AIR: soft cyan civilian, amber military, brighter selected. These separate
+# classes at a glance without the eye-searing pure cyan/yellow look.
 # -----------------------------------------------------------------------------
 flights = ROOT / 'src/data/flights.js'
 f = flights.read_text(encoding='utf-8')
@@ -148,20 +150,20 @@ sat.write_text(s, encoding='utf-8')
 
 
 # -----------------------------------------------------------------------------
-# CCTV: neutral tactical cyan at rest, warm amber for the active camera.
+# CCTV: a subdued sage at rest, warm gold for the active camera. Cameras should
+# be clearly separable from cyan aircraft/sea layers without dominating them.
 # -----------------------------------------------------------------------------
 replace(
     'src/data/cctv.js',
     "const IDLE_CAMERA_COLOR = Cesium.Color.fromCssColorString('#6be8ff').withAlpha(0.88);\nconst ACTIVE_CAMERA_COLOR = Cesium.Color.fromCssColorString('#ffd97a').withAlpha(0.95);",
-    "const IDLE_CAMERA_COLOR = Cesium.Color.fromCssColorString('#78C8D4').withAlpha(0.90);\nconst ACTIVE_CAMERA_COLOR = Cesium.Color.fromCssColorString('#DDB76A').withAlpha(0.96);",
+    "const IDLE_CAMERA_COLOR = Cesium.Color.fromCssColorString('#A8B989').withAlpha(0.86);\nconst ACTIVE_CAMERA_COLOR = Cesium.Color.fromCssColorString('#E5C777').withAlpha(0.96);",
 )
 
 
 # -----------------------------------------------------------------------------
 # DETECTION/WORLD OVERLAY: this canvas composites ABOVE Cesium post-FX, so an
 # explicit Noir theme guarantees class colors remain literal screen RGB even
-# while the underlying globe is monochrome. This is the most important visual
-# distinction at orbital scale where thousands of contacts are on screen.
+# while the underlying globe is restrained.
 # -----------------------------------------------------------------------------
 tokens = ROOT / 'src/overlays/worldOverlayTokens.js'
 t = tokens.read_text(encoding='utf-8')
@@ -191,7 +193,8 @@ if '  noir: {' not in t:
 tokens.write_text(t, encoding='utf-8')
 
 checks = {
-    'selective Noir': 'tacticalAccent = smoothstep' in (ROOT / 'src/styles/noir.js').read_text(),
+    'selective Noir': 'desatAmount = intensity * mix(0.78, 0.12, tacticalAccent)' in (ROOT / 'src/styles/noir.js').read_text(),
+    'reduced grain': 'grain * 0.42' in (ROOT / 'src/styles/noir.js').read_text(),
     'civil cyan': '#72C9D8' in flights.read_text(),
     'mil amber': '#D8A84E' in mil.read_text(),
     'sea teal': '#63C5D0' in (ROOT / 'src/data/vesselLabels.js').read_text(),
@@ -202,4 +205,4 @@ failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit('Tactical map palette validation failed: ' + ', '.join(failed))
 
-print('RHKEARTH tactical map palette installed: muted Noir basemap + readable class-colored assets')
+print('RHKEARTH visual palette refined: cleaner Noir imagery + restrained class-colored assets')
