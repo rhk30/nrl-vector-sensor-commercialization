@@ -1,0 +1,115 @@
+name: Apply regional CCTV stability fix
+
+on:
+  pull_request:
+    paths:
+      - scripts/rhkearth-regional-cctv-stability.js
+      - .github/workflows/apply-regional-cctv-stability.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/rhkearth-regional-cctv-stability.js
+      - .github/workflows/apply-regional-cctv-stability.yml
+  workflow_run:
+    workflows: ["Build Experimental integrated"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-regional-cctv-stability
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out RHKEARTH
+        uses: actions/checkout@v4
+      - name: Validate regional CCTV stability guard
+        run: |
+          node --check scripts/rhkearth-regional-cctv-stability.js
+          grep -q "rhk-illinois-indiana-roadway-cameras" scripts/rhkearth-regional-cctv-stability.js
+          grep -q "Stable incremental camera reconciliation" scripts/rhkearth-regional-cctv-stability.js
+          grep -q "disableDepthTestDistance = 0" scripts/rhkearth-regional-cctv-stability.js
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('scripts/rhkearth-regional-cctv-stability.js').read_text(encoding='utf-8')
+          assert 'queueMicrotask' in text
+          assert 'getById' in text
+          assert 'originalRemoveById' in text
+          assert "#A8B989" in text
+          print('PASS: Illinois/Indiana CCTV stability guard is syntax-valid and incremental')
+          PY
+
+  publish:
+    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install regional CCTV stability guard
+        run: |
+          node --check scripts/rhkearth-regional-cctv-stability.js
+          test -f experimental/index.html
+          cp scripts/rhkearth-regional-cctv-stability.js experimental/rhkearth-regional-cctv-stability.js
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('experimental/index.html')
+          text = path.read_text(encoding='utf-8')
+          tag = '  <script src="/experimental/rhkearth-regional-cctv-stability.js?v=1"></script>'
+          text = re.sub(r'\s*<script src="/experimental/rhkearth-regional-cctv-stability\.js\?v=\d+"></script>', '', text)
+          if '</body>' not in text:
+              raise SystemExit('Experimental index has no closing body tag')
+          text = text.replace('</body>', tag + '\n</body>', 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          node --check experimental/rhkearth-regional-cctv-stability.js
+          grep -q 'rhkearth-regional-cctv-stability.js?v=1' experimental/index.html
+          grep -q 'Stable incremental camera reconciliation' experimental/rhkearth-regional-cctv-stability.js
+          grep -q 'disableDepthTestDistance = 0' experimental/rhkearth-regional-cctv-stability.js
+
+      - name: Commit stabilized Experimental shell
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp experimental/rhkearth-regional-cctv-stability.js /tmp/rhkearth-regional-cctv-stability.js
+
+          for attempt in 1 2 3; do
+            echo "Regional CCTV stability publish attempt $attempt"
+            git fetch origin main
+            git reset --hard origin/main
+            cp /tmp/rhkearth-regional-cctv-stability.js experimental/rhkearth-regional-cctv-stability.js
+            python - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('experimental/index.html')
+          text = path.read_text(encoding='utf-8')
+          tag = '  <script src="/experimental/rhkearth-regional-cctv-stability.js?v=1"></script>'
+          text = re.sub(r'\s*<script src="/experimental/rhkearth-regional-cctv-stability\.js\?v=\d+"></script>', '', text)
+          if '</body>' not in text:
+              raise SystemExit('Experimental index has no closing body tag')
+          text = text.replace('</body>', tag + '\n</body>', 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+            git add experimental/index.html experimental/rhkearth-regional-cctv-stability.js
+            if git diff --cached --quiet; then
+              echo "Regional CCTV stability guard already current."
+              exit 0
+            fi
+            git commit -m "Stabilize Illinois Indiana CCTV rendering [skip ci]"
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Remote advanced; retrying regional CCTV stability publish."
+          done
+          exit 1
