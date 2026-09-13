@@ -4,10 +4,11 @@
   const CAMERA_PREFIX = 'rhk-worldcam:';
   const CHECK_INTERVAL_MS = 120;
   const RESCAN_INTERVAL_MS = 1000;
+  const LABEL_MAX_HEIGHT = 350000;
   const STYLE = {
-    global: { minHeight: 7000000, size: 4.0, alpha: 0.62, outline: 1.0 },
-    regional: { minHeight: 1500000, size: 4.8, alpha: 0.74, outline: 1.15 },
-    local: { minHeight: 0, size: 5.7, alpha: 0.86, outline: 1.35 },
+    global: { minHeight: 7000000, size: 3.8, alpha: 0.56, outline: 0.95 },
+    regional: { minHeight: 1500000, size: 4.6, alpha: 0.70, outline: 1.1 },
+    local: { minHeight: 0, size: 5.5, alpha: 0.84, outline: 1.3 },
   };
 
   let viewer = null;
@@ -51,8 +52,12 @@
     }
   }
 
+  function cameraHeight() {
+    return Number(viewer?.camera?.positionCartographic?.height) || 1e9;
+  }
+
   function styleBand() {
-    const height = Number(viewer?.camera?.positionCartographic?.height) || 1e9;
+    const height = cameraHeight();
     if (height >= STYLE.global.minHeight) return ['global', STYLE.global];
     if (height >= STYLE.regional.minHeight) return ['regional', STYLE.regional];
     return ['local', STYLE.local];
@@ -68,11 +73,11 @@
     if (!point || !isCameraItem(point)) return;
     if (!force && styledPoints.has(point) && lastStyleBand) return;
 
-    // CCTV uses a subdued sage channel so dense camera coverage remains legible
-    // without the electric-blue cast or high-glare look of the previous pass.
+    // Sage is deliberately distinct from cyan aircraft/sea layers and remains
+    // visible over both land and ocean without turning dense CCTV coverage neon.
     point.pixelSize = style.size;
     const fill = rgbaFromCss('#A8B989', style.alpha);
-    const outline = rgbaFromCss('#0C1009', Math.min(0.96, style.alpha + 0.12));
+    const outline = rgbaFromCss('#0C1009', Math.min(0.96, style.alpha + 0.13));
     if (fill) point.color = fill;
     if (outline) point.outlineColor = outline;
     point.outlineWidth = style.outline;
@@ -85,8 +90,8 @@
 
   function applyLabelStyle(label) {
     if (!label || !isCameraItem(label) || styledLabels.has(label)) return;
-    const fill = rgbaFromCss('#E3E5D8', 0.86);
-    const background = rgbaFromCss('#0B0E0A', 0.74);
+    const fill = rgbaFromCss('#DADDD3', 0.80);
+    const background = rgbaFromCss('#0A0D0A', 0.68);
     if (fill) label.fillColor = fill;
     if (background) label.backgroundColor = background;
     if ('disableDepthTestDistance' in label) label.disableDepthTestDistance = 0;
@@ -107,21 +112,27 @@
 
   function updateCollectionVisibility(collection, occluder, kind, style, forceStyle) {
     if (!collection || typeof collection.length !== 'number' || typeof collection.get !== 'function') return;
+    const labelsAllowed = cameraHeight() <= LABEL_MAX_HEIGHT;
+
     for (let i = 0; i < collection.length; i += 1) {
       const item = collection.get(i);
       if (!isCameraItem(item)) continue;
       if (kind === 'points') applyPointStyle(item, style, forceStyle);
       else applyLabelStyle(item);
 
-      // Explicit ellipsoid occlusion remains the final guard, including while
-      // photorealistic 3D tiles are active and Cesium's globe surface is hidden.
+      let earthVisible = true;
       if (occluder && item.position) {
         try {
-          item.show = !!occluder.isPointVisible(item.position);
+          earthVisible = !!occluder.isPointVisible(item.position);
         } catch {
           // Ordinary Cesium depth testing still applies because the bypass is 0.
         }
       }
+
+      // Dense camera labels were visually flattening the map. Keep dots visible
+      // at useful scales, but reveal camera names only once the user is close
+      // enough for individual labels to carry information rather than noise.
+      item.show = kind === 'labels' ? earthVisible && labelsAllowed : earthVisible;
     }
   }
 
@@ -154,7 +165,7 @@
     scene.preRender.addEventListener(listener);
     detachPreRender = () => scene.preRender.removeEventListener(listener);
     window.__RHK_CCTV_VISIBILITY_FIX__ = {
-      version: 4,
+      version: 5,
       refresh: () => {
         lastCheckAt = 0;
         lastScanAt = 0;
@@ -174,7 +185,7 @@
 
     renderPass();
     scene.requestRender?.();
-    console.info('[RHKEARTH:CCTV] Sage camera styling + Earth occlusion guard active');
+    console.info('[RHKEARTH:CCTV] Sage camera styling + low-noise labels + Earth occlusion guard active');
     return true;
   }
 
