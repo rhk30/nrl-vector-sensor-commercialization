@@ -1,0 +1,225 @@
+name: Expand US state public cameras wave 3
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/expand-us-state-cameras-wave3.yml
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/expand-us-state-cameras-wave3.yml
+  workflow_run:
+    workflows: ["Expand US state public cameras wave 2"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-us-state-camera-wave3
+  cancel-in-progress: true
+
+jobs:
+  castle-rock-and-new-england:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch Castle Rock and New England public cameras
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          import hashlib, html, json, re, time, urllib.request
+
+          BASE=Path('experimental-data/worldwide-cameras.json')
+          CACHE=Path('experimental-data/us-state-cameras-wave3-cache.json')
+          LIVE=Path('experimental/live-data/worldwide-cameras.json')
+          UA='RHKEARTH/1.0 (+https://rhkearth.com/experimental/; public DOT cameras)'
+          now_ms=int(datetime.now(timezone.utc).timestamp()*1000)
+          raw=BASE.read_bytes(); base_hash=hashlib.sha256(raw).hexdigest(); base=json.loads(raw.decode())
+          base_rows=base.get('sources') or []
+          try: prev=json.loads(CACHE.read_text()) if CACHE.exists() else {}
+          except Exception: prev={}
+          prev_by={}
+          for r in prev.get('sources') or []: prev_by.setdefault(str(r.get('provider') or ''),[]).append(r)
+
+          known_urls={str(r.get('url') or '') for r in base_rows if r.get('url')}
+          known_coords=set()
+          for r in base_rows:
+              try: known_coords.add((round(float(r['lat']),5),round(float(r['lon']),5)))
+              except Exception: pass
+          outrows=[]; pcounts={}; pstatus={}; scounts={}
+
+          def request(url,*,body=None,headers=None,timeout=30,attempts=2):
+              h={'User-Agent':UA,'Accept':'application/json,*/*'}
+              if headers:h.update(headers)
+              err=None
+              for n in range(attempts):
+                  try:
+                      q=urllib.request.Request(url,data=body,headers=h,method='POST' if body is not None else 'GET')
+                      with urllib.request.urlopen(q,timeout=timeout) as f:return f.read()
+                  except Exception as e:
+                      err=e
+                      if n+1<attempts:time.sleep(1+n)
+              raise RuntimeError(f'{url}: {err}')
+          def get_json(url,**kw):return json.loads(request(url,**kw).decode())
+
+          def add(provider,state,cid,lat,lon,name,image,city=''):
+              try:lat,lon=float(lat),float(lon)
+              except Exception:return False
+              image=html.unescape(str(image or '').strip())
+              if image.startswith('http://'):image='https://'+image[7:]
+              if not image.startswith('https://'):return False
+              low=image.lower()
+              if '.m3u8' in low or 'playlist.m3u8' in low or 'youtube.com' in low:return False
+              if not(-90<=lat<=90 and -180<=lon<=180):return False
+              ck=(round(lat,5),round(lon,5))
+              if image in known_urls or ck in known_coords:return False
+              sid=re.sub(r'[^A-Za-z0-9_.:-]+','-',str(cid))[:180]
+              outrows.append({'id':sid,'name':str(name or 'Traffic camera')[:180],'city':str(city or state)[:100],'state':state,
+                              'country':'US','provider':provider,'lat':lat,'lon':lon,'feedType':'image','url':image,'snapshotUrl':image,
+                              'mediaUrl':image,'refreshMs':20000,'sourceKind':'official-public-camera','liveSemantics':'near-real-time provider-refreshed image'})
+              known_urls.add(image);known_coords.add(ck);scounts[state]=scounts.get(state,0)+1
+              return True
+
+          def run(provider,fn):
+              start=len(outrows);before=dict(scounts)
+              try:
+                  fn();n=len(outrows)-start
+                  if n<=0:raise RuntimeError('no new snapshot-compatible cameras')
+                  pcounts[provider]=n;pstatus[provider]='fresh';print(provider,n,'fresh')
+              except Exception as e:
+                  del outrows[start:];scounts.clear();scounts.update(before)
+                  fb=prev_by.get(provider) or []
+                  if fb:
+                      outrows.extend(fb);pcounts[provider]=len(fb);pstatus[provider]='last-good'
+                      for r in fb:
+                          st=str(r.get('state') or '')
+                          if st:scounts[st]=scounts.get(st,0)+1
+                      print(provider,'last-good',len(fb),e)
+                  else:pcounts[provider]=0;pstatus[provider]='unavailable';print(provider,'unavailable',e)
+
+          GQL='''query MapFeatures($input: MapFeaturesArgs!) { mapFeaturesQuery(input: $input) { mapFeatures { title uri features { geometry } __typename ... on Camera { active views(limit: 4) { category ... on CameraView { url } } } } error { message } } }'''
+          def castle(provider,baseurl,state,bounds,prefix):
+              south,north,west,east=bounds
+              body=json.dumps({'query':GQL,'variables':{'input':{'north':north,'south':south,'east':east,'west':west,'zoom':16,'layerSlugs':['normalCameras'],'nonClusterableUris':None}}}).encode()
+              d=json.loads(request(baseurl.rstrip('/')+'/api/graphql',body=body,headers={'Content-Type':'application/json','Referer':baseurl},timeout=35).decode())
+              feats=(((d.get('data') or {}).get('mapFeaturesQuery') or {}).get('mapFeatures') or [])
+              if not feats:raise RuntimeError('GraphQL returned no mapFeatures')
+              for i,f in enumerate(feats):
+                  if f.get('__typename')!='Camera' or f.get('active') is False:continue
+                  fs=f.get('features') or [];coords=((fs[0].get('geometry') or {}).get('coordinates') or []) if fs else []
+                  if len(coords)<2:continue
+                  views=f.get('views') or []
+                  still=''
+                  for v in views:
+                      u=str(v.get('url') or '').strip()
+                      if u.startswith('https://') and '.m3u8' not in u.lower() and 'playlist' not in u.lower():still=u;break
+                  if not still:continue
+                  m=re.search(r'camera/(\d+)',str(f.get('uri') or ''))
+                  cid=m.group(1) if m else str(i)
+                  add(provider,state,f'{prefix}-{cid}',coords[1],coords[0],f.get('title') or f'{provider} Camera {cid}',still,state)
+
+          CASTLE=[
+            ('Minnesota 511 Castle Rock','https://511mn.org','MN',(43.4,49.5,-97.4,-89.4),'mn-cr'),
+            ('Mass511 Castle Rock','https://mass511.com','MA',(41.1,42.9,-73.6,-69.8),'ma-cr'),
+            ('KanDrive Castle Rock','https://www.kandrive.gov','KS',(36.9,40.1,-102.1,-94.5),'ks-cr'),
+            ('Nebraska 511 Castle Rock','https://new.511.nebraska.gov','NE',(39.9,43.1,-104.2,-95.2),'ne-cr'),
+            ('COtrip Castle Rock','https://maps.cotrip.org','CO',(36.9,41.1,-109.1,-102.0),'co-cr'),
+          ]
+          for provider,host,state,bounds,prefix in CASTLE:
+              run(provider,lambda p=provider,h=host,s=state,b=bounds,x=prefix:castle(p,h,s,b,x))
+
+          def unpack_icons(d):
+              if isinstance(d,list):return d
+              if isinstance(d,dict):
+                  for key in ('item2','Item2','cameras','Cameras','data','items'):
+                      v=d.get(key)
+                      if isinstance(v,list):return v
+              return []
+
+          def iconfeed(provider,hosts,allowed):
+              arr=[];used=''
+              for host in hosts:
+                  for path in ('/map/mapIcons/Cameras','/map/mapicons/Cameras'):
+                      try:
+                          d=get_json(host+path,timeout=25);arr=unpack_icons(d)
+                          if arr:used=host;break
+                      except Exception:pass
+                  if arr:break
+              if not arr:raise RuntimeError('no camera icon array')
+              for i,item in enumerate(arr):
+                  loc=item.get('location') or item.get('Location') or []
+                  if isinstance(loc,dict):lat,lon=loc.get('lat') or loc.get('latitude'),loc.get('lon') or loc.get('longitude')
+                  elif isinstance(loc,list) and len(loc)>=2:lat,lon=loc[0],loc[1]
+                  else:continue
+                  try:latf,lonf=float(lat),float(lon)
+                  except Exception:continue
+                  st=''
+                  # Order matters in overlapping New England boxes: use longitude + latitude boundaries.
+                  if 42.7<=latf<=45.4 and -72.7<=lonf<=-70.5:st='NH'
+                  if 42.7<=latf<=45.1 and -73.5<=lonf<-72.0:st='VT'
+                  if 43.0<=latf<=47.6 and -71.2<=lonf<=-66.7:st='ME'
+                  if 40.9<=latf<=42.1 and -73.8<=lonf<=-71.7:st='CT'
+                  if st not in allowed:continue
+                  iid=item.get('itemId') or item.get('ItemId') or item.get('id') or item.get('Id')
+                  if iid is None:continue
+                  image=f'{used}/map/Cctv/{iid}'
+                  add(provider,st,f'{provider.lower().replace(" ","-")}-{iid}',latf,lonf,item.get('tooltip') or item.get('title') or item.get('name') or f'{st} traffic camera',image,st)
+
+          run('New England 511 corrected',lambda:iconfeed('New England 511 corrected',['https://newengland511.org','https://prod-ne.ibi511.com'],{'ME','NH','VT'}))
+          run('Connecticut map camera recovery',lambda:iconfeed('Connecticut map camera recovery',['https://ctroads.org','https://cttravelsmart.org'],{'CT'}))
+
+          ded={str(r['id']):r for r in outrows};outrows=list(ded.values())
+          if not outrows and not (prev.get('sources') or []):raise SystemExit('wave3 found no usable cameras')
+          merged={str(r.get('id')):r for r in base_rows}
+          for r in outrows:merged[str(r['id'])]=r
+          result=dict(base);result['sources']=list(merged.values());result['fetchedAt']=now_ms
+          result['usStateWave3Providers']=pcounts;result['usStateWave3ProviderStatus']=pstatus;result['usStateWave3Counts']=dict(sorted(scounts.items()));result['usStateWave3Coverage']=sorted(scounts)
+          cache={'sources':outrows,'fetchedAt':now_ms,'providers':pcounts,'providerStatus':pstatus,'stateCounts':dict(sorted(scounts.items())),'stateCoverage':sorted(scounts)}
+          BASE.write_text(json.dumps(result,separators=(',',':'),ensure_ascii=False)+'\n');LIVE.parent.mkdir(parents=True,exist_ok=True);LIVE.write_text(json.dumps(result,separators=(',',':'),ensure_ascii=False)+'\n');CACHE.write_text(json.dumps(cache,separators=(',',':'),ensure_ascii=False)+'\n')
+          Path('/tmp/rhkearth-us-wave3-base.sha256').write_text(base_hash+'\n')
+          print('base',len(base_rows),'wave3',len(outrows),'merged',len(result['sources']));print('wave3 states',json.dumps(dict(sorted(scounts.items()))))
+          PY
+
+      - name: Validate wave 3
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('experimental-data/worldwide-cameras.json'));c=json.load(open('experimental-data/us-state-cameras-wave3-cache.json'))
+          r=c.get('sources') or []
+          assert len(d.get('sources') or [])>=100 and len(r)>=1
+          assert all(str(x.get('url','')).startswith('https://') and '.m3u8' not in str(x.get('url','')).lower() for x in r)
+          print('validated wave3',len(r),'cameras',c.get('stateCounts'))
+          PY
+
+      - name: Preserve wave 3 files
+        run: |
+          cp experimental-data/worldwide-cameras.json /tmp/worldwide-cameras-wave3.json
+          cp experimental/live-data/worldwide-cameras.json /tmp/worldwide-cameras-wave3-live.json
+          cp experimental-data/us-state-cameras-wave3-cache.json /tmp/us-state-cameras-wave3-cache.json
+
+      - name: Publish wave 3
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin main && git reset --hard origin/main
+            expected="$(cat /tmp/rhkearth-us-wave3-base.sha256)"; current="$(sha256sum experimental-data/worldwide-cameras.json | awk '{print $1}')"
+            if [ "$current" != "$expected" ]; then echo "Camera base advanced; skipping stale wave3 publish."; exit 0; fi
+            cp /tmp/worldwide-cameras-wave3.json experimental-data/worldwide-cameras.json
+            cp /tmp/worldwide-cameras-wave3-live.json experimental/live-data/worldwide-cameras.json
+            cp /tmp/us-state-cameras-wave3-cache.json experimental-data/us-state-cameras-wave3-cache.json
+            git add experimental-data/worldwide-cameras.json experimental/live-data/worldwide-cameras.json experimental-data/us-state-cameras-wave3-cache.json
+            git diff --cached --quiet && exit 0
+            git commit -m "Expand RHKEARTH US state camera coverage wave 3 [skip ci]"
+            git push origin main && exit 0
+          done
+          exit 1
