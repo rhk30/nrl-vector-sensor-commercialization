@@ -1,7 +1,7 @@
-// Stable Applications entry point.
-// Keep this filename because landing.js imports it; implementation modules live below.
-import './market-bridge-v10.js?v=2';
-import './applications-safe-area.js?v=1';
-import './applications-responsive-fix.js?v=1';
-import './patent-integrity-final.js?v=1';
-import './public-site-finalize.js?v=1';
+// Compatibility entry point retained because landing.js imports this path.
+// New application code uses stable descriptive filenames.
+import './applications-visualization.js';
+import './applications-safe-area.js';
+import './applications-responsive-fix.js';
+import './site-integrity.js';
+import './public-site.js';
