@@ -1,147 +1,46 @@
-# RHKEARTH: NRL Low-Frequency Vector Sensor Assessment
+# RHKEARTH
 
-Independent technical and commercialization evaluation of a Naval Research Laboratory low-frequency acoustic vector-sensor patent family.
+RHKEARTH is an independent technical and commercialization evaluation of U.S. Naval Research Laboratory low-frequency acoustic vector-sensor patents.
 
-## Status
+Live site: https://rhkearth.com
 
-This repository is an **independent evaluation project**.
+## Repository structure
 
-- The relevant patents are assigned to the **United States of America, as represented by the Secretary of the Navy**.
-- RHKEARTH does **not** claim patent ownership, a patent license, exclusivity, Navy / NRL / DoD sponsorship, or an operational Navy deployment.
-- Any future commercialization using protected patent rights would require the appropriate rights and agreements.
+- `index.html` — public page markup
+- `site.css`, `cinematic.css`, `professional.css` — core presentation styles
+- `landing.js` — page initialization and enhancement loading
+- `app.js` — technology tabs and source-bearing demonstrator logic
+- `applications-visualization.js` — maritime applications visualization
+- `demo-mechanics.js` — demonstrator interaction and deployment views
+- `technology-unified.js` — technology exhibit presentation
+- `sensor-realism.js` — mesh-sensor exhibit
+- `site-integrity.js` — public technical-claim guardrails
+- `PATENT_AUDIT.md` — detailed source and wording audit
 
-## Patents under evaluation
+The site is intentionally dependency-free and runs as static files on GitHub Pages.
 
-- US11287508B2: https://patents.google.com/patent/US11287508B2/en
-- US11408961B2: https://patents.google.com/patent/US11408961B2/en
+## Technical basis
 
-Published prototype work:
+The evaluation centers on:
 
-- J. Appl. Phys. 122, 034504 (2017), “Mesh-type acoustic vector sensor,” DOI 10.1063/1.4994174
+- US11287508B2
+- US11408961B2
+- the published 2017 NRL mesh-type acoustic vector sensor prototype work
 
-See [`PATENT_AUDIT.md`](PATENT_AUDIT.md) for the public-site evidence and wording boundary.
+The public site distinguishes reported prototype measurements, patent-described architectures, analytical relationships, and RHKEARTH commercialization hypotheses.
 
-## What the public sources support
+## Development
 
-### Reported prototype evidence
-
-- 6 mm OD spider-web prototype
-- 1 μm-thick LPCVD ultra-low-stress silicon nitride film
-- 20 μm released-web filament / beam separation
-- approximately 2.7 m total fiber length in the 6 mm prototype geometry
-- 3.6 μm × 1 μm prototype filaments
-- 30 nm aluminum center mirror
-- 530 Hz fundamental frequency for the first mesh prototype
-- in-air dipole-type directionality
-- peak responsivity in excess of 20 nm/Pa at 90 Hz in the in-air prototype evaluation
-
-### Patent / paper estimates and projections
-
-- interferometer displacement-noise spectral density of approximately 2 pm/√Hz used in the MDP estimate
-- estimated air MDP spectral density of approximately 100 μPa/√Hz
-- projected water responsivity of approximately 0.3 nm/Pa
-- projected equivalent water pressure spectral density of approximately 76 dB re 1 μPa/√Hz
-- approximately 10 mm floating-base radius estimate for operation in the 10 Hz range
-
-The water responsivity and water MDP values are **projections, not in-water validation results**.
-
-### Patent-described mechanisms and embodiments
-
-- two-dimensional micro/nano mesh particle-motion / flow sensing
-- optical readout of mesh deformation
-- natural signed cosine-type directivity relative to the mesh normal
-- three co-located orthogonal mesh transducers described as sufficient to reconstruct a 3-D sound-wave vector
-- floating base with one or more flow meters, retaining thread, and anchor
-- optional anchor electronics and communication to an external device
-- external receivers including ships, floating buoys, land receivers, and a central controller capable of aggregating multiple sensor outputs
-- submarine / AUV hull-mounting implementations
-- shallow-water mooring close to an air/water boundary
-- viscous-liquid channel tower embodiments
-- neutrally buoyant hull-mounted and/or towed-array applications
-- positively buoyant AVS / sonobuoy embodiment
-- optional tower power, memory, transmitter, detachment, surfacing, and telemetry
-
-## What the public sources do not establish
-
-The website does not present the following as known product specifications:
-
-- demonstrated in-water sensitivity or bandwidth
-- measured underwater bearing error
-- platform / tether / flow self-noise
-- operational detection range or probability of detection
-- vessel classification performance
-- long-duration corrosion / biofouling performance
-- qualified packaging, manufacturing yield, or calibration drift
-- fielded Navy deployment
-
-## Public-site organization
-
-The public presentation is intentionally compact:
-
-1. thesis and maritime context;
-2. technology / system architecture with source-grounded evidence;
-3. patent-grounded bearing-geometry demonstrator;
-4. defense and dual-use application evaluation.
-
-System architecture is the default Technology view; the physical mesh / directivity model is the second view.
-
-## Demonstrators
-
-The public site contains:
-
-- cinematic maritime context media with patent-specific overlays;
-- a 2-D deployment / source-bearing demonstrator focused on geometry rather than sonar performance;
-- patent-grounded floating-base, tower, hull/AUV, towed, and sonobuoy context views;
-- a micro-mesh cutaway and signed cosine directivity visualization;
-- progressive disclosure of source-grounded quantitative values;
-- an illustrative maritime operating picture for application context;
-- a commercial-context media reel separating evaluation hypotheses from patent deployment claims.
-
-The visualizations are **not validated NRL engineering simulations** and are not operational sonar-performance models. Source positions, bearings, wavefront animation, vehicle motion, and scene geometry explain disclosed concepts or clearly labeled evaluation hypotheses only.
-
-No real submarine, ship, special-operations, commercial-vessel, or other platform acoustic-signature data is included.
-
-## Landing-page media
-
-Real maritime photos / video are used only as operating context. The overlay supplies the patent-relevant sensor architecture and information flow. The site does not imply that a photographed or filmed platform uses the NRL technology.
-
-Current context media includes:
-
-- U.S. Navy submarine imagery
-- U.S. Navy surface-fleet footage
-- U.S. Navy Special Warfare craft imagery
-- harbor-transit footage
-
-The fifth hero state is a patent-focused sonobuoy / AVS-tower schematic rather than a claim of a real deployment.
-
-Hero video elements are muted and preloaded to make scene transitions smoother. The scene tabs can also be selected manually.
-
-## Quantitative display policy
-
-The site may show relationships expressly stated in the patents / published prototype work, including:
-
-- `R / Rmax = cos θ`
-- ideal square-mesh fiber length `2L² / d`
-- ideal square-mesh length gain `2L / d`
-
-The square-mesh relation is not used to back-calculate the reported ≈2.7 m fiber length of the separate truncated spider-web prototype.
-
-The mission demonstrator does not present site-generated sonar SNR, detection range, confidence, propagation-loss-derived performance, bearing error, target classification, or modeled sensor sensitivity as NRL performance outputs.
-
-## Run locally
-
-No build system is required. Open `index.html` directly or run:
+Run a local server from the repository root:
 
 ```bash
 python -m http.server 8000
 ```
 
-Then visit `http://localhost:8000`.
+Then open `http://localhost:8000`.
 
-## GitHub Pages
+Browser and release integrity checks live in `.github/workflows/`.
 
-The repository can be published from the `main` branch at `/ (root)` using **Settings → Pages → Deploy from a branch**.
+## Project status
 
-## Disclaimer
-
-Independent research and commercialization screening only. Not an NRL, Department of the Navy, or Department of Defense website. Not legal advice, a freedom-to-operate opinion, an engineering qualification report, or evidence of patent ownership or licensing.
+RHKEARTH does not claim ownership of the underlying Navy patents, a patent license, Navy or NRL sponsorship, or an operational deployment. Detailed evidence and wording boundaries are maintained in `PATENT_AUDIT.md` rather than duplicated throughout this README.
