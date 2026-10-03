@@ -1,0 +1,573 @@
+name: Expand US state public cameras
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/expand-us-state-cameras.yml
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/expand-us-state-cameras.yml
+  workflow_run:
+    workflows: ["Expand Worldwide public cameras"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-us-state-camera-expansion
+  cancel-in-progress: true
+
+jobs:
+  expand-states:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out RHKEARTH
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge additional US public-camera networks
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          from concurrent.futures import ThreadPoolExecutor, as_completed
+          from urllib.parse import quote, urljoin
+          import hashlib
+          import html
+          import json
+          import re
+          import time
+          import urllib.request
+
+          BASE = Path('experimental-data/worldwide-cameras.json')
+          CACHE = Path('experimental-data/us-state-cameras-expanded-cache.json')
+          LIVE = Path('experimental/live-data/worldwide-cameras.json')
+          UA = 'RHKEARTH/1.0 (+https://rhkearth.com/experimental/; public US traffic camera catalog)'
+          now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+          if not BASE.exists():
+              raise SystemExit('Worldwide camera catalog is missing')
+
+          base_bytes = BASE.read_bytes()
+          base_hash = hashlib.sha256(base_bytes).hexdigest()
+          base = json.loads(base_bytes.decode('utf-8'))
+          base_rows = base.get('sources') if isinstance(base, dict) else []
+          base_rows = base_rows if isinstance(base_rows, list) else []
+          if len(base_rows) < 100:
+              raise SystemExit(f'Base camera catalog unexpectedly small: {len(base_rows)}')
+
+          try:
+              previous = json.loads(CACHE.read_text(encoding='utf-8')) if CACHE.exists() else {}
+          except Exception:
+              previous = {}
+          previous_rows = previous.get('sources') if isinstance(previous, dict) else []
+          previous_rows = previous_rows if isinstance(previous_rows, list) else []
+          previous_by_provider = {}
+          for row in previous_rows:
+              previous_by_provider.setdefault(str(row.get('provider') or ''), []).append(row)
+
+          STATE_ABBR = {
+              'Alabama':'AL','Alaska':'AK','Arizona':'AZ','Arkansas':'AR','California':'CA','Colorado':'CO',
+              'Connecticut':'CT','Delaware':'DE','District of Columbia':'DC','Florida':'FL','Georgia':'GA',
+              'Hawaii':'HI','Idaho':'ID','Illinois':'IL','Indiana':'IN','Iowa':'IA','Kansas':'KS','Kentucky':'KY',
+              'Louisiana':'LA','Maine':'ME','Maryland':'MD','Massachusetts':'MA','Michigan':'MI','Minnesota':'MN',
+              'Mississippi':'MS','Missouri':'MO','Montana':'MT','Nebraska':'NE','Nevada':'NV','New Hampshire':'NH',
+              'New Jersey':'NJ','New Mexico':'NM','New York':'NY','North Carolina':'NC','North Dakota':'ND','Ohio':'OH',
+              'Oklahoma':'OK','Oregon':'OR','Pennsylvania':'PA','Rhode Island':'RI','South Carolina':'SC',
+              'South Dakota':'SD','Tennessee':'TN','Texas':'TX','Utah':'UT','Vermont':'VT','Virginia':'VA',
+              'Washington':'WA','West Virginia':'WV','Wisconsin':'WI','Wyoming':'WY'
+          }
+
+          def request(url, *, accept='application/json,*/*', headers=None, timeout=25, attempts=2):
+              merged = {'User-Agent': UA, 'Accept': accept, 'X-Requested-With': 'XMLHttpRequest'}
+              if headers:
+                  merged.update(headers)
+              last = None
+              for attempt in range(attempts):
+                  try:
+                      req = urllib.request.Request(url, headers=merged)
+                      with urllib.request.urlopen(req, timeout=timeout) as response:
+                          if response.status < 200 or response.status >= 300:
+                              raise RuntimeError(f'HTTP {response.status}')
+                          return response.read()
+                  except Exception as exc:
+                      last = exc
+                      if attempt + 1 < attempts:
+                          time.sleep(1.1 * (attempt + 1))
+              raise RuntimeError(f'{url}: {last}')
+
+          def get_json(url, **kwargs):
+              return json.loads(request(url, **kwargs).decode('utf-8'))
+
+          extra = []
+          provider_counts = {}
+          provider_status = {}
+          state_counts = {}
+
+          existing_urls = {str(r.get('url') or '') for r in base_rows if r.get('url')}
+          existing_coords = set()
+          for r in base_rows:
+              try:
+                  existing_coords.add((round(float(r.get('lat')), 4), round(float(r.get('lon')), 4)))
+              except Exception:
+                  pass
+
+          def add(provider, camera_id, lat, lon, name, url, *, state='', city='', refresh_ms=20000,
+                  source_kind='official-public-camera', allow_coord_duplicate=False):
+              try:
+                  lat, lon = float(lat), float(lon)
+              except (TypeError, ValueError):
+                  return False
+              url = html.unescape(str(url or '').strip())
+              if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                  return False
+              if not url.startswith('https://'):
+                  return False
+              lower = url.lower()
+              if '.m3u8' in lower or lower.startswith('https://youtube.com') or 'youtube.com/embed/' in lower:
+                  return False
+              if url in existing_urls:
+                  return False
+              coord_key = (round(lat, 4), round(lon, 4))
+              if not allow_coord_duplicate and coord_key in existing_coords:
+                  return False
+              camera_id = re.sub(r'[^A-Za-z0-9_.:-]+', '-', str(camera_id or f'{lat:.5f}-{lon:.5f}'))[:180]
+              row = {
+                  'id': camera_id,
+                  'name': str(name or 'Public traffic camera')[:180],
+                  'city': str(city or state or '')[:100],
+                  'state': str(state or '')[:2],
+                  'country': 'US',
+                  'provider': provider,
+                  'lat': lat,
+                  'lon': lon,
+                  'feedType': 'image',
+                  'url': url,
+                  'snapshotUrl': url,
+                  'mediaUrl': url,
+                  'refreshMs': int(refresh_ms),
+                  'sourceKind': source_kind,
+                  'liveSemantics': 'near-real-time provider-refreshed image',
+              }
+              extra.append(row)
+              existing_urls.add(url)
+              existing_coords.add(coord_key)
+              if state:
+                  state_counts[state] = state_counts.get(state, 0) + 1
+              return True
+
+          def run_provider(provider, loader):
+              before = len(extra)
+              state_before = dict(state_counts)
+              try:
+                  loader()
+                  count = len(extra) - before
+                  if count <= 0:
+                      raise RuntimeError('no new usable cameras returned')
+                  provider_counts[provider] = count
+                  provider_status[provider] = 'fresh'
+                  print(f'{provider}: {count} fresh')
+              except Exception as exc:
+                  del extra[before:]
+                  state_counts.clear(); state_counts.update(state_before)
+                  fallback = previous_by_provider.get(provider) or []
+                  if fallback:
+                      extra.extend(fallback)
+                      provider_counts[provider] = len(fallback)
+                      provider_status[provider] = 'last-good'
+                      for row in fallback:
+                          st = str(row.get('state') or '')
+                          if st:
+                              state_counts[st] = state_counts.get(st, 0) + 1
+                      print(f'{provider}: retained {len(fallback)} last-good rows after refresh failure: {exc}')
+                  else:
+                      provider_counts[provider] = 0
+                      provider_status[provider] = 'unavailable'
+                      print(f'{provider}: unavailable: {exc}')
+
+          # --- CARS/IBI 511 browser-facing camera index -----------------------
+          QUERY_TEMPLATE = {
+              'columns': [
+                  {'data': None, 'name': ''},
+                  {'name': 'sortOrder', 's': True},
+                  {'name': 'roadway', 's': True},
+                  {'data': 3, 'name': ''},
+              ],
+              'order': [{'column': 1, 'dir': 'asc'}],
+              'search': {'value': ''},
+          }
+          POINT_RE = re.compile(r'POINT\s*\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)', re.I)
+
+          def build_query(start, length=100):
+              q = dict(QUERY_TEMPLATE)
+              q['start'] = int(start); q['length'] = int(length)
+              return quote(json.dumps(q, separators=(',', ':')))
+
+          def ibi_page(base_url, start, lang='en'):
+              data = get_json(f'{base_url}/List/GetData/Cameras?query={build_query(start)}&lang={lang}', timeout=18)
+              return data.get('data') or [], int(data.get('recordsTotal') or 0)
+
+          def load_ibi_state(provider, base_url, state, bounds, prefix, *, lang='en', max_pages=60):
+              first, total = ibi_page(base_url, 0, lang)
+              if total <= 0:
+                  raise RuntimeError('recordsTotal was zero')
+              rows = {r.get('id'): r for r in first if isinstance(r, dict) and isinstance(r.get('id'), int)}
+              starts = list(range(100, min(total, max_pages * 100), 100))
+              with ThreadPoolExecutor(max_workers=8) as pool:
+                  futures = [pool.submit(ibi_page, base_url, s, lang) for s in starts]
+                  for future in as_completed(futures):
+                      try:
+                          page, _ = future.result()
+                          for r in page:
+                              if isinstance(r, dict) and isinstance(r.get('id'), int):
+                                  rows[r['id']] = r
+                      except Exception:
+                          pass
+              if len(rows) < total * 0.90:
+                  raise RuntimeError(f'short read {len(rows)} of {total}')
+              minlat,maxlat,minlon,maxlon = bounds
+              accepted = 0
+              for r in rows.values():
+                  wkt = (((r.get('latLng') or {}).get('geography') or {}).get('wellKnownText'))
+                  m = POINT_RE.search(str(wkt or ''))
+                  if not m:
+                      continue
+                  lon, lat = float(m.group(1)), float(m.group(2))
+                  if not (minlat <= lat <= maxlat and minlon <= lon <= maxlon):
+                      continue
+                  images = r.get('images') or []
+                  image = images[0] if images and isinstance(images[0], dict) else {}
+                  if image.get('blocked') or image.get('disabled'):
+                      continue
+                  snapshot = str(image.get('imageUrl') or '').strip()
+                  if snapshot:
+                      snapshot = urljoin(base_url + '/', snapshot)
+                  else:
+                      snapshot = f'{base_url}/map/Cctv/{r.get("id")}'
+                  name = str(r.get('location') or r.get('roadway') or f'{provider} Camera {r.get("id")}').strip()
+                  if add(provider, f'{prefix}-{r.get("id")}', lat, lon, name, snapshot, state=state,
+                         city=str(r.get('county') or r.get('city') or state), refresh_ms=15000,
+                         source_kind='public-511-browser-camera-index'):
+                      accepted += 1
+              if accepted == 0:
+                  raise RuntimeError(f'{total} records found but no new image cameras accepted')
+
+          IBI_CANDIDATES = [
+              ('Wisconsin 511 browser feed','https://511wi.gov','WI',(42.4,47.2,-92.9,-86.2),'wi'),
+              ('Pennsylvania 511 browser feed','https://www.511pa.com','PA',(39.6,42.6,-80.6,-74.6),'pa'),
+              ('New York 511 browser feed','https://511ny.org','NY',(40.4,45.1,-79.9,-71.8),'ny'),
+              ('Idaho 511 browser feed','https://511.idaho.gov','ID',(41.9,49.1,-117.3,-111.0),'id'),
+              ('Alaska 511 browser feed','https://511.alaska.gov','AK',(51.0,72.0,-180.0,-129.0),'ak'),
+              ('Minnesota 511 browser feed','https://511mn.org','MN',(43.4,49.5,-97.4,-89.4),'mn'),
+              ('Nebraska 511 browser feed','https://511.nebraska.gov','NE',(39.9,43.1,-104.2,-95.2),'ne'),
+          ]
+
+          for provider, url, state, bounds, prefix in IBI_CANDIDATES:
+              run_provider(provider, lambda p=provider,u=url,s=state,b=bounds,x=prefix: load_ibi_state(p,u,s,b,x))
+
+          # --- Official public snapshot/image feeds --------------------------
+          def load_indiana():
+              endpoint = 'https://511in.org/api/graphql'
+              query = '''query MapFeatures($input: MapFeaturesArgs!) { mapFeaturesQuery(input: $input) { mapFeatures { title uri features { geometry } __typename ... on Camera { active views(limit: 1) { category ... on CameraView { url } } } } } }'''
+              body = json.dumps({'query':query,'variables':{'input':{'north':41.9,'south':37.7,'east':-84.6,'west':-88.2,'zoom':16,'layerSlugs':['normalCameras'],'nonClusterableUris':None}}}).encode()
+              req = urllib.request.Request(endpoint, data=body, headers={'User-Agent':UA,'Content-Type':'application/json','Accept':'application/json','Referer':'https://511in.org/'})
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  data = json.loads(response.read().decode('utf-8'))
+              feats = (((data.get('data') or {}).get('mapFeaturesQuery') or {}).get('mapFeatures') or [])
+              for f in feats:
+                  if f.get('__typename') != 'Camera' or f.get('active') is False:
+                      continue
+                  coords = (((f.get('features') or [{}])[0].get('geometry') or {}).get('coordinates') or [])
+                  views = f.get('views') or []
+                  if len(coords) < 2 or not views:
+                      continue
+                  image = str(views[0].get('url') or '')
+                  cid = re.search(r'camera/(\d+)', str(f.get('uri') or ''))
+                  add('INDOT TrafficWise', f'indot-{cid.group(1) if cid else len(extra)}', coords[1], coords[0],
+                      f.get('title') or 'INDOT Camera', image, state='IN', city='Indiana', refresh_ms=30000,
+                      source_kind='official-state-dot-camera')
+
+          def load_kentucky():
+              url = 'https://services2.arcgis.com/CcI36Pduqd0OR4W9/arcgis/rest/services/trafficCamerasCur_Prd/FeatureServer/0/query?where=id%3E0&outFields=*&returnGeometry=false&resultRecordCount=5000&f=json'
+              data = get_json(url, timeout=35)
+              for f in data.get('features') or []:
+                  p = f.get('attributes') or {}
+                  add('Kentucky traffic cameras', f'ky-{p.get("id") or p.get("OBJECTID")}', p.get('latitude'), p.get('longitude'),
+                      p.get('description') or 'Kentucky traffic camera', p.get('snapshot'), state='KY', city='Kentucky', refresh_ms=15000,
+                      source_kind='official-state-open-data-camera')
+
+          def load_iteris_state(provider, endpoint, state, prefix):
+              data = get_json(endpoint, timeout=30)
+              for f in data.get('features') or []:
+                  coords = (f.get('geometry') or {}).get('coordinates') or []
+                  p = f.get('properties') or {}
+                  cams = p.get('cameras') or p.get('Cameras') or []
+                  cam = cams[0] if cams and isinstance(cams[0], dict) else {}
+                  image = cam.get('image') or cam.get('LinkPath') or cam.get('linkPath')
+                  desc = p.get('description') or cam.get('description') or cam.get('Description') or f'{provider} camera'
+                  if len(coords) >= 2:
+                      add(provider, f'{prefix}-{p.get("id") or f.get("id") or len(extra)}', coords[1], coords[0], desc, image,
+                          state=state, city=state, refresh_ms=20000, source_kind='official-state-dot-camera')
+
+          def load_montana():
+              load_iteris_state('Montana DOT','https://mt.cdn.iteris-atis.com/geojson/icons/metadata/icons.cameras.geojson','MT','mt')
+
+          def load_northdakota():
+              load_iteris_state('North Dakota DOT','https://travelfiles.dot.nd.gov/geojson/cameras/1654870342843/cameras.json','ND','nd')
+
+          def load_southcarolina():
+              load_iteris_state('South Carolina 511','https://sc.cdn.iteris-atis.com/geojson/icons/metadata/icons.cameras.geojson','SC','sc')
+
+          def load_southdakota():
+              load_iteris_state('South Dakota 511','https://sd.cdn.iteris-atis.com/geojson/icons/metadata/icons.cameras.geojson','SD','sd')
+
+          def load_newmexico():
+              data = get_json('https://servicev4.nmroads.com/RealMapWAR/GetCameraInfo', timeout=30)
+              rows = data.get('cameraInfo') if isinstance(data, dict) else []
+              for cam in rows or []:
+                  name = str(cam.get('name') or '')
+                  image = 'https://servicev4.nmroads.com/RealMapWAR/GetCameraImage?ts=0&cameraName=' + quote(name)
+                  add('NMRoads', f'nm-{name or len(extra)}', cam.get('lat'), cam.get('lon'), cam.get('title') or name or 'NMRoads camera', image,
+                      state='NM', city='New Mexico', refresh_ms=15000, source_kind='official-state-dot-camera')
+
+          def load_newjersey():
+              data = get_json('https://publicmap1.511nj.org/api/client/camera/GetCameraDataByTourId?tourid=&rnd=20260909', timeout=30)
+              rows = (((data.get('Data') or {}).get('CameraData')) or []) if isinstance(data, dict) else []
+              for cam in rows:
+                  details = cam.get('CameraMainDetail') or []
+                  still = next((d for d in details if str(d.get('cameratype') or '').lower() != 'video' and d.get('URL')), None)
+                  if not still:
+                      continue
+                  add('NJ 511', f'nj-{cam.get("id") or len(extra)}', cam.get('latitude'), cam.get('longitude'), cam.get('name') or 'NJ 511 camera', still.get('URL'),
+                      state='NJ', city='New Jersey', refresh_ms=15000, source_kind='official-state-dot-camera')
+
+          def load_rhodeisland():
+              url = 'https://vueworks.dot.ri.gov/arcgis/rest/services/VW_ITSAssets105/MapServer/2/query?where=OBJECTID%3E0&outFields=*&returnGeometry=false&resultRecordCount=5000&f=json'
+              data = get_json(url, timeout=30)
+              for f in data.get('features') or []:
+                  p = f.get('attributes') or {}
+                  add('RIDOT', f'ri-{p.get("OBJECTID")}', p.get('Latitude'), p.get('Longitude'), p.get('Description') or 'RIDOT camera', p.get('CCVEWebURL'),
+                      state='RI', city='Rhode Island', refresh_ms=20000, source_kind='official-state-open-data-camera')
+
+          def load_virginia():
+              data = get_json('https://www.511virginia.org/data/geojson/icons.cameras.geojson', timeout=30)
+              for f in data.get('features') or []:
+                  coords = (f.get('geometry') or {}).get('coordinates') or []
+                  p = f.get('properties') or {}
+                  if len(coords) >= 2:
+                      add('Virginia 511', f'va-{p.get("id") or len(extra)}', coords[1], coords[0], p.get('description') or 'Virginia 511 camera', p.get('https_url'),
+                          state='VA', city='Virginia', refresh_ms=15000, source_kind='official-state-dot-camera')
+
+          def load_wyoming():
+              data = get_json('https://map.wyoroad.info/wtimap/data/wtimap-webcameras.json', timeout=30)
+              for f in data.get('features') or []:
+                  attrs = f.get('attributes') or {}
+                  markup = html.unescape(str(attrs.get('IMAGEMARKUP') or ''))
+                  m = re.search(r'https://webcams[^"\'<>\s]+?\.jpg', markup)
+                  geom = f.get('geometry') or {}
+                  if not m or geom.get('x') is None or geom.get('y') is None:
+                      continue
+                  # ArcGIS Web Mercator -> WGS84
+                  import math
+                  lon = float(geom['x']) / 20037508.34 * 180.0
+                  lat = float(geom['y']) / 20037508.34 * 180.0
+                  lat = 180.0 / math.pi * (2 * math.atan(math.exp(lat * math.pi / 180.0)) - math.pi / 2)
+                  desc = re.sub(r'<[^>]+>', ' ', markup)
+                  desc = re.sub(r'\s+', ' ', desc).strip()[:160] or 'WYDOT webcam'
+                  add('WYDOT', f'wy-{attrs.get("OBJECTID") or len(extra)}', lat, lon, desc, m.group(0), state='WY', city='Wyoming', refresh_ms=30000,
+                      source_kind='official-state-dot-camera')
+
+          def load_ohio():
+              data = get_json('https://api.ohgo.com/roadmarkers/cameras', timeout=30)
+              rows = data if isinstance(data, list) else data.get('results') or data.get('data') or []
+              for cam in rows:
+                  views = cam.get('Cameras') or cam.get('CameraViews') or []
+                  for idx, view in enumerate(views[:4]):
+                      image = view.get('LargeURL') or view.get('LargeUrl') or view.get('SmallURL') or view.get('SmallUrl')
+                      add('OHGO', f'oh-{cam.get("Id") or cam.get("ID") or len(extra)}-{idx}', cam.get('Latitude'), cam.get('Longitude'),
+                          cam.get('Location') or cam.get('Description') or 'OHGO camera', image, state='OH', city='Ohio', refresh_ms=10000,
+                          source_kind='official-state-dot-camera')
+
+          def load_delaware():
+              data = get_json('https://tmc.deldot.gov/json/videocamera.json', timeout=30)
+              rows = data.get('videoCameras') or []
+              for cam in rows:
+                  urls = cam.get('urls') or {}
+                  image = urls.get('jpg') or urls.get('jpeg') or urls.get('snapshot') or urls.get('image') or cam.get('imageUrl')
+                  if image:
+                      add('DelDOT', f'de-{cam.get("id") or len(extra)}', cam.get('lat'), cam.get('lon'), cam.get('title') or 'DelDOT camera', image,
+                          state='DE', city=cam.get('county') or 'Delaware', refresh_ms=15000, source_kind='official-state-dot-camera')
+
+          for provider, loader in [
+              ('INDOT TrafficWise', load_indiana),
+              ('Kentucky traffic cameras', load_kentucky),
+              ('Montana DOT', load_montana),
+              ('North Dakota DOT', load_northdakota),
+              ('South Carolina 511', load_southcarolina),
+              ('South Dakota 511', load_southdakota),
+              ('NMRoads', load_newmexico),
+              ('NJ 511', load_newjersey),
+              ('RIDOT', load_rhodeisland),
+              ('Virginia 511', load_virginia),
+              ('WYDOT', load_wyoming),
+              ('OHGO', load_ohio),
+              ('DelDOT', load_delaware),
+          ]:
+              run_provider(provider, loader)
+
+          # --- OpenTrafficCamMap public traffic-camera supplement ------------
+          # MIT-licensed crowdsourced traffic-camera directory. RHKEARTH only
+          # accepts HTTPS still-image entries; HLS, DRM/special formats and HTTP
+          # feeds are deliberately excluded so this cannot degrade the viewer.
+          def load_opentrafficcammap():
+              data = get_json('https://raw.githubusercontent.com/AidanWelch/OpenTrafficCamMap/master/cameras/USA.json', timeout=45)
+              if not isinstance(data, dict):
+                  raise RuntimeError('USA.json was not an object')
+              accepted = 0
+              by_state = {}
+              for state_name, counties in data.items():
+                  state = STATE_ABBR.get(str(state_name)) or (str(state_name).upper() if len(str(state_name)) == 2 else '')
+                  if not state or not isinstance(counties, dict):
+                      continue
+                  for county, rows in counties.items():
+                      if not isinstance(rows, list):
+                          continue
+                      for idx, cam in enumerate(rows):
+                          if not isinstance(cam, dict) or cam.get('markedForReview') or cam.get('marked_for_review'):
+                              continue
+                          loc = cam.get('location') if isinstance(cam.get('location'), dict) else cam
+                          lat = loc.get('latitude')
+                          lon = loc.get('longitude')
+                          url = cam.get('url') or cam.get('stream') or cam.get('src')
+                          fmt = str(cam.get('format') or '').upper()
+                          if fmt and fmt not in ('IMAGE_STREAM','IMAGE','JPEG','JPG','MJPEG'):
+                              continue
+                          if not str(url or '').startswith('https://'):
+                              continue
+                          if '.m3u8' in str(url).lower():
+                              continue
+                          name = loc.get('description') or cam.get('description') or f'{county} traffic camera'
+                          if add('OpenTrafficCamMap', f'otcm-{state}-{hashlib.sha1((str(url)+str(lat)+str(lon)).encode()).hexdigest()[:14]}', lat, lon, name, url,
+                                 state=state, city=str(county), refresh_ms=int(cam.get('updateRate') or cam.get('update_rate') or 20000),
+                                 source_kind='mit-public-traffic-camera-directory'):
+                              accepted += 1
+                              by_state[state] = by_state.get(state, 0) + 1
+              if accepted <= 0:
+                  raise RuntimeError('no compatible HTTPS image cameras accepted')
+              print('OpenTrafficCamMap compatible cameras by state:', json.dumps(by_state, sort_keys=True))
+
+          run_provider('OpenTrafficCamMap', load_opentrafficcammap)
+
+          # Exact ID dedupe for the state expansion cache.
+          dedup = {}
+          for row in extra:
+              dedup[str(row.get('id'))] = row
+          extra = list(dedup.values())
+
+          if not extra and not previous_rows:
+              raise SystemExit('No US state expansion source succeeded')
+          if len(extra) < 100 and len(previous_rows) >= 100:
+              raise SystemExit(f'US-state expansion collapsed to {len(extra)} from {len(previous_rows)}; preserving last-good state')
+
+          merged = {str(r.get('id')): r for r in base_rows}
+          for row in extra:
+              merged[str(row.get('id'))] = row
+          merged_rows = list(merged.values())
+          if len(merged_rows) < len(base_rows):
+              raise SystemExit('Merged catalog became smaller than base catalog')
+
+          output = dict(base)
+          output['sources'] = merged_rows
+          output['fetchedAt'] = now_ms
+          output['renderPolicy'] = 'full valid catalog; no arbitrary camera-count truncation'
+          output['usStateExpansionProviders'] = provider_counts
+          output['usStateExpansionProviderStatus'] = provider_status
+          output['usStateExpansionCounts'] = dict(sorted(state_counts.items()))
+          output['usStateExpansionCoverage'] = sorted(k for k,v in state_counts.items() if v > 0)
+          output['usStateExpansionPolicy'] = 'Official public DOT/511 feeds first; MIT public traffic-camera directory supplements gaps. HTTPS still-image feeds only; no exposed/private-camera indexes.'
+
+          cache_output = {
+              'sources': extra,
+              'fetchedAt': now_ms,
+              'providers': provider_counts,
+              'providerStatus': provider_status,
+              'stateCounts': dict(sorted(state_counts.items())),
+              'stateCoverage': sorted(k for k,v in state_counts.items() if v > 0),
+          }
+
+          BASE.write_text(json.dumps(output, separators=(',', ':'), ensure_ascii=False) + '\n', encoding='utf-8')
+          LIVE.parent.mkdir(parents=True, exist_ok=True)
+          LIVE.write_text(json.dumps(output, separators=(',', ':'), ensure_ascii=False) + '\n', encoding='utf-8')
+          CACHE.write_text(json.dumps(cache_output, separators=(',', ':'), ensure_ascii=False) + '\n', encoding='utf-8')
+          Path('/tmp/rhkearth-us-state-base.sha256').write_text(base_hash + '\n', encoding='utf-8')
+          print('base cameras:', len(base_rows))
+          print('US-state expansion cameras:', len(extra))
+          print('merged cameras:', len(merged_rows))
+          print('new state coverage:', ','.join(sorted(k for k,v in state_counts.items() if v > 0)))
+          print('state counts:', json.dumps(dict(sorted(state_counts.items())), sort_keys=True))
+          PY
+
+      - name: Validate expanded US-state catalog
+        run: |
+          test -s experimental-data/worldwide-cameras.json
+          test -s experimental-data/us-state-cameras-expanded-cache.json
+          python - <<'PY'
+          import json
+          merged = json.load(open('experimental-data/worldwide-cameras.json'))
+          extra = json.load(open('experimental-data/us-state-cameras-expanded-cache.json'))
+          rows = merged.get('sources') or []
+          added = extra.get('sources') or []
+          coverage = extra.get('stateCoverage') or []
+          assert len(rows) >= 100
+          assert len(added) >= 1
+          assert all(str(r.get('url','')).startswith('https://') for r in added)
+          assert all('.m3u8' not in str(r.get('url','')).lower() for r in added)
+          assert all(-90 <= float(r['lat']) <= 90 and -180 <= float(r['lon']) <= 180 for r in added)
+          assert len(coverage) >= 5, f'only {len(coverage)} states received compatible cameras: {coverage}'
+          print('validated', len(rows), 'merged cameras;', len(added), 'new state-expansion cameras;', len(coverage), 'states')
+          print('coverage:', ','.join(coverage))
+          PY
+
+      - name: Preserve generated files for safe publish
+        run: |
+          cp experimental-data/worldwide-cameras.json /tmp/worldwide-cameras-us-states.json
+          cp experimental/live-data/worldwide-cameras.json /tmp/worldwide-cameras-us-states-live.json
+          cp experimental-data/us-state-cameras-expanded-cache.json /tmp/us-state-cameras-expanded-cache.json
+
+      - name: Publish US-state expanded camera catalog
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            expected="$(cat /tmp/rhkearth-us-state-base.sha256)"
+            current="$(sha256sum experimental-data/worldwide-cameras.json | awk '{print $1}')"
+            if [ "$current" != "$expected" ]; then
+              echo "Base camera catalog advanced during US-state expansion; refusing to overwrite newer data."
+              exit 0
+            fi
+            mkdir -p experimental-data experimental/live-data
+            cp /tmp/worldwide-cameras-us-states.json experimental-data/worldwide-cameras.json
+            cp /tmp/worldwide-cameras-us-states-live.json experimental/live-data/worldwide-cameras.json
+            cp /tmp/us-state-cameras-expanded-cache.json experimental-data/us-state-cameras-expanded-cache.json
+            git add experimental-data/worldwide-cameras.json experimental/live-data/worldwide-cameras.json experimental-data/us-state-cameras-expanded-cache.json
+            if git diff --cached --quiet; then
+              echo "US-state camera catalog already current."
+              exit 0
+            fi
+            git commit -m "Expand RHKEARTH US state public camera coverage [skip ci]"
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Remote advanced; retrying US-state camera publish."
+          done
+          exit 1
