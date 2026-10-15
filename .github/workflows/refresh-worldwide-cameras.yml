@@ -128,13 +128,6 @@ jobs:
                       provider_counts[provider] = 0
                       print(f'{provider}: unavailable, no prior rows: {exc}')
 
-          def load_idot():
-              data = get_json('https://www.travelmidwest.com/lmiga/cameraReport.json', timeout=20)
-              rows = data.get('cameraReports') if isinstance(data, dict) else data
-              rows = rows if isinstance(rows, list) else []
-              for i, cam in enumerate(rows):
-                  add('Illinois DOT / TravelMidwest', f'idot-{cam.get("id") or i}', cam.get('latitude'), cam.get('longitude'), cam.get('cameraName') or cam.get('description') or 'Illinois traffic camera', cam.get('imageUrl') or cam.get('url'), city='Illinois', country='US', refresh_ms=15000)
-
           def load_wsdot():
               data = get_json('https://data.wsdot.wa.gov/log/public/cameras.json', timeout=25)
               for cam in data if isinstance(data, list) else []:
@@ -266,7 +259,6 @@ jobs:
                   add('LTA Singapore / data.gov.sg', f'sg-{cam.get("camera_id")}', loc.get('latitude'), loc.get('longitude'), f'Camera {cam.get("camera_id")}', cam.get('image'), city='Singapore', country='Singapore', refresh_ms=15000)
 
           for provider, loader in [
-              ('Illinois DOT / TravelMidwest', load_idot),
               ('WSDOT', load_wsdot),
               ('Caltrans', load_caltrans),
               ('ODOT TripCheck', load_oregon),

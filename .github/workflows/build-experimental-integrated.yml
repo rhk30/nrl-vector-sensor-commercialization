@@ -17,11 +17,9 @@ on:
       - scripts/clean-experimental-ui-source.py
       - scripts/remove-experimental-voice.py
       - scripts/tune-experimental-cctv.py
-      - scripts/add-chicago-live-cameras.py
       - scripts/add-worldwide-cameras.py
       - scripts/patch-camera-interactions.py
       - scripts/patch-cctv-marker-colors.py
-      - scripts/add-chicago-street-activity.py
       - scripts/rhkearth-weather.js
       - scripts/rhkearth-weather.css
       - scripts/rhkearth-weather-fallback.js
@@ -108,7 +106,6 @@ jobs:
           grep -q "rhk-world-cctv-horizon" src/data/worldwideCameras.js
           grep -q "RHKEARTH precision trackpad navigation" src/main.js
           grep -q "#A8B989" src/data/cctv.js
-          grep -q "#A8B989" src/data/chicagoLiveCameras.js
           grep -q "#A8B989" src/data/worldwideCameras.js
           grep -q "#E5C777" src/data/cctv.js
           grep -q "overpass.kumi.systems" src/data/traffic.js
@@ -181,9 +178,7 @@ jobs:
           test -f dist/cesium/Cesium.js
           test -s dist/live-data/military.json
           test -s dist/live-data/cctv.json
-          test -s dist/live-data/chicago-live-cameras.json
           test -f dist/live-data/worldwide-cameras.json
-          test -s dist/live-data/chicago-street-activity.json
           test -s dist/live-data/celestrak/stations
           test -s dist/live-data/launches.json
           grep -R -q "api.adsb.lol/v2/point" dist/assets
@@ -246,9 +241,7 @@ jobs:
           test -f experimental/cesium/Cesium.js
           test -s experimental/live-data/military.json
           test -s experimental/live-data/cctv.json
-          test -s experimental/live-data/chicago-live-cameras.json
           test -f experimental/live-data/worldwide-cameras.json
-          test -s experimental/live-data/chicago-street-activity.json
           test -f experimental/rhkearth-runtime.js
           test -f experimental/rhkearth-theme.css
           test -f experimental/rhkearth-mobile.js

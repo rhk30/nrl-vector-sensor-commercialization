@@ -343,7 +343,16 @@ const addon = {
       const response = await fetch(API_URL, { cache: 'no-store' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
-      const rows = Array.isArray(payload?.sources) ? payload.sources : [];
+      // Exclude retired Chicago/Illinois camera ingest, including old cached catalogs.
+      const rows = (Array.isArray(payload?.sources) ? payload.sources : []).filter((row) => {
+        const city = String(row?.city || '').toLowerCase();
+        const provider = String(row?.provider || '').toLowerCase();
+        const lat = Number(row?.lat);
+        const lon = Number(row?.lon);
+        return !provider.includes('illinois') && !city.includes('chicago') &&
+          !(Number.isFinite(lat) && Number.isFinite(lon) &&
+            lat >= 41.5 && lat <= 42.25 && lon >= -88.55 && lon <= -87.25);
+      });
       _rows = rows.filter((row) => {
         const lat = Number(row?.lat);
         const lon = Number(row?.lon);
