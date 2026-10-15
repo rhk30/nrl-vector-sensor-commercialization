@@ -201,10 +201,10 @@ if '</head>' not in html or '</body>' not in html:
 html = html.replace('</head>', osiris_css_tags + '</head>', 1)
 html = html.replace('</body>', osiris_js_tags + '</body>', 1)
 # Strategic Iran monitor, source-backed and idempotent.
-html = re.sub(r'\\s*<script[^>]+src="/experimental/rhkearth-iran-monitor\\.js(?:\\?v=\\d+)?"[^>]*></script>\\s*', '\\n', html)
-html = re.sub(r'\\s*<link[^>]+href="/experimental/rhkearth-iran-monitor\\.css(?:\\?v=\\d+)?"[^>]*>\\s*', '\\n', html)
-html = html.replace('</head>', '  <link rel="stylesheet" href="/experimental/rhkearth-iran-monitor.css?v=1">\\n</head>', 1)
-html = html.replace('</body>', '  <script src="/experimental/rhkearth-iran-monitor.js?v=1" defer></script>\\n</body>', 1)
+html = re.sub(r'\s*<script[^>]+src="/experimental/rhkearth-iran-monitor\.js(?:\?v=\d+)?"[^>]*></script>\s*', '\n', html)
+html = re.sub(r'\s*<link[^>]+href="/experimental/rhkearth-iran-monitor\.css(?:\?v=\d+)?"[^>]*>\s*', '\n', html)
+html = html.replace('</head>', '  <link rel="stylesheet" href="/experimental/rhkearth-iran-monitor.css?v=1">\n</head>', 1)
+html = html.replace('</body>', '  <script src="/experimental/rhkearth-iran-monitor.js?v=1" defer></script>\n</body>', 1)
 
 
 emblem = '''  <div id="rhkearth-clear-emblem" aria-hidden="true">
