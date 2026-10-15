@@ -27,6 +27,8 @@ on:
       - scripts/rhkearth-mobile.js
       - scripts/rhkearth-mobile.css
       - scripts/finalize-experimental-ui.py
+      - scripts/rhkearth-iran-monitor.js
+      - scripts/rhkearth-iran-monitor.css
       - rhkearth-logo.svg
 
 permissions:

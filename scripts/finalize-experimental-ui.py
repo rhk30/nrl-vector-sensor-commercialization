@@ -88,6 +88,8 @@ durable_files = {
     Path('scripts/rhkearth-osiris-streams.css'): Path('experimental/rhkearth-osiris-streams.css'),
     Path('scripts/osiris-live-news.json'): Path('experimental/osiris-live-news.json'),
     Path('scripts/OSIRIS_LICENSE.txt'): Path('experimental/OSIRIS_LICENSE.txt'),
+    Path('scripts/rhkearth-iran-monitor.js'): Path('experimental/rhkearth-iran-monitor.js'),
+    Path('scripts/rhkearth-iran-monitor.css'): Path('experimental/rhkearth-iran-monitor.css'),
 }
 missing = [str(path) for path in durable_files if not path.exists()]
 if missing:
@@ -198,6 +200,12 @@ if '</head>' not in html or '</body>' not in html:
     raise SystemExit('Experimental shell is malformed')
 html = html.replace('</head>', osiris_css_tags + '</head>', 1)
 html = html.replace('</body>', osiris_js_tags + '</body>', 1)
+# Strategic Iran monitor, source-backed and idempotent.
+html = re.sub(r'\\s*<script[^>]+src="/experimental/rhkearth-iran-monitor\\.js(?:\\?v=\\d+)?"[^>]*></script>\\s*', '\\n', html)
+html = re.sub(r'\\s*<link[^>]+href="/experimental/rhkearth-iran-monitor\\.css(?:\\?v=\\d+)?"[^>]*>\\s*', '\\n', html)
+html = html.replace('</head>', '  <link rel="stylesheet" href="/experimental/rhkearth-iran-monitor.css?v=1">\\n</head>', 1)
+html = html.replace('</body>', '  <script src="/experimental/rhkearth-iran-monitor.js?v=1" defer></script>\\n</body>', 1)
+
 
 emblem = '''  <div id="rhkearth-clear-emblem" aria-hidden="true">
     <img src="/experimental/logo.svg" alt="" />
