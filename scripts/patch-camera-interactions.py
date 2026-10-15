@@ -47,52 +47,6 @@ cctv.write_text(cctv_text, encoding='utf-8')
 
 
 # -----------------------------------------------------------------------------
-# Chicago live-camera add-on: same semantics, less glare. This layer is already
-# viewport-scoped to Chicagoland, so keep its current depth policy but reduce
-# dot/outline/label intensity substantially.
-# -----------------------------------------------------------------------------
-chicago = ROOT / 'src/data/chicagoLiveCameras.js'
-chicago_text = chicago.read_text(encoding='utf-8')
-chicago_old = """      point: {
-        pixelSize: 9,
-        color: Cesium.Color.fromCssColorString('#9fc5ad'),
-        outlineColor: Cesium.Color.fromCssColorString('#111511'),
-        outlineWidth: 2,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },
-      label: {
-        text: String(row.name || 'LIVE CCTV'),
-        font: '10px Inter, sans-serif',
-        fillColor: Cesium.Color.fromCssColorString('#efefe9'),
-        showBackground: true,
-        backgroundColor: Cesium.Color.fromCssColorString('#0a0c0b').withAlpha(0.80),
-        pixelOffset: new Cesium.Cartesian2(0, -18),
-        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 60000),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },"""
-chicago_new = """      point: {
-        pixelSize: 5.5,
-        color: Cesium.Color.fromCssColorString('#c3c8c2').withAlpha(0.66),
-        outlineColor: Cesium.Color.fromCssColorString('#101210').withAlpha(0.76),
-        outlineWidth: 1,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },
-      label: {
-        text: String(row.name || 'LIVE CCTV'),
-        font: '9px Inter, sans-serif',
-        fillColor: Cesium.Color.fromCssColorString('#e5e7e1').withAlpha(0.80),
-        showBackground: true,
-        backgroundColor: Cesium.Color.fromCssColorString('#0a0c0b').withAlpha(0.68),
-        pixelOffset: new Cesium.Cartesian2(0, -14),
-        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 50000),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },"""
-if chicago_old not in chicago_text:
-    raise SystemExit('RHKEARTH Chicago camera presentation patch target missing')
-chicago.write_text(chicago_text.replace(chicago_old, chicago_new, 1), encoding='utf-8')
-
-
-# -----------------------------------------------------------------------------
 # Worldwide camera add-on: fix the actual far-side bleed-through. The generated
 # layer deliberately puts points above the depth test, but unlike the base CCTV
 # layer it did not have the base layer's ellipsoidal horizon-culling pass.

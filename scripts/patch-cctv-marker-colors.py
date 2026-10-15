@@ -33,20 +33,6 @@ def replace_color_constant(path, name, css, alpha):
 replace_color_constant('src/data/cctv.js', 'IDLE_CAMERA_COLOR', CCTV, '0.86')
 replace_color_constant('src/data/cctv.js', 'ACTIVE_CAMERA_COLOR', ACTIVE, '0.96')
 
-# Regional cameras use the same restrained visual language.
-replace_once(
-    'src/data/chicagoLiveCameras.js',
-    """        pixelSize: 5.5,
-        color: Cesium.Color.fromCssColorString('#c3c8c2').withAlpha(0.66),
-        outlineColor: Cesium.Color.fromCssColorString('#101210').withAlpha(0.76),
-        outlineWidth: 1,""",
-    """        pixelSize: 5.5,
-        color: Cesium.Color.fromCssColorString('#A8B989').withAlpha(0.82),
-        outlineColor: Cesium.Color.fromCssColorString('#0C1009').withAlpha(0.94),
-        outlineWidth: 1.2,""",
-    'regional marker treatment',
-)
-
 # Worldwide CCTV is intentionally a little smaller and calmer than before.
 # Thousands of cameras should read as a layer, not a field of glowing pixels.
 replace_once(
@@ -75,7 +61,6 @@ world.write_text(world_text, encoding='utf-8')
 checks = {
     'base sage': "IDLE_CAMERA_COLOR = Cesium.Color.fromCssColorString('#A8B989')" in (ROOT / 'src/data/cctv.js').read_text(encoding='utf-8'),
     'active gold': "ACTIVE_CAMERA_COLOR = Cesium.Color.fromCssColorString('#E5C777')" in (ROOT / 'src/data/cctv.js').read_text(encoding='utf-8'),
-    'regional sage': "Cesium.Color.fromCssColorString('#A8B989').withAlpha(0.82)" in (ROOT / 'src/data/chicagoLiveCameras.js').read_text(encoding='utf-8'),
     'worldwide sage': "Cesium.Color.fromCssColorString('#A8B989').withAlpha(0.76)" in (ROOT / 'src/data/worldwideCameras.js').read_text(encoding='utf-8'),
 }
 failed = [name for name, ok in checks.items() if not ok]
