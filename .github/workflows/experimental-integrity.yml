@@ -8,7 +8,7 @@ on:
     paths:
       - .github/workflows/experimental-integrity.yml
       - experimental/**
-      - experimental-data/**
+      - '!experimental/live-data/**'
 
 permissions:
   contents: read
@@ -38,6 +38,9 @@ jobs:
           done
           cat /tmp/rhkearth-experimental-http.log
           exit 1
+
+      - name: Validate evidence desk JavaScript syntax
+        run: node --check experimental/rhkearth-iran-monitor.js
 
       - name: Validate Experimental assets and boot
         run: |

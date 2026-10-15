@@ -1,20 +1,9 @@
 name: Install RHKEARTH analysis tools
 
+# Optional repair tool. The integrated native build installs these assets normally.
+# Do not re-run after every integrated build: competing writers caused failed emails.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/install-osiris-tools.yml
-      - scripts/rhkearth-osiris-tools.js
-      - scripts/rhkearth-osiris-tools.css
-      - scripts/rhkearth-osiris-streams.js
-      - scripts/rhkearth-osiris-streams.css
-      - scripts/osiris-live-news.json
-      - scripts/OSIRIS_LICENSE.txt
-  workflow_run:
-    workflows: ["Build Experimental integrated"]
-    types: [completed]
 
 permissions:
   contents: write
