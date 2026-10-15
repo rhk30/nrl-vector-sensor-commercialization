@@ -93,8 +93,12 @@ jobs:
                   raise AssertionError(f'Cesium canvas unusable: {width}x{height}')
 
               title = driver.find_element(By.ID, 'title-bar').text.upper()
-              if 'RHKEARTH' not in title or 'INTELLIGENCE CONSOLE' not in title:
+              if 'RHKEARTH' not in title or not any(marker in title for marker in ('MULTI-DOMAIN AWARENESS', 'INTELLIGENCE CONSOLE')):
                   raise AssertionError('RHKEARTH title shell is missing')
+
+              # New evidence desk must initialize without breaking Cesium.
+              wait.until(lambda d: len(d.find_elements(By.ID, 'rhk-iran-toggle')) == 1)
+              wait.until(lambda d: len(d.find_elements(By.ID, 'rhk-iran-monitor')) == 1)
 
               serious = []
               for entry in driver.get_log('browser'):
