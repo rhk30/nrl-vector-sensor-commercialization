@@ -2,36 +2,6 @@ from pathlib import Path
 import re
 
 # -----------------------------------------------------------------------------
-# Chicago / Chicagoland operating area
-# -----------------------------------------------------------------------------
-locations = Path('src/locations.js')
-locations_text = locations.read_text(encoding='utf-8')
-
-chicago_block = """  chicago: {
-    name: 'Chicago',
-    groundElevation: 181,
-    // RHKEARTH intentionally treats Chicago as a metro operating area rather
-    // than a downtown-only preset. These bounds cover the city plus the core
-    // Chicagoland corridor across Cook, DuPage, Lake, Kane, McHenry and Will.
-    viewBounds: { southwest: { lat: 41.45, lng: -88.55 }, northeast: { lat: 42.55, lng: -87.45 } },
-    pois: [
-      { name: 'Willis Tower', lat: 41.8789, lon: -87.6359, alt: 900, pitch: -20, heading: 45, buildingHeight: 220 },
-      { name: '875 North Michigan', lat: 41.8988, lon: -87.6230, alt: 800, pitch: -22, heading: 180, buildingHeight: 170 },
-      { name: 'Navy Pier', lat: 41.8917, lon: -87.6078, alt: 800, pitch: -28, heading: 270, buildingHeight: 30 },
-      { name: 'Millennium Park', lat: 41.8826, lon: -87.6226, alt: 650, pitch: -32, heading: 225, buildingHeight: 20 },
-      { name: 'Adler Planetarium', lat: 41.8663, lon: -87.6068, alt: 1300, pitch: -25, heading: 315, buildingHeight: 25 },
-    ],
-  },
-"""
-
-if "  chicago: {" not in locations_text:
-    anchor = "  dc: {\n"
-    if anchor not in locations_text:
-        raise SystemExit('RHKEARTH Chicago patch target missing: Washington DC city block')
-    locations_text = locations_text.replace(anchor, chicago_block + anchor, 1)
-    locations.write_text(locations_text, encoding='utf-8')
-
-# -----------------------------------------------------------------------------
 # RHKEARTH full-frame globe: remove the upstream circular scope mask entirely.
 # This both increases usable map area and creates a more distinct visual identity.
 # -----------------------------------------------------------------------------
@@ -307,27 +277,6 @@ for old, new in replacements.items():
 
 cctv.write_text(text, encoding='utf-8')
 
-# Add RHKEARTH's Chicago-only continuous live camera layer. This intentionally
-# excludes JPEG/still feeds and uses only public HLS/iframe/video sources.
-live_patch = Path('../scripts/add-chicago-live-cameras.py')
-if not live_patch.exists():
-    raise SystemExit('RHKEARTH Chicago live CCTV patch script missing')
-exec(compile(live_patch.read_text(encoding='utf-8'), str(live_patch), 'exec'))
-
-# Add current/future Chicago street impacts from the City of Chicago CDOT feed.
-street_patch = Path('../scripts/add-chicago-street-activity.py')
-if not street_patch.exists():
-    raise SystemExit('RHKEARTH Chicago street-activity patch script missing')
-exec(compile(street_patch.read_text(encoding='utf-8'), str(street_patch), 'exec'))
-
-# The Chicago source can repeat activity IDs. Cesium EntityCollection requires
-# unique IDs, so qualify geometry IDs and collapse exact duplicates before the
-# first render. A bad provider row must never stop the entire globe renderer.
-duplicate_guard_patch = Path('../scripts/fix-chicago-street-duplicates.py')
-if not duplicate_guard_patch.exists():
-    raise SystemExit('RHKEARTH Chicago duplicate-entity guard script missing')
-exec(compile(duplicate_guard_patch.read_text(encoding='utf-8'), str(duplicate_guard_patch), 'exec'))
-
 # Repair the three core live-source paths in the static/native build:
 # civilian adsb.lol flights, TfL rolling-video CCTV, and Overpass mirror failover.
 live_runtime_patch = Path('../scripts/patch-live-runtime.py')
@@ -339,4 +288,4 @@ exec(compile(live_runtime_patch.read_text(encoding='utf-8'), str(live_runtime_pa
 # earlier in the integrated build. Do not apply a second patch here.
 
 # Rebuild marker: 2026-09-04 live AIS viewport + controls/HUD cleanup.
-print('RHKEARTH Chicago/Chicagoland operating area added; circular scope and Scenes removed; AIS/flights/CCTV/traffic runtime repaired; arrow navigation + truthful compact HUD installed')
+print('RHKEARTH circular scope and Scenes removed; AIS/flights/CCTV/traffic runtime repaired; arrow navigation + truthful compact HUD installed')
