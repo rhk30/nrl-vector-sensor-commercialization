@@ -58,10 +58,7 @@
     return response.json();
   }
 
-  async function cctvCamera(id) {
-    const catalog = await readJson(`${DATA_ROOT}/cctv.json`);
-    return (catalog.sources || []).find((camera) => camera.id === id) || null;
-  }
+
 
   function celestrakGroup(url) {
     const fromQuery = url.searchParams.get('group') || url.searchParams.get('GROUP');
@@ -257,17 +254,10 @@
       if (path === '/api/firms' || path.includes('/api/fire')) {
         return nativeFetch(`${DATA_ROOT}/fires.json`, { cache: 'no-store' });
       }
-      if (path === '/api/cctv/sources') {
-        return nativeFetch(`${DATA_ROOT}/cctv.json`, { cache: 'no-store' });
-      }
-      if (path === '/api/cctv/health') {
-        return nativeFetch(`${DATA_ROOT}/cctv-health.json`, { cache: 'no-store' });
-      }
-      if (path === '/api/cctv/frame' || path === '/api/cctv/media') {
-        const id = url.searchParams.get('id') || url.searchParams.get('cameraId');
-        const camera = id ? await cctvCamera(id) : null;
-        if (!camera?.snapshotUrl) return jsonResponse({ error: 'Camera frame unavailable' }, 404);
-        return nativeFetch(camera.snapshotUrl, { cache: 'no-store', mode: 'cors' });
+      // Legacy camera endpoints return empty, successful payloads to cached app bundles.
+      // Never contact retired camera providers.
+      if (path.startsWith('/api/cctv/')) {
+        return jsonResponse({ sources: [], cameras: [], disabled: true });
       }
       if (path === '/api/openai/hud-summary') {
         return jsonResponse({

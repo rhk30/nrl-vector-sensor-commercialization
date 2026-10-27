@@ -33,7 +33,6 @@ jobs:
           mkdir -p experimental/live-data
           cp -a experimental-data/. experimental/live-data/
           test -s experimental/live-data/military.json
-          test -s experimental/live-data/cctv.json
           test -s experimental/live-data/launches.json
           test -s experimental/live-data/celestrak/stations
 

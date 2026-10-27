@@ -77,33 +77,6 @@ replace(
     "const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';",
 )
 
-# CCTV / traffic cameras -----------------------------------------------------
-# The catalog is refreshed from Transport for London's public JamCam feed.
-# Each source contains the official public S3 still-image URL, so the static
-# build can render real camera frames without the original Node frame proxy.
-replace('src/data/cctv.js', "const SOURCE_ENDPOINT = '/api/cctv/sources';", "const SOURCE_ENDPOINT = '/experimental-data/cctv.json';")
-replace('src/data/cctv.js', "const HEALTH_ENDPOINT = '/api/cctv/health';", "const HEALTH_ENDPOINT = '/experimental-data/cctv-health.json';")
-
-# Preserve direct public frame URLs on the camera records.
-replace(
-    'src/data/cctv.js',
-    "      feedConfigured: typeof source.url === 'string' && !!source.url.trim(),\n      lat,",
-    "      feedConfigured: typeof source.url === 'string' && !!source.url.trim(),\n      snapshotUrl: String(source.snapshotUrl || source.url || '').trim(),\n      lat,",
-)
-
-# Prefer a direct provider frame when one exists; fall back to the original
-# backend-shaped URL for seed cameras that have no public feed.
-replace(
-    'src/data/cctv.js',
-    "  return `${FRAME_ENDPOINT}/${encodeURIComponent(camera.id)}?${params.toString()}`;",
-    "  const direct = String(camera?.snapshotUrl || '').trim();\n  if (/^https:\\/\\//i.test(direct)) {\n    const sep = direct.includes('?') ? '&' : '?';\n    return `${direct}${sep}rhkTs=${tick}`;\n  }\n  return `${FRAME_ENDPOINT}/${encodeURIComponent(camera.id)}?${params.toString()}`;",
-)
-
-# Static RHKEARTH does not have the original terrain-height proxy. Do not let
-# CCTV initialization wait eight seconds for that missing endpoint; the layer
-# already has catalog/ellipsoid fallbacks and refines geometry when available.
-replace('src/data/cctv.js', 'const GROUND_PRIOR_INIT_WAIT_MS = 8000;', 'const GROUND_PRIOR_INIT_WAIT_MS = 100;')
-
 # Google-Earth-style navigation ---------------------------------------------
 # Explicitly allow an orbital/full-Earth pullback. This changes navigation
 # limits only; it does not change RHKEARTH imagery, HUD, or intelligence layers.
@@ -115,4 +88,4 @@ if zoom_anchor not in main_text:
     raise SystemExit('Could not locate viewer.targetFrameRate camera anchor')
 main.write_text(main_text.replace(zoom_anchor, zoom_patch, 1))
 
-print('RHKEARTH Experimental static data, CCTV, traffic, and globe-navigation adapters applied')
+print('RHKEARTH Experimental static data, traffic, and globe-navigation adapters applied')

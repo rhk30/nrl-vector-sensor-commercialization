@@ -514,3 +514,14 @@ body.ui-clean-view #rhkearth-clear-emblem {
     flex-basis: 36px !important;
   }
 }
+
+
+/* RHKEARTH: retired CCTV and worldwide camera modules. Keep inherited DOM
+   shells for JS compatibility, but never display camera controls or statuses. */
+#cctv-panel,
+#cctv-sync-chip,
+[data-layer-id="cctv"],
+[data-layer-id="worldwide-cameras"],
+[data-layer-id="chicago-live-cameras"],
+[data-layer="cctv"],
+[data-layer="worldwide-cameras"] { display: none !important; }

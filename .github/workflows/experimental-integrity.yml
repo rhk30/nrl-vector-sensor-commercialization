@@ -50,7 +50,6 @@ jobs:
           curl -fsS http://127.0.0.1:8000/experimental-data/military.json >/dev/null
           curl -fsS http://127.0.0.1:8000/experimental-data/celestrak/starlink >/dev/null
           curl -fsS http://127.0.0.1:8000/experimental-data/launches.json >/dev/null
-          curl -fsS http://127.0.0.1:8000/experimental-data/cctv.json >/dev/null
           python - <<'PY'
           from selenium import webdriver
           from selenium.webdriver.common.by import By

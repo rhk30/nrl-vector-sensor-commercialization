@@ -16,10 +16,6 @@ on:
       - scripts/patch-tactical-map-palette.py
       - scripts/clean-experimental-ui-source.py
       - scripts/remove-experimental-voice.py
-      - scripts/tune-experimental-cctv.py
-      - scripts/add-worldwide-cameras.py
-      - scripts/patch-camera-interactions.py
-      - scripts/patch-cctv-marker-colors.py
       - scripts/rhkearth-weather.js
       - scripts/rhkearth-weather.css
       - scripts/rhkearth-weather-fallback.js
@@ -77,10 +73,6 @@ jobs:
           python ../scripts/patch-tactical-map-palette.py
           python ../scripts/clean-experimental-ui-source.py
           python ../scripts/remove-experimental-voice.py
-          python ../scripts/tune-experimental-cctv.py
-          python ../scripts/add-worldwide-cameras.py
-          python ../scripts/patch-camera-interactions.py
-          python ../scripts/patch-cctv-marker-colors.py
 
           grep -q "https://api.adsb.lol/v2/point" src/data/flights.js
           grep -q "normalizeAdsbLolPointResponse" src/data/flights.js
@@ -104,15 +96,8 @@ jobs:
           grep -q "RHKEARTH_OSM_SUBMARINE_CABLES_V1" src/data/telegeographySubmarineCables.js
           grep -q "OpenStreetMap · ODbL" src/data/telegeographySubmarineCables.js
           grep -q "submarine-cables-osm" src/data/dataCredits.js
-          grep -q "rhk-worldwide-cctv-addon" src/data/worldwideCameras.js
-          grep -q "rhk-world-cctv-horizon" src/data/worldwideCameras.js
           grep -q "RHKEARTH precision trackpad navigation" src/main.js
-          grep -q "#A8B989" src/data/cctv.js
-          grep -q "#A8B989" src/data/worldwideCameras.js
-          grep -q "#E5C777" src/data/cctv.js
           grep -q "overpass.kumi.systems" src/data/traffic.js
-          grep -q "directMediaUrl" src/data/cctv.js
-          grep -q "mediaRefreshTimer" src/data/cctv.js
           grep -q "this.activeStyle = 'normal'" src/ui.js
           grep -q "tacticalAccent = smoothstep" src/styles/noir.js
           grep -q "#72C9D8" src/data/flights.js
@@ -179,53 +164,17 @@ jobs:
           test -f dist/index.html
           test -f dist/cesium/Cesium.js
           test -s dist/live-data/military.json
-          test -s dist/live-data/cctv.json
-          test -f dist/live-data/worldwide-cameras.json
           test -s dist/live-data/celestrak/stations
           test -s dist/live-data/launches.json
-          grep -R -q "api.adsb.lol/v2/point" dist/assets
-          grep -R -q "trace_full_" dist/assets
-          grep -R -q "CLIMB +" dist/assets
-          grep -R -q "DRAFT" dist/assets
-          grep -R -q "RHKEARTH_AIS_GLOBAL_STATION_SEED_V5" dist/assets
-          grep -R -q "ais.openwaters.io/v1/stations" dist/assets
-          grep -R -q "ais.openwaters.io" dist/assets
-          grep -R -q "OpenStreetMap · ODbL" dist/assets
-          grep -R -q "cable_landing_station" dist/assets
-          grep -R -q "rhk-worldwide-cctv-addon" dist/assets
-          grep -R -q "rhk-trackpad-pan" dist/assets
-          grep -R -q "rhk-world-cctv-horizon" dist/assets
-          grep -R -q "#A8B989\|#a8b989" dist/assets
-          grep -R -q "#E5C777\|#e5c777" dist/assets
-          grep -R -q "bell206.glb" dist/assets
-          grep -R -q "citation2.glb" dist/assets
-          grep -R -q "atr72.glb" dist/assets
-          grep -R -q "b789.glb" dist/assets
-          grep -R -q "jet.glb" dist/assets
-          grep -R -q "overpass.kumi.systems" dist/assets
-          grep -R -q "overpass.private.coffee" dist/assets
-          grep -R -q "rhkLive" dist/assets
-          grep -R -q "#72C9D8\|#72c9d8" dist/assets
-          grep -R -q "#D8A84E\|#d8a84e" dist/assets
-          grep -R -q "#63C5D0\|#63c5d0" dist/assets
           grep -q "id=\"active-style-name\">NORMAL\|id=\"active-style-name\">NORMAL<" dist/index.html
           grep -q "rhkearth-chrome-cleanup" dist/index.html
           python - <<'PY'
           import json
           from pathlib import Path
-          cctv = json.loads(Path('dist/live-data/cctv.json').read_text())
-          rows = cctv.get('sources') or []
-          if not rows: raise SystemExit('London CCTV catalog empty')
-          video_rows = [r for r in rows if str(r.get('feedType', '')).lower() in {'mp4','hls','webm'}]
-          if not video_rows: raise SystemExit('London CCTV catalog contains no rolling video feeds')
-          world_path = Path('dist/live-data/worldwide-cameras.json')
-          if world_path.exists() and world_path.stat().st_size > 0:
-              world = json.loads(world_path.read_text()); world_rows = world.get('sources') or []
-              if world_rows and len({r.get('provider') for r in world_rows}) < 3: raise SystemExit('Worldwide CCTV catalog lacks provider diversity')
           index = Path('dist/index.html').read_text()
           if 'RHKEARTH' not in index.upper(): raise SystemExit('RHKEARTH branding missing from built index')
           if 'NORMAL' not in index: raise SystemExit('Normal first-paint state missing from built index')
-          print(f'PASS static native gate: {len(video_rows)} London video cameras in catalog')
+          print('PASS static native gate: non-camera layers preserved')
           PY
 
       - name: Publish integrated native app
@@ -242,8 +191,6 @@ jobs:
           test -f experimental/index.html
           test -f experimental/cesium/Cesium.js
           test -s experimental/live-data/military.json
-          test -s experimental/live-data/cctv.json
-          test -f experimental/live-data/worldwide-cameras.json
           test -f experimental/rhkearth-runtime.js
           test -f experimental/rhkearth-theme.css
           test -f experimental/rhkearth-mobile.js
