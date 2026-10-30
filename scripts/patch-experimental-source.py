@@ -225,6 +225,29 @@ if old_live_url not in ais_text:
 ais.write_text(ais_text.replace(old_live_url, new_live_url, 1))
 
 # -----------------------------------------------------------------------------
+# CCTV: use RHKEARTH-refreshed TfL camera catalog + health snapshot, while
+# loading the official public JamCam still directly whenever available.
+# -----------------------------------------------------------------------------
+cctv = ROOT / 'src/data/cctv.js'
+cctv_text = cctv.read_text()
+cctv_text = cctv_text.replace("const SOURCE_ENDPOINT = '/api/cctv/sources';", "const SOURCE_ENDPOINT = '/experimental/live-data/cctv.json';", 1)
+cctv_text = cctv_text.replace("const HEALTH_ENDPOINT = '/api/cctv/health';", "const HEALTH_ENDPOINT = '/experimental/live-data/cctv-health.json';", 1)
+feed_line = "      feedConfigured: typeof source.url === 'string' && !!source.url.trim(),"
+if feed_line not in cctv_text:
+    raise SystemExit('Could not locate CCTV feedConfigured field')
+cctv_text = cctv_text.replace(
+    feed_line,
+    feed_line + "\n      directFrameUrl: String(source.snapshotUrl || source.url || '').trim(),",
+    1,
+)
+old_frame_return = "  return `${FRAME_ENDPOINT}/${encodeURIComponent(camera.id)}?${params.toString()}`;"
+new_frame_return = "  if (camera.directFrameUrl) {\n    const sep = camera.directFrameUrl.includes('?') ? '&' : '?';\n    return `${camera.directFrameUrl}${sep}rhk=${tick}`;\n  }\n  return `${FRAME_ENDPOINT}/${encodeURIComponent(camera.id)}?${params.toString()}`;"
+if old_frame_return not in cctv_text:
+    raise SystemExit('Could not locate CCTV frame URL return')
+cctv_text = cctv_text.replace(old_frame_return, new_frame_return, 1)
+cctv.write_text(cctv_text)
+
+# -----------------------------------------------------------------------------
 # Remove the TeleGeography NonCommercial bundle from the RHKEARTH build.
 # -----------------------------------------------------------------------------
 blank = {'type': 'FeatureCollection', 'features': []}
