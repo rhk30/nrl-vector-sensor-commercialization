@@ -82,6 +82,7 @@ durable_files = {
     Path('scripts/rhkearth-weather-worldwide.js'): Path('experimental/rhkearth-weather-worldwide.js'),
     Path('scripts/rhkearth-mobile.js'): Path('experimental/rhkearth-mobile.js'),
     Path('scripts/rhkearth-mobile.css'): Path('experimental/rhkearth-mobile.css'),
+    Path('scripts/rhkearth-cctv-default-on.js'): Path('experimental/rhkearth-cctv-default-on.js'),
     Path('scripts/rhkearth-osiris-tools.js'): Path('experimental/rhkearth-osiris-tools.js'),
     Path('scripts/rhkearth-osiris-tools.css'): Path('experimental/rhkearth-osiris-tools.css'),
     Path('scripts/rhkearth-osiris-streams.js'): Path('experimental/rhkearth-osiris-streams.js'),
@@ -112,6 +113,7 @@ weather_fallback_tag = '<script src="/experimental/rhkearth-weather-fallback.js?
 weather_script_tag = '<script src="/experimental/rhkearth-weather.js?v=1" defer></script>'
 weather_world_tag = '<script src="/experimental/rhkearth-weather-worldwide.js?v=1" defer></script>'
 weather_style_tag = '<link rel="stylesheet" href="/experimental/rhkearth-weather.css?v=1">'
+cctv_default_tag = '<script src="/experimental/rhkearth-cctv-default-on.js?v=1" defer></script>'
 
 if '/experimental/rhkearth-mobile.js' in html:
     html = re.sub(r'/experimental/rhkearth-mobile\.js(?:\?v=\d+)?', '/experimental/rhkearth-mobile.js?v=1', html)
@@ -183,6 +185,11 @@ if '/experimental/rhkearth-weather.css' in html:
 else:
     html = html.replace('</head>', f'  {weather_style_tag}\n</head>', 1)
 
+# One-time post-retirement CCTV migration. Load after the native module so it
+# can use the public data manager without racing module registration.
+html = re.sub(r'\s*<script[^>]+src="/experimental/rhkearth-cctv-default-on\.js(?:\?v=\d+)?"[^>]*></script>\s*', '\n', html)
+html = html.replace('</body>', '  ' + cctv_default_tag + '\n</body>', 1)
+
 # Install OSIRIS-derived analysis/live-stream tags idempotently in this same
 # publish step. This prevents the follow-up installer from rewriting the bundle.
 for stem in ('rhkearth-osiris-tools', 'rhkearth-osiris-streams'):
@@ -234,6 +241,7 @@ checks = {
     'weather runtime v1': '/experimental/rhkearth-weather.js?v=1' in html,
     'weather worldwide v1': '/experimental/rhkearth-weather-worldwide.js?v=1' in html,
     'weather style v1': '/experimental/rhkearth-weather.css?v=1' in html,
+    'CCTV restore migration v1': '/experimental/rhkearth-cctv-default-on.js?v=1' in html and Path('experimental/rhkearth-cctv-default-on.js').stat().st_size > 1000,
     'clear emblem': 'rhkearth-clear-emblem' in html,
     'square logo CSS': logo_fix_marker in css,
     'no Puter': 'js.puter.com' not in html,
