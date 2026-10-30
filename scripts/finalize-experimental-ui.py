@@ -4,8 +4,6 @@ import shutil
 
 index = Path('experimental/index.html')
 html = index.read_text(encoding='utf-8')
-# Camera feed integrations are retired; never restore the old visibility overlay.
-html = re.sub(r'\s*<script[^>]*src=["\'][^"\']*rhkearth-camera-visibility\.js[^"\']*["\'][^>]*></script>', '', html, flags=re.I)
 
 theme = Path('experimental/rhkearth-theme.css')
 css = theme.read_text(encoding='utf-8')
