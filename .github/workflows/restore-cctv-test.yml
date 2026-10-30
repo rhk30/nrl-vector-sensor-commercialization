@@ -72,9 +72,13 @@ jobs:
           python -m py_compile             scripts/add-worldwide-cameras.py             scripts/tune-experimental-cctv.py             scripts/patch-camera-interactions.py             scripts/patch-cctv-marker-colors.py
           node --check scripts/rhkearth-camera-visibility.js
 
-      - name: Remove temporary workflow and commit restoration
+      - name: Commit non-workflow camera restoration
         run: |
-          rm .github/workflows/restore-cctv-test.yml
+          # GitHub Actions' GITHUB_TOKEN cannot create/modify workflow files.
+          # Keep the branch's workflow directory unchanged here; workflow wiring
+          # is restored separately through the GitHub connector after this passes.
+          git restore --source=HEAD -- .github/workflows
+          rm -rf scripts/__pycache__
           git add -A
-          git commit -m "Restore RHKEARTH CCTV pipeline [skip ci]"
+          git commit -m "Restore RHKEARTH CCTV code and data [skip ci]"
           git push origin HEAD:restore-cctv-20261030
