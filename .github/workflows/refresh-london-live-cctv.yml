@@ -1,0 +1,187 @@
+name: Refresh London live CCTV
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/refresh-london-live-cctv.yml
+  workflow_run:
+    workflows: ["Refresh Experimental data"]
+    types: [completed]
+  schedule:
+    - cron: '2,12,22,32,42,52 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-london-live-cctv
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out RHKEARTH
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build TfL rolling-video catalog
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          import json
+          import time
+          import urllib.request
+
+          OUT = Path('experimental-data')
+          OUT.mkdir(exist_ok=True)
+          UA = 'RHKEARTH-Experimental/1.0 (+https://rhkearth.com/experimental/)'
+
+          def get_json(url, attempts=3):
+              last = None
+              for attempt in range(attempts):
+                  try:
+                      req = urllib.request.Request(url, headers={
+                          'User-Agent': UA,
+                          'Accept': 'application/json',
+                      })
+                      with urllib.request.urlopen(req, timeout=35) as response:
+                          if response.status < 200 or response.status >= 300:
+                              raise RuntimeError(f'HTTP {response.status}')
+                          return json.loads(response.read().decode('utf-8'))
+                  except Exception as exc:
+                      last = exc
+                      if attempt + 1 < attempts:
+                          time.sleep(2 ** attempt)
+              raise RuntimeError(f'TfL JamCam fetch failed: {last}')
+
+          def heading_from_id(value):
+              acc = 0
+              for ch in str(value):
+                  acc = ((acc * 33) + ord(ch)) & 0xFFFFFFFF
+              return (acc % 16) * 22.5
+
+          rows = get_json('https://api.tfl.gov.uk/Place/Type/JamCam')
+          if not isinstance(rows, list):
+              raise RuntimeError('TfL JamCam payload was not a list')
+
+          now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+          sources = []
+          health = []
+          for place in rows:
+              props = {
+                  str(item.get('key') or ''): item.get('value')
+                  for item in (place.get('additionalProperties') or [])
+                  if item.get('key')
+              }
+              if str(props.get('available', '')).lower() != 'true':
+                  continue
+              try:
+                  lat = float(place.get('lat'))
+                  lon = float(place.get('lon'))
+              except (TypeError, ValueError):
+                  continue
+
+              image_url = str(props.get('imageUrl') or '').strip()
+              video_url = str(props.get('videoUrl') or '').strip()
+              if not video_url.startswith('https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/'):
+                  continue
+              if not video_url.lower().endswith('.mp4'):
+                  continue
+
+              raw_id = str(place.get('id') or '').replace('JamCams_', '').strip()
+              if not raw_id:
+                  continue
+              camera_id = f'tfl-{raw_id}'
+              source = {
+                  'id': camera_id,
+                  'name': str(place.get('commonName') or f'JamCam {raw_id}'),
+                  'city': 'London',
+                  'cityId': 'london',
+                  'provider': 'Transport for London',
+                  'lat': lat,
+                  'lon': lon,
+                  'headingDeg': heading_from_id(camera_id),
+                  'headingConfidence': 'low',
+                  'pitchDeg': -17,
+                  'fovDeg': 74,
+                  'rangeM': 700,
+                  'mountHeightM': 8,
+                  'groundElevationM': 15,
+                  'feedType': 'mp4',
+                  'url': video_url,
+                  'mediaUrl': video_url,
+                  'videoUrl': video_url,
+                  'snapshotUrl': image_url if image_url.startswith('https://') else '',
+                  'sourceKind': 'tfl-open-data-rolling-video',
+                  'license': 'Powered by TfL Open Data',
+                  'view': str(props.get('view') or ''),
+              }
+              sources.append(source)
+              health.append({
+                  'id': camera_id,
+                  'status': 'available',
+                  'sourceKind': 'tfl-open-data-rolling-video',
+                  'label': 'Transport for London',
+                  'message': 'Live rolling TfL JamCam video · refreshed by provider every few minutes',
+                  'updatedAt': now_ms,
+              })
+
+          if not sources:
+              raise RuntimeError('TfL refresh produced no available MP4 JamCams')
+
+          london_lat, london_lon = 51.5074, -0.1278
+          sources.sort(key=lambda c: (c['lat'] - london_lat) ** 2 + (c['lon'] - london_lon) ** 2)
+
+          (OUT / 'cctv.json').write_text(json.dumps({
+              'sources': sources,
+              'fetchedAt': now_ms,
+              'source': 'Transport for London Open Data · rolling MP4 JamCams',
+              'feedSemantics': 'current rolling video clips; provider refreshes every few minutes',
+          }, separators=(',', ':'), ensure_ascii=False) + '\n')
+          (OUT / 'cctv-health.json').write_text(json.dumps({
+              'cameras': health,
+              'fetchedAt': now_ms,
+          }, separators=(',', ':'), ensure_ascii=False) + '\n')
+          print(f'London rolling-video cameras: {len(sources)}')
+          PY
+
+      - name: Validate catalog
+        run: |
+          test -s experimental-data/cctv.json
+          test -s experimental-data/cctv-health.json
+          python - <<'PY'
+          import json
+          payload = json.load(open('experimental-data/cctv.json'))
+          rows = payload.get('sources') or []
+          assert rows, 'no London cameras'
+          assert all(r.get('feedType') == 'mp4' for r in rows), 'non-video feed entered live catalog'
+          assert all(str(r.get('mediaUrl', '')).startswith('https://') for r in rows), 'missing media URL'
+          print('validated', len(rows), 'TfL rolling-video cameras')
+          PY
+
+      - name: Commit refreshed London CCTV
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git add experimental-data/cctv.json experimental-data/cctv-health.json
+            if git diff --cached --quiet; then
+              echo "London CCTV catalog already current."
+              exit 0
+            fi
+            git commit -m "Refresh RHKEARTH London rolling CCTV"
+            if git push origin main; then
+              exit 0
+            fi
+            git fetch origin main
+            git rebase origin/main || { git rebase --abort || true; git reset --hard origin/main; }
+          done
+          echo "Could not publish London CCTV catalog after retries."
+          exit 1
