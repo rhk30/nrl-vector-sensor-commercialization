@@ -63,6 +63,8 @@ jobs:
           test -f _gev/dist/index.html
           test -f _gev/dist/cesium/Cesium.js
           test -s experimental-data/military.json
+          test -s experimental-data/cctv.json
+          test -s experimental-data/cctv-health.json
           test -s experimental-data/launches.json
           test -s experimental-data/fires.json
           test -s experimental-data/celestrak/active
