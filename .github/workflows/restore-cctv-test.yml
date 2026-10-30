@@ -1,0 +1,80 @@
+name: Restore CCTV pipeline test
+
+on:
+  push:
+    branches: [restore-cctv-20261030]
+    paths:
+      - .github/workflows/restore-cctv-test.yml
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out restoration branch
+        uses: actions/checkout@v4
+        with:
+          ref: restore-cctv-20261030
+          fetch-depth: 0
+
+      - name: Reverse only the CCTV retirement commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git revert --no-commit e877921e8e057df4828d19eb038ccbf1de2bd3d7
+
+      - name: Validate restored camera pipeline
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          required = [
+              Path('scripts/add-worldwide-cameras.py'),
+              Path('scripts/tune-experimental-cctv.py'),
+              Path('scripts/patch-camera-interactions.py'),
+              Path('scripts/patch-cctv-marker-colors.py'),
+              Path('scripts/rhkearth-camera-visibility.js'),
+              Path('.github/workflows/refresh-worldwide-cameras.yml'),
+              Path('.github/workflows/expand-worldwide-cameras.yml'),
+          ]
+          missing = [str(p) for p in required if not p.exists()]
+          if missing:
+              raise SystemExit('Missing restored camera files: ' + ', '.join(missing))
+
+          for p in [Path('experimental-data/cctv.json'), Path('experimental-data/worldwide-cameras.json')]:
+              data = json.loads(p.read_text(encoding='utf-8'))
+              if data.get('disabled') is True:
+                  raise SystemExit(f'{p} is still disabled')
+              if not isinstance(data.get('sources'), list) or not data['sources']:
+                  raise SystemExit(f'{p} has no restored sources')
+              print(f'{p}: {len(data["sources"])} sources')
+
+          build = Path('.github/workflows/build-experimental-integrated.yml').read_text(encoding='utf-8')
+          for needle in [
+              'scripts/tune-experimental-cctv.py',
+              'scripts/add-worldwide-cameras.py',
+              'scripts/patch-camera-interactions.py',
+              'scripts/patch-cctv-marker-colors.py',
+          ]:
+              if needle not in build:
+                  raise SystemExit(f'Integrated build is missing {needle}')
+
+          finalizer = Path('scripts/finalize-experimental-ui.py').read_text(encoding='utf-8')
+          if 'Camera feed integrations are retired' in finalizer:
+              raise SystemExit('Finalizer still contains CCTV retirement guard')
+
+          print('PASS: CCTV retirement commit reversed cleanly against current branch')
+          PY
+
+          python -m py_compile             scripts/add-worldwide-cameras.py             scripts/tune-experimental-cctv.py             scripts/patch-camera-interactions.py             scripts/patch-cctv-marker-colors.py
+          node --check scripts/rhkearth-camera-visibility.js
+
+      - name: Remove temporary workflow and commit restoration
+        run: |
+          rm .github/workflows/restore-cctv-test.yml
+          git add -A
+          git commit -m "Restore RHKEARTH CCTV pipeline [skip ci]"
+          git push origin HEAD:restore-cctv-20261030
