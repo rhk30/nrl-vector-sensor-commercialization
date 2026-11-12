@@ -17,7 +17,12 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          html=Path('index.html').read_text(encoding='utf-8')
+          html=Path('patent/index.html').read_text(encoding='utf-8')
+          homepage=Path('index.html').read_text(encoding='utf-8')
+          if 'RHKEARTH // Intelligence Console' not in homepage or 'http-equiv="refresh"' in homepage:
+              raise SystemExit('Root homepage must render intelligence dashboard without redirect')
+          if '/experimental/assets/' not in homepage:
+              raise SystemExit('Root dashboard asset paths missing')
           banned=[
             'id="missionRange"','id="missionSource"','id="missionNoise"',
             'id="missionSNR"','id="missionTL"','id="missionConfidence"',
