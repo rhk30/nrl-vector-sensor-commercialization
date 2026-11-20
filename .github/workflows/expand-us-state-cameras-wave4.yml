@@ -1,0 +1,219 @@
+name: Expand US state public cameras wave 4
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/expand-us-state-cameras-wave4.yml
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/expand-us-state-cameras-wave4.yml
+  workflow_run:
+    workflows: ["Expand US state public cameras wave 3"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-us-state-camera-wave4
+  cancel-in-progress: true
+
+jobs:
+  al-sc-md:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add Alabama South Carolina and Maryland public cameras
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          import hashlib, html, json, re, time, urllib.request
+
+          BASE=Path('experimental-data/worldwide-cameras.json')
+          LIVE=Path('experimental/live-data/worldwide-cameras.json')
+          CACHE=Path('experimental-data/us-state-cameras-wave4-cache.json')
+          UA='RHKEARTH/1.0 (+https://rhkearth.com/experimental/; public DOT cameras)'
+          now_ms=int(datetime.now(timezone.utc).timestamp()*1000)
+
+          raw=BASE.read_bytes(); base_hash=hashlib.sha256(raw).hexdigest(); base=json.loads(raw.decode('utf-8'))
+          base_rows=base.get('sources') or []
+          if len(base_rows)<100: raise SystemExit('Base camera catalog unexpectedly small')
+          try: prev=json.loads(CACHE.read_text(encoding='utf-8')) if CACHE.exists() else {}
+          except Exception: prev={}
+          prev_by={}
+          for r in prev.get('sources') or []: prev_by.setdefault(str(r.get('provider') or ''),[]).append(r)
+
+          known_ids={str(r.get('id') or '') for r in base_rows}
+          known_urls={str(r.get('snapshotUrl') or r.get('videoUrl') or r.get('url') or '') for r in base_rows}
+          known_coords=set()
+          for r in base_rows:
+              try: known_coords.add((round(float(r['lat']),5),round(float(r['lon']),5)))
+              except Exception: pass
+
+          rows=[]; pcounts={}; pstatus={}; scounts={}
+
+          def request(url,*,timeout=30,attempts=2):
+              err=None
+              for n in range(attempts):
+                  try:
+                      q=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'application/json,text/html,*/*'})
+                      with urllib.request.urlopen(q,timeout=timeout) as f:return f.read(),dict(f.headers)
+                  except Exception as e:
+                      err=e
+                      if n+1<attempts: time.sleep(1+n)
+              raise RuntimeError(f'{url}: {err}')
+          def get_json(url,**kw): return json.loads(request(url,**kw)[0].decode('utf-8'))
+
+          def add_image(provider,state,cid,lat,lon,name,image,*,city='',refresh=15000,kind='official-state-dot-camera'):
+              try: lat,lon=float(lat),float(lon)
+              except Exception:return False
+              image=html.unescape(str(image or '').strip())
+              if image.startswith('http://'): image='https://'+image[7:]
+              if not image.startswith('https://') or '.m3u8' in image.lower(): return False
+              if not(-90<=lat<=90 and -180<=lon<=180): return False
+              sid=re.sub(r'[^A-Za-z0-9_.:-]+','-',str(cid))[:180]
+              ck=(round(lat,5),round(lon,5))
+              if sid in known_ids or image in known_urls or ck in known_coords:return False
+              row={'id':sid,'name':str(name or 'Traffic camera')[:180],'city':str(city or state)[:100],'state':state,'country':'US',
+                   'provider':provider,'lat':lat,'lon':lon,'feedType':'image','url':image,'snapshotUrl':image,'mediaUrl':image,
+                   'refreshMs':int(refresh),'sourceKind':kind,'liveSemantics':'near-real-time provider-refreshed image'}
+              rows.append(row); known_ids.add(sid); known_urls.add(image); known_coords.add(ck); scounts[state]=scounts.get(state,0)+1
+              return True
+
+          def add_iframe(provider,state,cid,lat,lon,name,page,*,city='',kind='official-state-dot-camera-video'):
+              try: lat,lon=float(lat),float(lon)
+              except Exception:return False
+              page=html.unescape(str(page or '').strip())
+              if not page.startswith('https://'):return False
+              if not(-90<=lat<=90 and -180<=lon<=180):return False
+              sid=re.sub(r'[^A-Za-z0-9_.:-]+','-',str(cid))[:180]
+              ck=(round(lat,5),round(lon,5))
+              if sid in known_ids or page in known_urls or ck in known_coords:return False
+              row={'id':sid,'name':str(name or 'Traffic camera')[:180],'city':str(city or state)[:100],'state':state,'country':'US',
+                   'provider':provider,'lat':lat,'lon':lon,'feedType':'iframe','url':'','videoUrl':page,'mediaUrl':page,
+                   'refreshMs':0,'sourceKind':kind,'liveSemantics':'live provider-hosted public video player'}
+              rows.append(row); known_ids.add(sid); known_urls.add(page); known_coords.add(ck); scounts[state]=scounts.get(state,0)+1
+              return True
+
+          def run(provider,fn):
+              start=len(rows); before=dict(scounts)
+              try:
+                  fn(); n=len(rows)-start
+                  if n<=0: raise RuntimeError('no new compatible cameras')
+                  pcounts[provider]=n; pstatus[provider]='fresh'; print(provider,n,'fresh')
+              except Exception as e:
+                  del rows[start:]; scounts.clear(); scounts.update(before)
+                  fb=prev_by.get(provider) or []
+                  if fb:
+                      rows.extend(fb); pcounts[provider]=len(fb); pstatus[provider]='last-good'
+                      for r in fb:
+                          st=str(r.get('state') or '')
+                          if st: scounts[st]=scounts.get(st,0)+1
+                      print(provider,'last-good',len(fb),e)
+                  else:
+                      pcounts[provider]=0; pstatus[provider]='unavailable'; print(provider,'unavailable',e)
+
+          def alabama():
+              data=get_json('https://api.algotraffic.com/v4.0/cameras',timeout=35)
+              if not isinstance(data,list): raise RuntimeError('ALGO camera response not a list')
+              for c in data:
+                  if str(c.get('accessLevel') or 'Public').lower()!='public':continue
+                  loc=c.get('location') or {}; image=c.get('snapshotImageUrl')
+                  add_image('ALGO Traffic','AL',f'algo-{c.get("id")}',loc.get('latitude'),loc.get('longitude'),
+                            ' · '.join(x for x in [loc.get('displayRouteDesignator'),loc.get('displayCrossStreet')] if x) or f'ALGO Camera {c.get("id")}',
+                            image,city=loc.get('city') or loc.get('county') or 'Alabama',refresh=15000)
+
+          def southcarolina():
+              d=get_json('https://sc.cdn.iteris-atis.com/geojson/icons/metadata/icons.cameras.geojson',timeout=35)
+              feats=d.get('features') or []
+              for i,f in enumerate(feats):
+                  co=(f.get('geometry') or {}).get('coordinates') or []; p=f.get('properties') or {}
+                  if len(co)<2 or p.get('active') is False:continue
+                  image=p.get('image_url') or p.get('imageUrl')
+                  add_image('South Carolina 511','SC',f'sc511-{p.get("guid") or p.get("id") or i}',co[1],co[0],
+                            p.get('description') or p.get('name') or 'South Carolina traffic camera',image,
+                            city=p.get('jurisdiction') or 'South Carolina',refresh=15000)
+
+          def maryland():
+              d=get_json('https://chartexp1.sha.maryland.gov/CHARTExportClientService/getCameraMapDataJSON.do',timeout=35)
+              arr=d.get('data') or []
+              for i,c in enumerate(arr):
+                  page=c.get('publicVideoURL')
+                  if not page:continue
+                  if str(c.get('opStatus') or 'OK').upper() not in {'OK','ONLINE','ACTIVE'}:continue
+                  add_iframe('Maryland CHART','MD',f'md-chart-{c.get("id") or i}',c.get('lat'),c.get('lon'),
+                             c.get('name') or c.get('description') or 'Maryland CHART camera',page,
+                             city=(c.get('cameraCategories') or ['Maryland'])[0] if isinstance(c.get('cameraCategories'),list) else 'Maryland')
+
+          run('ALGO Traffic',alabama)
+          run('South Carolina 511',southcarolina)
+          run('Maryland CHART',maryland)
+
+          ded={str(r['id']):r for r in rows}; rows=list(ded.values())
+          if not rows and not (prev.get('sources') or []): raise SystemExit('Wave 4 found no usable cameras')
+          merged={str(r.get('id')):r for r in base_rows}
+          for r in rows: merged[str(r['id'])]=r
+          result=dict(base); result['sources']=list(merged.values()); result['fetchedAt']=now_ms
+          result['usStateWave4Providers']=pcounts; result['usStateWave4ProviderStatus']=pstatus
+          result['usStateWave4Counts']=dict(sorted(scounts.items())); result['usStateWave4Coverage']=sorted(k for k,v in scounts.items() if v)
+          result['usStateWave4Policy']='Official Alabama and South Carolina snapshot feeds plus Maryland provider-hosted public video pages; no scraped private cameras.'
+          cache={'sources':rows,'fetchedAt':now_ms,'providers':pcounts,'providerStatus':pstatus,'stateCounts':dict(sorted(scounts.items())),'stateCoverage':sorted(k for k,v in scounts.items() if v)}
+          BASE.write_text(json.dumps(result,separators=(',',':'),ensure_ascii=False)+'\n',encoding='utf-8')
+          LIVE.parent.mkdir(parents=True,exist_ok=True); LIVE.write_text(json.dumps(result,separators=(',',':'),ensure_ascii=False)+'\n',encoding='utf-8')
+          CACHE.write_text(json.dumps(cache,separators=(',',':'),ensure_ascii=False)+'\n',encoding='utf-8')
+          Path('/tmp/rhkearth-us-wave4-base.sha256').write_text(base_hash+'\n')
+          print('base',len(base_rows),'wave4',len(rows),'merged',len(result['sources']))
+          print('wave4 states',json.dumps(dict(sorted(scounts.items()))))
+          PY
+
+      - name: Validate wave 4
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('experimental-data/worldwide-cameras.json')); c=json.load(open('experimental-data/us-state-cameras-wave4-cache.json'))
+          rows=c.get('sources') or []; states=c.get('stateCounts') or {}
+          assert len(d.get('sources') or [])>=100
+          assert len(rows)>=100, f'wave4 unexpectedly small: {len(rows)}'
+          assert states.get('AL',0)>=500, states
+          assert states.get('SC',0)>=500, states
+          assert states.get('MD',0)>=300, states
+          for r in rows:
+              assert -90<=float(r['lat'])<=90 and -180<=float(r['lon'])<=180
+              if r.get('feedType')=='image': assert str(r.get('snapshotUrl','')).startswith('https://')
+              elif r.get('feedType')=='iframe': assert str(r.get('videoUrl','')).startswith('https://')
+              else: raise AssertionError('unexpected feed type '+str(r.get('feedType')))
+          print('validated wave4',len(rows),'cameras',states)
+          PY
+
+      - name: Preserve wave 4 files
+        run: |
+          cp experimental-data/worldwide-cameras.json /tmp/worldwide-cameras-wave4.json
+          cp experimental/live-data/worldwide-cameras.json /tmp/worldwide-cameras-wave4-live.json
+          cp experimental-data/us-state-cameras-wave4-cache.json /tmp/us-state-cameras-wave4-cache.json
+
+      - name: Publish wave 4
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin main && git reset --hard origin/main
+            expected="$(cat /tmp/rhkearth-us-wave4-base.sha256)"; current="$(sha256sum experimental-data/worldwide-cameras.json | awk '{print $1}')"
+            if [ "$current" != "$expected" ]; then echo "Camera base advanced; skipping stale wave4 publish."; exit 0; fi
+            cp /tmp/worldwide-cameras-wave4.json experimental-data/worldwide-cameras.json
+            cp /tmp/worldwide-cameras-wave4-live.json experimental/live-data/worldwide-cameras.json
+            cp /tmp/us-state-cameras-wave4-cache.json experimental-data/us-state-cameras-wave4-cache.json
+            git add experimental-data/worldwide-cameras.json experimental/live-data/worldwide-cameras.json experimental-data/us-state-cameras-wave4-cache.json
+            git diff --cached --quiet && exit 0
+            git commit -m "Expand RHKEARTH US state camera coverage wave 4 [skip ci]"
+            git push origin main && exit 0
+          done
+          exit 1
