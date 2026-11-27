@@ -1,0 +1,256 @@
+name: Expand US state public cameras wave 5
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/expand-us-state-cameras-wave5.yml
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/expand-us-state-cameras-wave5.yml
+  workflow_run:
+    workflows: ["Expand US state public cameras wave 4"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rhkearth-us-state-camera-wave5
+  cancel-in-progress: true
+
+jobs:
+  seven-state-511:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enrich or add seven public 511 camera networks
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          from concurrent.futures import ThreadPoolExecutor, as_completed
+          from urllib.parse import quote, urljoin
+          import hashlib, html, json, re, time, urllib.request
+
+          BASE=Path('experimental-data/worldwide-cameras.json')
+          LIVE=Path('experimental/live-data/worldwide-cameras.json')
+          CACHE=Path('experimental-data/us-state-cameras-wave5-cache.json')
+          UA='RHKEARTH/1.0 (+https://rhkearth.com/experimental/; public 511 cameras)'
+          now_ms=int(datetime.now(timezone.utc).timestamp()*1000)
+          raw=BASE.read_bytes(); base_hash=hashlib.sha256(raw).hexdigest(); base=json.loads(raw.decode('utf-8'))
+          base_rows=[dict(r) for r in (base.get('sources') or [])]
+          if len(base_rows)<100:raise SystemExit('Base camera catalog unexpectedly small')
+
+          try:prev=json.loads(CACHE.read_text(encoding='utf-8')) if CACHE.exists() else {}
+          except Exception:prev={}
+          prev_candidates={}
+          for c in prev.get('candidates') or []:
+              prev_candidates.setdefault(str(c.get('provider') or ''),[]).append(c)
+
+          coord_index={}; known_ids=set(); known_urls=set()
+          for idx,r in enumerate(base_rows):
+              known_ids.add(str(r.get('id') or ''))
+              u=str(r.get('snapshotUrl') or r.get('videoUrl') or r.get('url') or '')
+              if u:known_urls.add(u)
+              try:
+                  ck=(round(float(r['lat']),5),round(float(r['lon']),5))
+                  coord_index.setdefault(ck,[]).append(idx)
+              except Exception:pass
+
+          new_rows=[]; all_candidates=[]; pcounts={}; pstatus={}; site_counts={}; enriched_counts={}; added_counts={}
+
+          def request(url,timeout=22,attempts=2):
+              err=None
+              for n in range(attempts):
+                  try:
+                      q=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'application/json,*/*','X-Requested-With':'XMLHttpRequest'})
+                      with urllib.request.urlopen(q,timeout=timeout) as f:return f.read()
+                  except Exception as e:
+                      err=e
+                      if n+1<attempts:time.sleep(.8+n)
+              raise RuntimeError(f'{url}: {err}')
+          def get_json(url,**kw):return json.loads(request(url,**kw).decode('utf-8'))
+
+          QBASE={'columns':[{'data':None,'name':''},{'name':'sortOrder','s':True},{'name':'roadway','s':True},{'data':3,'name':''}],
+                 'order':[{'column':1,'dir':'asc'}],'search':{'value':''}}
+          WKT=re.compile(r'POINT\s*\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)',re.I)
+          def query(start,length=100):
+              q=dict(QBASE);q['start']=int(start);q['length']=int(length)
+              return quote(json.dumps(q,separators=(',',':')))
+          def page(host,start):
+              d=get_json(f'{host}/List/GetData/Cameras?query={query(start)}&lang=en',timeout=20)
+              return d.get('data') or [],int(d.get('recordsTotal') or 0)
+
+          def collect_ibi(provider,host,state,bounds,prefix):
+              first,total=page(host,0)
+              if total<=0:raise RuntimeError('recordsTotal was zero')
+              got={r.get('id'):r for r in first if isinstance(r,dict) and isinstance(r.get('id'),int)}
+              starts=list(range(100,total,100));failed=[]
+              with ThreadPoolExecutor(max_workers=10) as ex:
+                  fs={ex.submit(page,host,s):s for s in starts}
+                  for f in as_completed(fs):
+                      try:
+                          arr,_=f.result()
+                          for r in arr:
+                              if isinstance(r,dict) and isinstance(r.get('id'),int):got[r['id']]=r
+                      except Exception:failed.append(fs[f])
+              for s in failed:
+                  try:
+                      arr,_=page(host,s)
+                      for r in arr:
+                          if isinstance(r,dict) and isinstance(r.get('id'),int):got[r['id']]=r
+                  except Exception:pass
+              if len(got)<total*.90:raise RuntimeError(f'short read {len(got)} of {total}')
+              minlat,maxlat,minlon,maxlon=bounds
+              candidates=[]
+              for site in got.values():
+                  m=WKT.search(str((((site.get('latLng') or {}).get('geography') or {}).get('wellKnownText')) or ''))
+                  if not m:continue
+                  lon,lat=float(m.group(1)),float(m.group(2))
+                  if not(minlat<=lat<=maxlat and minlon<=lon<=maxlon):continue
+                  imgs=site.get('images') or []
+                  view=next((v for v in imgs if isinstance(v,dict) and not v.get('blocked') and not v.get('disabled') and v.get('imageUrl')),None)
+                  if not view:continue
+                  image=str(view.get('imageUrl') or '').strip()
+                  if not image.startswith('http'):image=urljoin(host+'/',image)
+                  if image.startswith('http://'):image='https://'+image[7:]
+                  if not image.startswith('https://') or '.m3u8' in image.lower():continue
+                  candidates.append({
+                      'provider':provider,'state':state,'id':f'{prefix}-{view.get("id") or site.get("id")}',
+                      'lat':lat,'lon':lon,'name':view.get('description') or site.get('location') or site.get('roadway') or f'{state} traffic camera',
+                      'city':site.get('city') or site.get('county') or site.get('region') or state,
+                      'snapshotUrl':image,
+                  })
+              if len(candidates)<max(1,total*.75):raise RuntimeError(f'only {len(candidates)} usable camera sites from {total}')
+              return candidates
+
+          def apply_candidate(c):
+              provider=str(c['provider']);state=str(c['state']);lat=float(c['lat']);lon=float(c['lon']);image=str(c['snapshotUrl']);
+              ck=(round(lat,5),round(lon,5));matches=coord_index.get(ck) or []
+              if matches:
+                  # Do not replace working media. Enrich the existing physical camera
+                  # with authoritative state/source metadata from its public 511 system.
+                  idx=matches[0];row=base_rows[idx]
+                  current_state=str(row.get('state') or '').upper()
+                  if current_state and current_state!=state:
+                      return 'conflict'
+                  row['state']=state
+                  if not row.get('country'):row['country']='US'
+                  if not row.get('city') and c.get('city'):row['city']=str(c['city'])[:100]
+                  row['officialStateSource']=provider
+                  row['officialStateSnapshotUrl']=image
+                  row['stateMetadataSource']='official public 511 camera index'
+                  return 'enriched'
+
+              sid=re.sub(r'[^A-Za-z0-9_.:-]+','-',str(c['id']))[:180]
+              if sid in known_ids or image in known_urls:return 'duplicate'
+              row={'id':sid,'name':str(c.get('name') or 'Traffic camera')[:180],'city':str(c.get('city') or state)[:100],
+                   'state':state,'country':'US','provider':provider,'lat':lat,'lon':lon,'feedType':'image','url':image,
+                   'snapshotUrl':image,'mediaUrl':image,'refreshMs':15000,'sourceKind':'official-public-511-camera-index',
+                   'liveSemantics':'near-real-time provider-refreshed image','officialStateSource':provider,
+                   'officialStateSnapshotUrl':image,'stateMetadataSource':'official public 511 camera index'}
+              new_rows.append(row);known_ids.add(sid);known_urls.add(image)
+              idx=len(base_rows)+len(new_rows)-1;coord_index.setdefault(ck,[]).append(idx)
+              return 'added'
+
+          targets=[
+            ('511 Georgia','https://511ga.org','GA',(30.2,35.1,-85.8,-80.6),'ga511'),
+            ('Louisiana 511','https://511la.org','LA',(28.7,33.1,-94.2,-88.7),'la511'),
+            ('Arizona 511','https://az511.gov','AZ',(31.2,37.1,-114.9,-109.0),'az511'),
+            ('UDOT Traffic','https://udottraffic.utah.gov','UT',(36.9,42.1,-114.1,-109.0),'ut511'),
+            ('Nevada 511','https://www.nvroads.com','NV',(35.0,42.1,-120.1,-114.0),'nv511'),
+            ('FL511','https://fl511.com','FL',(24.3,31.1,-87.8,-79.7),'fl511'),
+            ('DriveNC','https://drivenc.gov','NC',(33.7,36.7,-84.4,-75.2),'nc511'),
+          ]
+
+          for provider,host,state,bounds,prefix in targets:
+              try:
+                  candidates=collect_ibi(provider,host,state,bounds,prefix)
+                  pstatus[provider]='fresh'
+              except Exception as e:
+                  candidates=prev_candidates.get(provider) or []
+                  if candidates:
+                      pstatus[provider]='last-good';print(provider,'using',len(candidates),'last-good candidates after',e)
+                  else:
+                      pstatus[provider]='unavailable';pcounts[provider]=0;print(provider,'unavailable',e);continue
+              all_candidates.extend(candidates)
+              stats={'enriched':0,'added':0,'duplicate':0,'conflict':0}
+              for c in candidates:
+                  result=apply_candidate(c);stats[result]=stats.get(result,0)+1
+              sites=stats['enriched']+stats['added']
+              pcounts[provider]=sites;site_counts[state]=site_counts.get(state,0)+sites
+              enriched_counts[state]=enriched_counts.get(state,0)+stats['enriched']
+              added_counts[state]=added_counts.get(state,0)+stats['added']
+              print(provider,'candidates',len(candidates),'enriched',stats['enriched'],'added',stats['added'],'conflicts',stats['conflict'])
+
+          result=dict(base);result['sources']=base_rows+new_rows;result['fetchedAt']=now_ms
+          result['usStateWave5Providers']=pcounts;result['usStateWave5ProviderStatus']=pstatus
+          result['usStateWave5Counts']=dict(sorted(site_counts.items()));result['usStateWave5EnrichedCounts']=dict(sorted(enriched_counts.items()));result['usStateWave5AddedCounts']=dict(sorted(added_counts.items()))
+          result['usStateWave5Coverage']=sorted(k for k,v in site_counts.items() if v)
+          result['usStateWave5Policy']='Official/keyless 511 camera indexes enrich matching existing RHKEARTH camera points with state/source metadata; only genuinely new coordinates add a new point.'
+          cache={'candidates':all_candidates,'fetchedAt':now_ms,'providers':pcounts,'providerStatus':pstatus,'stateCounts':dict(sorted(site_counts.items())),
+                 'enrichedCounts':dict(sorted(enriched_counts.items())),'addedCounts':dict(sorted(added_counts.items())),'stateCoverage':sorted(k for k,v in site_counts.items() if v)}
+          BASE.write_text(json.dumps(result,separators=(',',':'),ensure_ascii=False)+'\n',encoding='utf-8')
+          LIVE.parent.mkdir(parents=True,exist_ok=True);LIVE.write_text(json.dumps(result,separators=(',',':'),ensure_ascii=False)+'\n',encoding='utf-8')
+          CACHE.write_text(json.dumps(cache,separators=(',',':'),ensure_ascii=False)+'\n',encoding='utf-8')
+          Path('/tmp/rhkearth-us-wave5-base.sha256').write_text(base_hash+'\n')
+          print('base',len(base_rows),'new points',len(new_rows),'merged',len(result['sources']))
+          print('wave5 attributed sites',json.dumps(dict(sorted(site_counts.items()))))
+          print('wave5 enriched',json.dumps(dict(sorted(enriched_counts.items()))),'added',json.dumps(dict(sorted(added_counts.items()))))
+          PY
+
+      - name: Validate wave 5
+        run: |
+          python - <<'PY'
+          import json,urllib.request
+          c=json.load(open('experimental-data/us-state-cameras-wave5-cache.json'));d=json.load(open('experimental-data/worldwide-cameras.json'))
+          states=c.get('stateCounts') or {};candidates=c.get('candidates') or [];rows=d.get('sources') or []
+          floors={'GA':3000,'FL':3500,'UT':1500,'NC':800,'AZ':450,'NV':450,'LA':225}
+          assert len(c.get('stateCoverage') or [])==7,(c.get('stateCoverage'),states)
+          for st,floor in floors.items():assert states.get(st,0)>=floor,f'{st} attribution too small: {states.get(st,0)} < {floor}'
+          assert len(rows)>=26876
+          explicit={st:sum(1 for r in rows if str(r.get('state') or '').upper()==st) for st in floors}
+          for st,floor in floors.items():assert explicit[st]>=floor,f'{st} output rows lack state attribution: {explicit[st]}'
+          # Validate one official snapshot per state even when RHKEARTH kept an existing media URL.
+          for st in sorted(floors):
+              sample=next((r for r in candidates if r.get('state')==st),None)
+              assert sample,f'no {st} candidate'
+              q=urllib.request.Request(sample['snapshotUrl'],headers={'User-Agent':'RHKEARTH/1.0','Accept':'image/*,*/*'})
+              with urllib.request.urlopen(q,timeout=20) as f:
+                  head=f.read(16);ctype=f.headers.get('Content-Type','')
+              assert 'image' in ctype.lower() or head.startswith((b'\xff\xd8\xff',b'\x89PNG')),f'{st} sample not image: {ctype} {head!r}'
+              print('sample ok',st,ctype)
+          print('validated wave5 state enrichment',states,'explicit output',explicit,'total rows',len(rows))
+          PY
+
+      - name: Preserve wave 5 files
+        run: |
+          cp experimental-data/worldwide-cameras.json /tmp/worldwide-cameras-wave5.json
+          cp experimental/live-data/worldwide-cameras.json /tmp/worldwide-cameras-wave5-live.json
+          cp experimental-data/us-state-cameras-wave5-cache.json /tmp/us-state-cameras-wave5-cache.json
+
+      - name: Publish wave 5
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin main && git reset --hard origin/main
+            expected="$(cat /tmp/rhkearth-us-wave5-base.sha256)";current="$(sha256sum experimental-data/worldwide-cameras.json|awk '{print $1}')"
+            if [ "$current" != "$expected" ];then echo "Camera base advanced; skipping stale wave5 publish.";exit 0;fi
+            cp /tmp/worldwide-cameras-wave5.json experimental-data/worldwide-cameras.json
+            cp /tmp/worldwide-cameras-wave5-live.json experimental/live-data/worldwide-cameras.json
+            cp /tmp/us-state-cameras-wave5-cache.json experimental-data/us-state-cameras-wave5-cache.json
+            git add experimental-data/worldwide-cameras.json experimental/live-data/worldwide-cameras.json experimental-data/us-state-cameras-wave5-cache.json
+            git diff --cached --quiet && exit 0
+            git commit -m "Enrich RHKEARTH US camera state coverage wave 5 [skip ci]"
+            git push origin main && exit 0
+          done
+          exit 1

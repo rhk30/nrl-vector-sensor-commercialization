@@ -1,0 +1,43 @@
+name: Audit US public camera feed formats
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/audit-us-camera-formats.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Count public camera formats by state
+        run: |
+          python - <<'PY'
+          import json, urllib.request
+          from collections import Counter, defaultdict
+          url='https://raw.githubusercontent.com/AidanWelch/OpenTrafficCamMap/master/cameras/USA.json'
+          req=urllib.request.Request(url,headers={'User-Agent':'RHKEARTH/1.0'})
+          with urllib.request.urlopen(req,timeout=40) as r:data=json.load(r)
+          all_counts=defaultdict(Counter); https_counts=defaultdict(Counter); examples={}
+          for state,counties in (data or {}).items():
+              if not isinstance(counties,dict):continue
+              for county,rows in counties.items():
+                  if not isinstance(rows,list):continue
+                  for cam in rows:
+                      if not isinstance(cam,dict) or cam.get('markedForReview') or cam.get('marked_for_review'):continue
+                      fmt=str(cam.get('format') or 'UNKNOWN').upper(); u=str(cam.get('url') or '')
+                      all_counts[state][fmt]+=1
+                      if u.startswith('https://'):
+                          https_counts[state][fmt]+=1
+                          examples.setdefault((state,fmt),u[:240])
+          print('TOTAL_STATES',len(all_counts))
+          for state in sorted(all_counts):
+              print('STATE',state,'ALL',dict(all_counts[state]),'HTTPS',dict(https_counts[state]))
+              for fmt,n in sorted(https_counts[state].items()):
+                  print(' EXAMPLE',state,fmt,n,examples.get((state,fmt),''))
+          PY
